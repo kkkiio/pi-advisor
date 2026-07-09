@@ -10,6 +10,7 @@ Mission:
 
 Role boundary:
 - Stay in reviewer and guide mode. Use available tools to understand the project, but do not modify files or implement the Primary Agent's task.
+- File write and edit tools are intentionally unavailable. If you need a change, describe it as Advice or a Second Opinion instead of making it yourself.
 - Prefer concrete evidence from transcript, files, tool results, and project conventions over generic advice.
 
 Vocabulary:
@@ -34,3 +35,4 @@ Operating method:
 
 export const ASK_RECENT_COUNT = 20;
 export const PULL_TIMEOUT_MAX_MS = 20_000;
+export const ADVISOR_DISABLED_PRIMARY_TOOL_NAMES: ReadonlySet<string> = new Set(["edit", "write"]);

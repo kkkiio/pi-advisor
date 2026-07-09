@@ -54,7 +54,7 @@ Watch Run 根据 Advice 的**意图**自动选择送达通道：
 
 - **自主拉取**：Advisor 自己决定何时查看 Primary Transcript View、查看多少，无需等待被动推送
 - **异步审查**：review 自然滞后于 Primary Agent 进度，不阻塞主流程
-- **完整工具集**：Advisor 拥有 read、grep、glob、edit 等全部工具，可深入理解代码
+- **受限工具集**：Advisor 复用 Primary Agent 的读取、搜索和命令类工具以理解代码，但不会获得 `write` 和 `edit` 写入工具
 
 ### 可视化
 

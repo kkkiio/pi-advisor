@@ -39,7 +39,7 @@ const { session } = await createAgentSession({
   model: advisorModel,
   modelRegistry: ctx.modelRegistry,
   thinkingLevel: advisorThinkingLevel,
-  tools: primaryToolNames,    // 直接复用 primary 的工具名列表
+  tools: advisorToolNames,    // 复用 primary 工具名列表，但过滤 write/edit
   resourceLoader: ...,
 });
 ```
