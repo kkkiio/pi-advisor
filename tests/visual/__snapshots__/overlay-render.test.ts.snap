@@ -1,0 +1,93 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Advisor overlay visual snapshots > overlay-ask-advisor renders a stable bounded overlay 1`] = `
+"╭ Advisor · idle · ctx 2.1%/128k ────────────────╮
+│ Prompt  Review the primary transcript and send │
+│a Hint if useful.                               │
+│                                                │
+│ Context  primary transcript [0, 12) total=12   │
+│state=idle wait=new_messages                    │
+│                                                │
+│ Tool  pull_transcript since=0 count=20 wait=0ms│
+│↳ [0, 12) total=12 new_messages                 │
+│                                                │
+│ Tool  advise hint                              │
+│↳ steer: E2E_ASK_HINT: primary_transcript=seen  │
+│                                                │
+│ Advisor                                        │
+│    E2E_ADVISOR_DONE                            │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+╰────────────────────────────────────────────────╯"
+`;
+
+exports[`Advisor overlay visual snapshots > overlay-empty renders a stable bounded overlay 1`] = `
+"╭ Advisor · idle · ctx ?/128k ───────────────────╮
+│No Advisor chat yet.                            │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+╰────────────────────────────────────────────────╯"
+`;
+
+exports[`Advisor overlay visual snapshots > overlay-long-content-small-terminal renders a stable bounded overlay 1`] = `
+"╭ Advisor · idle · ctx 13.3%/128k ─────────╮
+│ Prompt  Check whether this very long     │
+│prompt wraps without breaking the panel   │
+│border or hiding the input area.          │
+│                                          │
+│ Context  primary transcript [24, 42)     │
+│total=42 state=running wait=state_changed │
+│omitted_advice=2                          │
+│                                          │
+│ Advisor                                  │
+│    The main risk is a                    │
+│super-long-token-without-natural-breaks-ab│
+│cdefghijklmnopqrstuvwxyz-0123456789       │
+│continuing inside a narrow overlay. The   │
+│panel should wrap or truncate without     │
+│widening.                                 │
+│                                          │
+╰──────────────────────────────────────────╯"
+`;
+
+exports[`Advisor overlay visual snapshots > overlay-reset renders a stable bounded overlay 1`] = `
+"╭ Advisor · reset · ctx 0.0%/128k ───────────────╮
+│No Advisor chat yet.                            │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+╰────────────────────────────────────────────────╯"
+`;

@@ -3,6 +3,7 @@ import {
 	fauxAssistantMessage,
 	fauxText,
 	fauxToolCall,
+	getApiProvider,
 	registerFauxProvider,
 	type Context,
 	type Model,
@@ -23,11 +24,16 @@ export default function advisorE2EFauxProvider(pi: ExtensionAPI): void {
 		],
 	});
 	registration.setResponses(Array.from({ length: 200 }, () => scriptedResponse));
+	const apiProvider = getApiProvider(registration.api);
+	if (!apiProvider) {
+		throw new Error(`Faux provider API was not registered: ${registration.api}`);
+	}
 	pi.registerProvider(providerName, {
 		name: "Advisor E2E Faux",
 		baseUrl: "http://localhost:0",
 		apiKey: "PI_ADVISOR_TEST_FAUX_API_KEY",
 		api: registration.api as any,
+		streamSimple: apiProvider.streamSimple as any,
 		models: registration.models.map((model) => ({
 			id: model.id,
 			name: model.name,

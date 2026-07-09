@@ -8,10 +8,10 @@ import { fileURLToPath } from "node:url";
 
 export type RpcJson = Record<string, any>;
 
-const here = dirname(fileURLToPath(import.meta.url));
-const repoRoot = resolve(here, "../../../..");
-const advisorExtensionPath = join(repoRoot, "extensions", "advisor.ts");
-const fauxProviderExtensionPath = join(here, "..", "fixtures", "faux-provider.ts");
+export const here = dirname(fileURLToPath(import.meta.url));
+export const repoRoot = resolve(here, "../..");
+export const advisorExtensionPath = join(repoRoot, "extensions", "advisor.ts");
+export const fauxProviderExtensionPath = join(here, "..", "fixtures", "faux-provider.ts");
 const advisorProvider = "advisor-e2e";
 const primaryModel = "faux-primary";
 const advisorModel = "faux-advisor";
@@ -38,11 +38,12 @@ export class RpcPi {
 	readonly home: string;
 	readonly advisorSettingsPath: string;
 	private readonly proc: ChildProcessWithoutNullStreams;
-	private readonly events: RpcJson[] = [];
+	readonly events: RpcJson[] = [];
 	private readonly pending = new Map<
 		string,
 		{ resolve: (response: RpcJson) => void; reject: (error: Error) => void }
 	>();
+	private readonly selectResponses: string[] = [];
 	private stderr = "";
 	private nextRequestId = 0;
 
@@ -112,7 +113,10 @@ export class RpcPi {
 		this.advisorSettingsPath = join(home, ".pi", "agent", "advisor.json");
 	}
 
-	async prompt(message: string): Promise<RpcJson> {
+	async prompt(message: string, response?: { select?: string }): Promise<RpcJson> {
+		if (response?.select) {
+			this.selectResponses.push(response.select);
+		}
 		return this.request({ type: "prompt", message }, 30_000);
 	}
 
@@ -142,13 +146,23 @@ export class RpcPi {
 		return response.data?.messages ?? [];
 	}
 
+	eventCount(): number {
+		return this.events.length;
+	}
+
 	async waitForNotification(pattern: RegExp, timeoutMs: number): Promise<RpcJson> {
+		return this.waitForNotificationAfter(pattern, 0, timeoutMs);
+	}
+
+	async waitForNotificationAfter(pattern: RegExp, afterEventIndex: number, timeoutMs: number): Promise<RpcJson> {
 		return this.waitFor(
-			() =>
-				this.events.find(
+			() => {
+				const events = this.events.slice(afterEventIndex);
+				return events.find(
 					(event) =>
 						event.type === "extension_ui_request" && event.method === "notify" && pattern.test(event.message ?? ""),
-				),
+				);
+			},
 			timeoutMs,
 			`notification matching ${pattern}`,
 		);
@@ -264,7 +278,9 @@ export class RpcPi {
 			const response =
 				event.method === "confirm"
 					? { type: "extension_ui_response", id: event.id, confirmed: false }
-					: { type: "extension_ui_response", id: event.id, cancelled: true };
+					: event.method === "select" && this.selectResponses.length > 0
+						? { type: "extension_ui_response", id: event.id, value: this.selectResponses.shift() }
+						: { type: "extension_ui_response", id: event.id, cancelled: true };
 			this.proc.stdin.write(`${JSON.stringify(response)}\n`);
 		}
 	}
@@ -282,7 +298,7 @@ export class RpcPi {
 	}
 }
 
-function resolvePiBin(): string {
+export function resolvePiBin(): string {
 	const localPi = join(repoRoot, "node_modules", ".bin", "pi");
 	if (existsSync(localPi)) {
 		return localPi;

@@ -69,6 +69,20 @@ export default function advisorExtension(pi: ExtensionAPI): void {
 		},
 	});
 
+	pi.registerCommand("advisor:hide", {
+		description: "Hide the Advisor overlay without resetting the Advisor transcript.",
+		handler: async (_args, ctx) => {
+			await runtime.hideOverlay(ctx);
+		},
+	});
+
+	pi.registerCommand("advisor:show", {
+		description: "Show the Advisor overlay with the preserved Advisor transcript.",
+		handler: async (_args, ctx) => {
+			await runtime.showOverlay(ctx);
+		},
+	});
+
 	pi.registerCommand("advisor:new", {
 		description: "Reset Advisor transcript and start a fresh Advisor context.",
 		handler: async (_args, ctx) => {

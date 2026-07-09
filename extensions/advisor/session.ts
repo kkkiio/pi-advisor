@@ -13,6 +13,7 @@ import { ADVISOR_ADVICE_CUSTOM_TYPE } from "./types";
 import type {
 	AdviceDeliveryRequest,
 	AdviceDeliveryResult,
+	AdvisorContextUsage,
 	AdvisorRuntimePort,
 	PrimaryAgentLoopState,
 	PullTranscriptRequest,
@@ -28,6 +29,8 @@ import {
 	renderPrimaryTranscriptSlice,
 } from "./primary-transcript";
 import {
+	ADVISOR_DEFAULT_THINKING,
+	ADVISOR_THINKING_LEVELS,
 	AdvisorSettingsStore,
 	getAdvisorAgentDir,
 	isAdvisorThinkingLevel,
@@ -58,16 +61,20 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 	private watchAbortController: AbortController | undefined;
 	private autoResumeSuppressed = false;
 
-	constructor(pi: ExtensionAPI, settingsStore = new AdvisorSettingsStore(), overlay = new AdvisorOverlayController()) {
+	constructor(pi: ExtensionAPI, settingsStore = new AdvisorSettingsStore(), overlay?: AdvisorOverlayController) {
 		this.pi = pi;
 		this.settingsStore = settingsStore;
-		this.overlay = overlay;
+		this.overlay =
+			overlay ??
+			new AdvisorOverlayController(() =>
+				(
+					this.session as (AgentSession & { getContextUsage?: () => AdvisorContextUsage | undefined }) | undefined
+				)?.getContextUsage?.(),
+			);
 	}
 
 	bindPrimaryContext(ctx: ExtensionContext): void {
 		this.primaryCtx = ctx;
-		this.overlay.open(ctx);
-		this.overlay.refresh();
 	}
 
 	handlePrimaryEvent(event: { type: string; messages?: AgentMessage[] }, ctx: ExtensionContext): void {
@@ -111,6 +118,9 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 		if (!session) {
 			return;
 		}
+		this.overlay.open(ctx);
+		this.overlay.refresh();
+		this.overlay.state.recordUserMessage(question);
 		const view = buildPrimaryTranscriptView(ctx);
 		const recent = renderPrimaryTranscriptSlice(
 			{ ...view, messages: view.messages.slice(-ASK_RECENT_COUNT) },
@@ -118,16 +128,25 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 			this.primaryLoopState,
 			"new_messages",
 			0,
-		).text;
-		this.overlay.state.setStatus("Ask Advisor started");
-		this.overlay.refresh();
-		await session.prompt(
-			`Ask Advisor request:\n\n${question}\n\nRecent Primary Transcript View:\n\n${recent}\n\nGive the user a Second Opinion directly. Use advise only if Primary Agent should receive a Hint or Concern.`,
-			{
-				expandPromptTemplates: false,
-				streamingBehavior: session.isStreaming ? "followUp" : undefined,
-			},
 		);
+		this.overlay.state.recordContext(recent.details);
+		this.overlay.state.setStatus("ask started");
+		this.overlay.refresh();
+		void session
+			.prompt(
+				`Ask Advisor request:\n\n${question}\n\nRecent Primary Transcript View:\n\n${recent.text}\n\nGive the user a Second Opinion directly.`,
+				{
+					expandPromptTemplates: false,
+					streamingBehavior: session.isStreaming ? "followUp" : undefined,
+				},
+			)
+			.catch((error) => {
+				this.overlay.state.recordError(error);
+				ctx.ui.notify(error instanceof Error ? error.message : String(error), "error");
+			})
+			.finally(() => {
+				this.overlay.refresh();
+			});
 	}
 
 	async startWatch(ctx: ExtensionCommandContext): Promise<void> {
@@ -140,6 +159,8 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 		if (!session) {
 			return;
 		}
+		this.overlay.open(ctx);
+		this.overlay.refresh();
 		const controller = new AbortController();
 		this.watchAbortController = controller;
 		this.overlay.state.setWatchRunState("running");
@@ -190,11 +211,22 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 		}
 	}
 
+	async hideOverlay(ctx: ExtensionCommandContext): Promise<void> {
+		this.bindPrimaryContext(ctx);
+		this.overlay.hide();
+	}
+
+	async showOverlay(ctx: ExtensionCommandContext): Promise<void> {
+		this.bindPrimaryContext(ctx);
+		this.overlay.open(ctx);
+		this.overlay.refresh();
+	}
+
 	async reset(ctx: ExtensionCommandContext): Promise<void> {
 		this.bindPrimaryContext(ctx);
 		await this.disposeSession();
 		this.overlay.state.clear();
-		this.overlay.state.setStatus("Advisor transcript reset");
+		this.overlay.state.setStatus("reset");
 		this.overlay.refresh();
 		ctx.ui.notify("Advisor transcript reset.", "info");
 	}
@@ -204,7 +236,36 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 		const value = args.trim();
 		if (!value) {
 			const settings = await this.settingsStore.read();
-			ctx.ui.notify(settings.model ? `Advisor model: ${settings.model}` : "Advisor model is not set.", "info");
+			ctx.modelRegistry.refresh();
+			const models = ctx.modelRegistry
+				.getAvailable()
+				.map((model) => ({ model, ref: `${model.provider}/${model.id}` }))
+				.sort((a, b) => {
+					const aCurrent = a.ref === settings.model;
+					const bCurrent = b.ref === settings.model;
+					if (aCurrent && !bCurrent) return -1;
+					if (!aCurrent && bCurrent) return 1;
+					return a.model.provider.localeCompare(b.model.provider) || a.model.id.localeCompare(b.model.id);
+				});
+			if (models.length === 0) {
+				ctx.ui.notify("No Advisor models are available.", "warning");
+				return;
+			}
+			const selected = await ctx.ui.select(
+				settings.model ? `Select Advisor model (current: ${settings.model})` : "Select Advisor model",
+				models.map(({ ref }) => ref),
+			);
+			if (!selected) {
+				return;
+			}
+			const model = models.find(({ ref }) => ref === selected);
+			if (!model) {
+				ctx.ui.notify(`Model ${selected} is not registered in Pi.`, "error");
+				return;
+			}
+			await this.settingsStore.patch({ model: selected });
+			await this.disposeSession();
+			ctx.ui.notify(`Advisor model set to ${selected}.`, "info");
 			return;
 		}
 		const ref = parseAdvisorModelRef(value);
@@ -227,7 +288,20 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 		const value = args.trim();
 		if (!value) {
 			const settings = await this.settingsStore.read();
-			ctx.ui.notify(`Advisor thinking: ${settings.thinking ?? "medium"}.`, "info");
+			const current = settings.thinking ?? ADVISOR_DEFAULT_THINKING;
+			const options = ADVISOR_THINKING_LEVELS.map((level) => (level === current ? `${level} (current)` : level));
+			const selected = await ctx.ui.select(`Select Advisor thinking (current: ${current})`, options);
+			if (!selected) {
+				return;
+			}
+			const level = selected.replace(" (current)", "");
+			if (!isAdvisorThinkingLevel(level)) {
+				ctx.ui.notify("Use /advisor:thinking off|minimal|low|medium|high|xhigh.", "warning");
+				return;
+			}
+			await this.settingsStore.patch({ thinking: level });
+			await this.disposeSession();
+			ctx.ui.notify(`Advisor thinking set to ${level}.`, "info");
 			return;
 		}
 		if (!isAdvisorThinkingLevel(value)) {
@@ -322,6 +396,11 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 			cwd: ctx.cwd,
 			agentDir: getAdvisorAgentDir(),
 			systemPrompt: ADVISOR_SYSTEM_PROMPT,
+			noExtensions: true,
+			noSkills: true,
+			noPromptTemplates: true,
+			noThemes: true,
+			noContextFiles: true,
 		});
 		await resourceLoader.reload();
 		const { session } = await createAgentSession({
@@ -336,7 +415,7 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 		});
 		this.session = session;
 		this.sessionUnsubscribe = session.subscribe((event) => this.handleAdvisorEvent(event));
-		this.overlay.state.setStatus(`Advisor ready: ${resolved.modelRef} thinking=${resolved.thinkingLevel}`);
+		this.overlay.state.setStatus("ready");
 		this.overlay.refresh();
 		return session;
 	}
