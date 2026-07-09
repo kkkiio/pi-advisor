@@ -13,6 +13,7 @@ import { ADVISOR_ADVICE_CUSTOM_TYPE } from "./types";
 import type {
 	AdviceDeliveryRequest,
 	AdviceDeliveryResult,
+	AdvisorContextUsage,
 	AdvisorRuntimePort,
 	PrimaryAgentLoopState,
 	PullTranscriptRequest,
@@ -58,16 +59,20 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 	private watchAbortController: AbortController | undefined;
 	private autoResumeSuppressed = false;
 
-	constructor(pi: ExtensionAPI, settingsStore = new AdvisorSettingsStore(), overlay = new AdvisorOverlayController()) {
+	constructor(pi: ExtensionAPI, settingsStore = new AdvisorSettingsStore(), overlay?: AdvisorOverlayController) {
 		this.pi = pi;
 		this.settingsStore = settingsStore;
-		this.overlay = overlay;
+		this.overlay =
+			overlay ??
+			new AdvisorOverlayController(() =>
+				(
+					this.session as (AgentSession & { getContextUsage?: () => AdvisorContextUsage | undefined }) | undefined
+				)?.getContextUsage?.(),
+			);
 	}
 
 	bindPrimaryContext(ctx: ExtensionContext): void {
 		this.primaryCtx = ctx;
-		this.overlay.open(ctx);
-		this.overlay.refresh();
 	}
 
 	handlePrimaryEvent(event: { type: string; messages?: AgentMessage[] }, ctx: ExtensionContext): void {
@@ -111,6 +116,9 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 		if (!session) {
 			return;
 		}
+		this.overlay.open(ctx);
+		this.overlay.refresh();
+		this.overlay.state.recordUserMessage(question);
 		const view = buildPrimaryTranscriptView(ctx);
 		const recent = renderPrimaryTranscriptSlice(
 			{ ...view, messages: view.messages.slice(-ASK_RECENT_COUNT) },
@@ -118,16 +126,25 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 			this.primaryLoopState,
 			"new_messages",
 			0,
-		).text;
-		this.overlay.state.setStatus("Ask Advisor started");
-		this.overlay.refresh();
-		await session.prompt(
-			`Ask Advisor request:\n\n${question}\n\nRecent Primary Transcript View:\n\n${recent}\n\nGive the user a Second Opinion directly. Use advise only if Primary Agent should receive a Hint or Concern.`,
-			{
-				expandPromptTemplates: false,
-				streamingBehavior: session.isStreaming ? "followUp" : undefined,
-			},
 		);
+		this.overlay.state.recordContext(recent.details);
+		this.overlay.state.setStatus("ask started");
+		this.overlay.refresh();
+		void session
+			.prompt(
+				`Ask Advisor request:\n\n${question}\n\nRecent Primary Transcript View:\n\n${recent.text}\n\nGive the user a Second Opinion directly. Use advise only if Primary Agent should receive a Hint or Concern.`,
+				{
+					expandPromptTemplates: false,
+					streamingBehavior: session.isStreaming ? "followUp" : undefined,
+				},
+			)
+			.catch((error) => {
+				this.overlay.state.recordError(error);
+				ctx.ui.notify(error instanceof Error ? error.message : String(error), "error");
+			})
+			.finally(() => {
+				this.overlay.refresh();
+			});
 	}
 
 	async startWatch(ctx: ExtensionCommandContext): Promise<void> {
@@ -140,6 +157,8 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 		if (!session) {
 			return;
 		}
+		this.overlay.open(ctx);
+		this.overlay.refresh();
 		const controller = new AbortController();
 		this.watchAbortController = controller;
 		this.overlay.state.setWatchRunState("running");
@@ -190,11 +209,23 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 		}
 	}
 
+	async hideOverlay(ctx: ExtensionCommandContext): Promise<void> {
+		this.bindPrimaryContext(ctx);
+		this.overlay.hide();
+		ctx.ui.notify("Advisor overlay hidden. Use /advisor:show to show it again.", "info");
+	}
+
+	async showOverlay(ctx: ExtensionCommandContext): Promise<void> {
+		this.bindPrimaryContext(ctx);
+		this.overlay.open(ctx);
+		this.overlay.refresh();
+	}
+
 	async reset(ctx: ExtensionCommandContext): Promise<void> {
 		this.bindPrimaryContext(ctx);
 		await this.disposeSession();
 		this.overlay.state.clear();
-		this.overlay.state.setStatus("Advisor transcript reset");
+		this.overlay.state.setStatus("reset");
 		this.overlay.refresh();
 		ctx.ui.notify("Advisor transcript reset.", "info");
 	}
@@ -322,6 +353,11 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 			cwd: ctx.cwd,
 			agentDir: getAdvisorAgentDir(),
 			systemPrompt: ADVISOR_SYSTEM_PROMPT,
+			noExtensions: true,
+			noSkills: true,
+			noPromptTemplates: true,
+			noThemes: true,
+			noContextFiles: true,
 		});
 		await resourceLoader.reload();
 		const { session } = await createAgentSession({
@@ -336,7 +372,7 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 		});
 		this.session = session;
 		this.sessionUnsubscribe = session.subscribe((event) => this.handleAdvisorEvent(event));
-		this.overlay.state.setStatus(`Advisor ready: ${resolved.modelRef} thinking=${resolved.thinkingLevel}`);
+		this.overlay.state.setStatus("ready");
 		this.overlay.refresh();
 		return session;
 	}

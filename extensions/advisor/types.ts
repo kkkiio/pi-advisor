@@ -77,6 +77,12 @@ export interface PullTranscriptResult {
 	details: PullTranscriptDetails;
 }
 
+export interface AdvisorContextUsage {
+	tokens: number | null;
+	contextWindow: number;
+	percent: number | null;
+}
+
 export interface AdvisorRuntimePort {
 	pullTranscript(request: PullTranscriptRequest, signal?: AbortSignal): Promise<PullTranscriptResult>;
 	deliverAdvice(request: AdviceDeliveryRequest): Promise<AdviceDeliveryResult>;

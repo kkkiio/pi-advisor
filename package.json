@@ -28,7 +28,7 @@
   "scripts": {
     "fmt": "prettier --write --ignore-unknown .",
     "test": "vitest --run",
-    "test:e2e": "cucumber-js --config tests/advisor/e2e/cucumber.mjs",
+    "test:e2e": "cucumber-js --config e2e/cucumber.mjs",
     "typecheck": "tsc --noEmit"
   },
   "pi": {

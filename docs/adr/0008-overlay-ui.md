@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-用户需要实时感知 advisor 的审查活动和输出（思考过程、工具调用、advise 内容）。需要决定 UI 载体和交互方式。
+用户需要实时感知 advisor 的审查活动和输出。需要决定 UI 载体和交互方式。Overlay 上展示的具体内容和视觉验收标准由 `docs/prd.md` 定义。
 
 ## Decision
 
@@ -24,7 +24,7 @@ Overlay 通过订阅 advisor 的 `AgentSessionEvent` 驱动实时更新（pi-btw
 advisor subscribe → AgentSessionEvent → applyTranscriptEvent → buildOverlayTranscript → render
 ```
 
-Overlay 展示 advisor 的完整 transcript：thinking、text、tool calls、tool results。Ask Advisor 和 Watch Run 使用同一 overlay。
+Ask Advisor 和 Watch Run 使用同一 overlay。Overlay 的内容结构遵循 `docs/prd.md` 的 Advisor Overlay UI 规范。
 
 ### 用户通知
 
@@ -46,4 +46,4 @@ Overlay 展示 advisor 的完整 transcript：thinking、text、tool calls、too
 ## Alternatives Considered
 
 - **自带 input box 的 overlay**（pi-btw 模式）：适合"用户在侧边对话中追问"的互动场景。Advisor 的用户交互点少且明确（`/advisor`、`/advisor:watch`、`/advisor:watch-off`），不需要第二个输入入口。
-- **底部 widget**：占用空间小但展示能力有限，无法充分呈现 advisor 的完整审查过程。
+- **底部 widget**：占用空间小但展示能力有限，无法充分呈现 advisor 的审查过程。

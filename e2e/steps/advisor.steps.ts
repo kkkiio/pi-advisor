@@ -55,6 +55,8 @@ Then("Advisor commands should be registered", async function (this: AdvisorE2EWo
 			"advisor",
 			"advisor:watch",
 			"advisor:watch-off",
+			"advisor:hide",
+			"advisor:show",
 			"advisor:new",
 			"advisor:model",
 			"advisor:thinking",

@@ -22,6 +22,14 @@ When changing public APIs, persisted data, config files, CLI flags, plugin contr
 - Prefer direct migrations and simple current-state code over compatibility layers.
 - Document intentional breaking changes in the final response; update release notes only when the project adds a changelog.
 
+### Testing Policy
+
+- Do not add runtime/unit tests for Advisor behavior. Cover behavior through BDD E2E, SDK integration, or TUI snapshot tests instead.
+- The only allowed unit test is `tests/advisor/session-history-format.test.ts`, because markdown transcript serialization is dense, deterministic, and valuable to pin directly.
+- Put BDD E2E tests under `e2e/`. TUI visual behavior belongs in Cucumber scenarios tagged `@tui` and plain text snapshots under `e2e/snapshots/`.
+- Do not mask dynamic values in TUI snapshots. Stabilize the tmux/Pi test environment so captured plain text can be compared as-is.
+- Update TUI snapshots with `PI_ADVISOR_UPDATE_TUI_SNAPSHOTS=1 npm run test:e2e -- --tags @tui`.
+
 ## Project Structure Guide
 
 ### Overview
@@ -37,7 +45,6 @@ This package provides a Pi extension that runs a session-persistent Advisor agen
 ├── README.md                       # User-facing overview and usage
 ├── docs/
 │   ├── prd.md                      # Product requirements and user-visible behavior
-│   ├── implementation-notes/       # Implementation notes and recorded deviations
 │   └── adr/                        # Accepted architecture decisions
 ├── extensions/
 │   ├── advisor.ts                  # Thin Pi entrypoint: compose runtime, register commands/renderers, bind lifecycle events
@@ -56,10 +63,14 @@ This package provides a Pi extension that runs a session-persistent Advisor agen
 │   │   └── types.ts                # Shared Advisor domain types and runtime port interfaces
 ├── tests/
 │   ├── advisor/
-│   │   ├── runtime/                 # Pure runtime/unit tests for transcript state, overlay, settings, transcript view, delivery
 │   │   ├── sdk/                     # Pi SDK + faux provider integration tests eligible for just test
-│   │   ├── e2e/                     # Real pi --mode rpc JSONL E2E tests run through just test-e2e
-│   │   └── session-history-format.test.ts # Current transcript formatter tests
+│   │   └── session-history-format.test.ts # The only allowed unit test; transcript formatter tests
+├── e2e/
+│   ├── features/                    # Advisor BDD feature files
+│   ├── steps/                       # Cucumber step definitions
+│   ├── support/                     # Real pi RPC and tmux TUI E2E harnesses
+│   ├── snapshots/                   # Plain text tmux capture-pane snapshots
+│   └── fixtures/                    # Faux provider and E2E fixtures
 ├── package.json                    # Package metadata, Pi entrypoints, scripts, dependencies
 ├── package-lock.json               # npm lockfile
 ├── tsconfig.json                   # TypeScript project config

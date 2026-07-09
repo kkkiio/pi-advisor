@@ -1,23 +1,23 @@
 import type { AgentSessionEvent, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { Component, OverlayHandle, TUI } from "@earendil-works/pi-tui";
 import { Key, matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
-import type { AdviceDeliveryResult, WatchRunState } from "./types";
+import type { AdviceDeliveryResult, AdvisorContextUsage, PullTranscriptDetails, WatchRunState } from "./types";
 import {
+	appendPrimaryContextSummary,
 	appendTranscriptNotice,
 	applyTranscriptEvent,
 	buildAdvisorOverlayTranscript,
 	createEmptyTranscriptState,
-	getCompletedExchangeCount,
-	hasStreamingTranscriptEntry,
 	type AdvisorTranscriptState,
 } from "./transcript-state";
 
-const ADVISOR_OVERLAY_CHROME_LINES = 8;
+const ADVISOR_OVERLAY_CHROME_LINES = 4;
 
 export class AdvisorOverlayState {
 	private transcriptState: AdvisorTranscriptState = createEmptyTranscriptState();
 	private status = "idle";
 	private watchRunState: WatchRunState = "idle";
+	private contextUsage: AdvisorContextUsage | undefined;
 
 	setStatus(status: string): void {
 		this.status = status;
@@ -26,36 +26,82 @@ export class AdvisorOverlayState {
 
 	setWatchRunState(state: WatchRunState): void {
 		this.watchRunState = state;
+		this.status = `watch ${state}`;
 		appendTranscriptNotice(this.transcriptState, "status", `Watch Run ${state}`);
 	}
 
+	recordUserMessage(text: string): void {
+		const turnId = this.transcriptState.currentTurnId ?? this.transcriptState.nextTurnId++;
+		this.transcriptState.currentTurnId = turnId;
+		this.transcriptState.lastTurnId = turnId;
+		if (!this.transcriptState.entries.some((entry) => entry.type === "turn-boundary" && entry.turnId === turnId)) {
+			this.transcriptState.entries.push({
+				id: this.transcriptState.nextEntryId++,
+				turnId,
+				type: "turn-boundary",
+				phase: "start",
+			});
+		}
+		const existing = [...this.transcriptState.entries]
+			.reverse()
+			.find((entry) => entry.type === "user-message" && entry.turnId === turnId);
+		if (existing?.type === "user-message") {
+			existing.text = text;
+			return;
+		}
+		this.transcriptState.entries.push({
+			id: this.transcriptState.nextEntryId++,
+			turnId,
+			type: "user-message",
+			text,
+		});
+	}
+
+	recordContext(details: PullTranscriptDetails): void {
+		appendPrimaryContextSummary(this.transcriptState, details);
+	}
+
 	recordAdvice(result: AdviceDeliveryResult): void {
-		appendTranscriptNotice(
-			this.transcriptState,
-			"advice",
-			`${result.kind} -> ${result.deliverAs}: ${result.content.replace(/\s+/g, " ").slice(0, 500)}`,
-		);
+		this.status = `${result.kind} delivered`;
 	}
 
 	recordError(error: unknown): void {
 		appendTranscriptNotice(this.transcriptState, "error", error instanceof Error ? error.message : String(error));
 	}
 
+	setContextUsage(usage: AdvisorContextUsage | undefined): void {
+		this.contextUsage = usage;
+	}
+
 	applyAgentEvent(event: AgentSessionEvent): void {
 		if (event.type === "tool_execution_start") {
-			this.status = `Advisor running ${event.toolName}`;
+			this.status = `running ${event.toolName}`;
 		} else if (event.type === "turn_start") {
-			this.status = "Advisor thinking";
+			this.status = "thinking";
 		} else if (event.type === "turn_end") {
-			this.status = "Advisor turn finished";
+			this.status = "idle";
+		} else if (event.type === "agent_end") {
+			this.status = "idle";
+			const failure = event.messages.find(
+				(message) => message.role === "assistant" && typeof message.errorMessage === "string",
+			);
+			if (failure?.role === "assistant" && failure.errorMessage) {
+				appendTranscriptNotice(this.transcriptState, "error", failure.errorMessage);
+			}
 		}
 		applyTranscriptEvent(this.transcriptState, event);
 	}
 
-	snapshot(): { status: string; watchRunState: WatchRunState; transcriptState: AdvisorTranscriptState } {
+	snapshot(): {
+		status: string;
+		watchRunState: WatchRunState;
+		contextUsage: AdvisorContextUsage | undefined;
+		transcriptState: AdvisorTranscriptState;
+	} {
 		return {
 			status: this.status,
 			watchRunState: this.watchRunState,
+			contextUsage: this.contextUsage,
 			transcriptState: {
 				...this.transcriptState,
 				entries: this.transcriptState.entries.map((entry) => ({ ...entry })),
@@ -68,6 +114,7 @@ export class AdvisorOverlayState {
 		this.transcriptState = createEmptyTranscriptState();
 		this.status = "idle";
 		this.watchRunState = "idle";
+		this.contextUsage = undefined;
 	}
 }
 
@@ -79,10 +126,7 @@ class AdvisorOverlayComponent implements Component {
 	private transcriptScrollOffset = 0;
 	private transcriptViewportHeight = 8;
 	private followTranscript = true;
-	private modeTextValue = "Advisor";
-	private summaryTextValue = "";
-	private statusTextValue = "";
-	private hintsTextValue = "";
+	private headerTextValue = "Advisor · idle · ctx ?";
 
 	constructor(tui: TUI, theme: ExtensionContext["ui"]["theme"], state: AdvisorOverlayState) {
 		this.tui = tui;
@@ -102,12 +146,7 @@ class AdvisorOverlayComponent implements Component {
 
 	refresh(): void {
 		const snapshot = this.state.snapshot();
-		this.modeTextValue = "Advisor · persistent second agent";
-		const exchanges = getCompletedExchangeCount(snapshot.transcriptState.entries);
-		const active = hasStreamingTranscriptEntry(snapshot.transcriptState.entries) ? " · streaming" : " · idle";
-		this.summaryTextValue = `${exchanges} exchange${exchanges === 1 ? "" : "s"}${active} · watch=${snapshot.watchRunState}`;
-		this.statusTextValue = snapshot.status;
-		this.hintsTextValue = "Scroll wheel ↑↓ PgUp/PgDn · /advisor commands in main input";
+		this.headerTextValue = `Advisor · ${snapshot.status} · ${formatContextUsage(snapshot.contextUsage)}`;
 		this.transcriptLines = buildAdvisorOverlayTranscript(snapshot.transcriptState.entries, this.theme);
 		this.tui.requestRender();
 	}
@@ -154,14 +193,13 @@ class AdvisorOverlayComponent implements Component {
 		const transcriptPadCount = Math.max(0, transcriptHeight - visibleTranscript.length);
 		const hiddenAbove = this.transcriptScrollOffset;
 		const hiddenBelow = Math.max(0, maxScroll - this.transcriptScrollOffset);
-		const summary =
+		const header =
 			hiddenAbove || hiddenBelow
-				? `${this.summaryTextValue.trim()} · ↑${hiddenAbove} ↓${hiddenBelow}`
-				: this.summaryTextValue.trim();
+				? `${this.headerTextValue.trim()} · ↑${hiddenAbove} ↓${hiddenBelow}`
+				: this.headerTextValue.trim();
 
 		const lines = [this.borderLine(innerWidth, "top")];
-		lines.push(this.frameLine(this.theme.fg("accent", this.theme.bold(this.modeTextValue.trim())), innerWidth));
-		lines.push(this.frameLine(this.theme.fg("dim", summary), innerWidth));
+		lines.push(this.frameLine(this.theme.fg("accent", this.theme.bold(header)), innerWidth));
 		lines.push(this.ruleLine(innerWidth));
 		for (const line of visibleTranscript) {
 			lines.push(this.frameLine(line, innerWidth));
@@ -169,9 +207,6 @@ class AdvisorOverlayComponent implements Component {
 		for (let i = 0; i < transcriptPadCount; i++) {
 			lines.push(this.frameLine("", innerWidth));
 		}
-		lines.push(this.ruleLine(innerWidth));
-		lines.push(this.frameLine(this.theme.fg("warning", this.statusTextValue.trim()), innerWidth));
-		lines.push(this.frameLine(this.theme.fg("dim", this.hintsTextValue.trim()), innerWidth));
 		lines.push(this.borderLine(innerWidth, "bottom"));
 
 		return lines.map((line) => this.fitRenderedLine(line, width));
@@ -207,7 +242,7 @@ class AdvisorOverlayComponent implements Component {
 
 	private getDialogHeight(): number {
 		const terminalRows = process.stdout.rows ?? 30;
-		return Math.max(18, Math.min(32, Math.floor(terminalRows * 0.78)));
+		return Math.max(12, terminalRows);
 	}
 
 	private scrollTranscript(delta: number): void {
@@ -240,10 +275,13 @@ export class AdvisorOverlayController {
 	private handle: OverlayHandle | undefined;
 	readonly state = new AdvisorOverlayState();
 
+	constructor(private readonly readContextUsage: () => AdvisorContextUsage | undefined = () => undefined) {}
+
 	open(ctx: ExtensionContext): void {
 		if (!ctx.hasUI) {
 			return;
 		}
+		this.state.setContextUsage(this.readContextUsage());
 		if (this.handle) {
 			this.handle.setHidden(false);
 			this.refresh();
@@ -258,11 +296,11 @@ export class AdvisorOverlayController {
 				{
 					overlay: true,
 					overlayOptions: {
-						width: "78%",
-						minWidth: 72,
-						maxHeight: "78%",
-						anchor: "top-center",
-						margin: { top: 1, left: 2, right: 2 },
+						width: "50%",
+						minWidth: 44,
+						maxHeight: "100%",
+						anchor: "right-center",
+						margin: { top: 0, right: 0, bottom: 0 },
 						nonCapturing: true,
 					},
 					onHandle: (handle) => {
@@ -282,7 +320,12 @@ export class AdvisorOverlayController {
 	}
 
 	refresh(): void {
+		this.state.setContextUsage(this.readContextUsage());
 		this.component?.refresh();
+	}
+
+	hide(): void {
+		this.close();
 	}
 
 	close(): void {
@@ -291,4 +334,25 @@ export class AdvisorOverlayController {
 		this.handle = undefined;
 		this.component = undefined;
 	}
+}
+
+function formatContextUsage(usage: AdvisorContextUsage | undefined): string {
+	if (!usage) {
+		return "ctx ?";
+	}
+	const windowText = formatTokenCount(usage.contextWindow);
+	if (usage.percent === null) {
+		return `ctx ?/${windowText}`;
+	}
+	return `ctx ${usage.percent.toFixed(1)}%/${windowText}`;
+}
+
+function formatTokenCount(tokens: number): string {
+	if (tokens >= 1_000_000) {
+		return `${Number((tokens / 1_000_000).toFixed(1))}m`;
+	}
+	if (tokens >= 1_000) {
+		return `${Number((tokens / 1_000).toFixed(1))}k`;
+	}
+	return String(tokens);
 }

@@ -8,10 +8,10 @@ import { fileURLToPath } from "node:url";
 
 export type RpcJson = Record<string, any>;
 
-const here = dirname(fileURLToPath(import.meta.url));
-const repoRoot = resolve(here, "../../../..");
-const advisorExtensionPath = join(repoRoot, "extensions", "advisor.ts");
-const fauxProviderExtensionPath = join(here, "..", "fixtures", "faux-provider.ts");
+export const here = dirname(fileURLToPath(import.meta.url));
+export const repoRoot = resolve(here, "../..");
+export const advisorExtensionPath = join(repoRoot, "extensions", "advisor.ts");
+export const fauxProviderExtensionPath = join(here, "..", "fixtures", "faux-provider.ts");
 const advisorProvider = "advisor-e2e";
 const primaryModel = "faux-primary";
 const advisorModel = "faux-advisor";
@@ -282,7 +282,7 @@ export class RpcPi {
 	}
 }
 
-function resolvePiBin(): string {
+export function resolvePiBin(): string {
 	const localPi = join(repoRoot, "node_modules", ".bin", "pi");
 	if (existsSync(localPi)) {
 		return localPi;

@@ -39,6 +39,35 @@ Advisor 送达 Primary Agent 的内容是 Advice。加速信息是 Hint，应尽
 
 用户需要知道 Advisor 是否在工作、看到了什么、形成了什么 Second Opinion 或 Advice。Advisor Overlay 应展示 Advisor 的审查活动和输出，但不抢占用户正在与 Primary Agent 交互的输入焦点。
 
+Overlay 是 Advisor 的旁路工作视图。它展示的是用户可理解的 Advisor 轨迹：用户问了什么、Advisor 附带读取了哪些 Primary Transcript 范围、Advisor 调用了哪些工具、Advisor 输出了什么内容。
+
+目标形态：
+
+```text
+Primary Agent transcript and input                     +----------------------------------------------+
+                                                       | Advisor · thinking · ctx 0.1%/128k          |
+Pi can explain its own work...                         +----------------------------------------------+
+                                                       | Prompt Review the current change.           |
+[Context]                                              |                                              |
+  AGENTS.md                                            | Context primary transcript [0,12) total=12  |
+                                                       |         state=idle wait=new_messages        |
+[Extensions]                                           |                                              |
+  @johnnywu/pi-advisor                                 | Tool pull_transcript since=0 count=20       |
+                                                       | ↳ result [0,12) total=12                    |
+------------------------------------------------------ |                                              |
+~/work/project                                         | Tool advise hint                            |
+0.0%/128k (auto)                                      | ↳ steer: Use the SDK path                   |
+                                                       |                                              |
+                                                       | Advisor                                     |
+                                                       |     The main risk is the overlay opening    |
+                                                       |     before user intent.                     |
+                                                       +----------------------------------------------+
+```
+
+Overlay 应像右侧 split panel，而不是覆盖屏幕中央的大弹窗。用户刚打开 Pi 时看不到这块；只有启动 Ask Advisor 或 Watch Run 后才出现。
+
+Overlay 使用 **prefixed transcript blocks**：每个活动是连续 transcript 中的一个紧凑 block，通过 prefix/badge、颜色、背景和缩进表达类型，不使用固定的 role 列。
+
 ## 需求
 
 以下命令都是用户在主输入框触发的产品入口。Advisor 不通过这些命令操作自身；Advisor 的审查行为由它自己的 Pull 和 Advise 能力完成。
@@ -79,10 +108,26 @@ Advisor 的建议分为 Hint 和 Concern。
 
 用户可以通过 Advisor Overlay 看到 Advisor 的工作过程。
 
+UI 内容契约：
+
+| 区域            | 内容                                       | 说明                                                                |
+| --------------- | ------------------------------------------ | ------------------------------------------------------------------- |
+| Header          | `Advisor · <status> · ctx <used>/<window>` | 展示 Advisor 当前状态和 context window 使用情况。                   |
+| `Prompt` block  | 用户传给 Advisor 的原始提问或任务          | 这是用户意图，不展示 Advisor 内部 prompt envelope。                 |
+| `Context` block | Primary Transcript 范围、总量、等待状态    | 附带 context 用一行简略信息呈现，不展开原文。                       |
+| `Tool` block    | `pull_transcript`、`advise` 等工具轨迹     | 第一行展示工具调用，`↳` 行展示结果摘要，让用户能看见 Advisor 轨迹。 |
+| `Advisor` block | Advisor chat 内容                          | Advisor 对用户可见的文字输出完整展示。                              |
+
+不进入 Overlay 的内容：完整 Primary Transcript 原文、冗长 tool result 明细、重复 footer hints、仅供实现调试的状态噪音。
+
 验收标准：
 
-- Overlay 展示 Advisor 的思考、文本输出、工具活动和建议。
+- 安装 extension 或打开 Pi 时，Overlay 默认隐藏。
+- 用户发起 `/advisor <消息>` 或 `/advisor:watch` 后，Overlay 自动打开。
+- Overlay 使用右侧 split panel 形态，宽度约为终端的一半，避免大面积遮挡 Primary Agent 的工作区。
+- Overlay 内容符合上方 UI 内容契约。
 - Overlay 保持可见时不抢占 Primary Agent 的输入焦点。
+- 用户可以隐藏 Overlay，并在保留已有 Advisor Transcript 的情况下重新显示。
 - 重要 Concern 出现时，用户能获得额外提醒。
 
 ### PRD-005 生命周期控制
@@ -93,6 +138,8 @@ Advisor 的建议分为 Hint 和 Concern。
 
 - `/advisor:new` 清空 Advisor Transcript，并开始新的 Advisor 上下文。
 - `/advisor:watch-off` 只取消当前 Watch Run，不清空 Advisor Transcript。
+- `/advisor:hide` 隐藏 Advisor Overlay，不清空 Advisor Transcript。
+- `/advisor:show` 重新显示 Advisor Overlay。
 - 用户中断 Primary Agent 后，Advisor 不会自动唤醒 Primary Agent。
 
 ### PRD-006 偏好设置

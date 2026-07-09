@@ -1,9 +1,11 @@
 import type { AgentSessionEvent, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { AssistantMessage, UserMessage } from "@earendil-works/pi-ai";
+import type { PullTranscriptDetails } from "./types";
 
 export type AdvisorTranscriptEntry =
 	| { id: number; turnId: number; type: "turn-boundary"; phase: "start" | "end" }
 	| { id: number; turnId: number; type: "user-message"; text: string }
+	| { id: number; turnId: number; type: "context-summary"; text: string }
 	| { id: number; turnId: number; type: "thinking"; text: string; streaming: boolean }
 	| { id: number; turnId: number; type: "assistant-text"; text: string; streaming: boolean }
 	| { id: number; turnId: number; type: "tool-call"; toolCallId: string; toolName: string; args: string }
@@ -56,6 +58,17 @@ export function appendTranscriptNotice(
 	appendTranscriptEntry(state, { turnId, type: "notice", level, text });
 }
 
+export function appendPrimaryContextSummary(state: AdvisorTranscriptState, details: PullTranscriptDetails): void {
+	const turnId = ensureTranscriptTurn(state);
+	appendTranscriptEntry(state, {
+		turnId,
+		type: "context-summary",
+		text: `primary transcript [${details.start}, ${details.end}) total=${details.total} state=${details.primaryAgentLoopState} wait=${details.waitResult}${
+			details.omittedAdvisorAdviceCount > 0 ? ` omitted_advice=${details.omittedAdvisorAdviceCount}` : ""
+		}${details.sinceIndexOutOfBounds ? " since_out_of_bounds=true" : ""}`,
+	});
+}
+
 export function applyTranscriptEvent(state: AdvisorTranscriptState, event: AgentSessionEvent): void {
 	if (event.type === "turn_start") {
 		ensureTranscriptTurn(state);
@@ -64,11 +77,6 @@ export function applyTranscriptEvent(state: AdvisorTranscriptState, event: Agent
 	if (event.type === "turn_end") {
 		applyAssistantMessageToTranscript(state, event.message);
 		finishTranscriptTurn(state, state.currentTurnId);
-		return;
-	}
-	if (event.type === "message_start" && event.message.role === "user") {
-		const turnId = ensureTranscriptTurnForUserMessage(state);
-		upsertUserMessageEntry(state, turnId, extractMessageText(event.message));
 		return;
 	}
 	if (event.type === "message_update" && event.message.role === "assistant") {
@@ -116,44 +124,91 @@ export function buildAdvisorOverlayTranscript(
 	theme: ExtensionContext["ui"]["theme"],
 ): string[] {
 	const lines: string[] = [];
+	const promptBadge = buildTranscriptBadge(theme, "Prompt", "userMessageBg", "accent");
+	const contextBadge = buildTranscriptBadge(theme, "Context", "customMessageBg", "accent");
+	const toolBadge = buildTranscriptBadge(theme, "Tool", "toolPendingBg", "warning");
+	const advisorBadge = buildTranscriptBadge(theme, "Advisor", "customMessageBg", "success");
+	const errorBadge = buildTranscriptBadge(theme, "Error", "customMessageBg", "error");
+	const blockIndent = "    ";
+
+	const pushBlankLine = () => {
+		if (lines.length > 0 && lines[lines.length - 1] !== "") {
+			lines.push("");
+		}
+	};
+
+	const pushInlineBlock = (
+		header: string,
+		text: string,
+		options: { blankBefore?: boolean; style?: (value: string) => string } = {},
+	) => {
+		const bodyLines = text.split("\n");
+		const style = options.style ?? ((value: string) => value);
+		if (options.blankBefore !== false) {
+			pushBlankLine();
+		}
+
+		const firstLine = bodyLines.shift() ?? "";
+		lines.push(`${header}${firstLine ? ` ${style(firstLine)}` : ""}`);
+		for (const line of bodyLines) {
+			lines.push(`${blockIndent}${style(line)}`);
+		}
+	};
+
+	const pushStackedBlock = (
+		header: string,
+		text: string,
+		options: { blankBefore?: boolean; style?: (value: string) => string } = {},
+	) => {
+		const bodyLines = text.split("\n");
+		const style = options.style ?? ((value: string) => value);
+		if (options.blankBefore !== false) {
+			pushBlankLine();
+		}
+
+		lines.push(header);
+		for (const line of bodyLines) {
+			lines.push(`${blockIndent}${style(line)}`);
+		}
+	};
+
 	for (const entry of entries) {
 		if (entry.type === "turn-boundary") {
-			if (entry.phase === "start") {
-				lines.push(theme.fg("dim", `turn ${entry.turnId}`));
-			}
 			continue;
 		}
 		if (entry.type === "user-message") {
-			lines.push(`${buildTranscriptBadge(theme, "task", "userMessageBg", "accent")} ${entry.text}`);
+			pushInlineBlock(promptBadge, entry.text, { blankBefore: false });
 			continue;
 		}
-		if (entry.type === "thinking") {
-			lines.push(`${buildTranscriptBadge(theme, "thinking", "customMessageBg", "accent")} ${entry.text}`);
+		if (entry.type === "context-summary") {
+			pushInlineBlock(contextBadge, entry.text, { style: (line) => theme.fg("dim", line) });
 			continue;
 		}
 		if (entry.type === "assistant-text") {
-			lines.push(`${buildTranscriptBadge(theme, "advisor", "customMessageBg", "success")} ${entry.text}`);
+			pushStackedBlock(entry.streaming ? `${advisorBadge} ${theme.fg("warning", "▍")}` : advisorBadge, entry.text);
 			continue;
 		}
 		if (entry.type === "tool-call") {
-			lines.push(`${buildTranscriptBadge(theme, "tool", "toolPendingBg", "warning")} ${entry.toolName}(${entry.args})`);
+			const result = entries.find(
+				(candidate) => candidate.type === "tool-result" && candidate.toolCallId === entry.toolCallId,
+			);
+			const summary = formatToolSummary(entry, result);
+			pushInlineBlock(toolBadge, theme.fg("warning", theme.bold(summary.call)));
+			if (summary.result) {
+				const arrow = summary.isError ? theme.fg("error", "↳ error") : theme.fg("dim", "↳");
+				const resultStyle = summary.isError
+					? (line: string) => theme.fg("error", line)
+					: (line: string) => theme.fg("dim", line);
+				pushInlineBlock(arrow, summary.result, { blankBefore: false, style: resultStyle });
+			}
 			continue;
 		}
-		if (entry.type === "tool-result") {
-			const label = entry.isError ? "tool error" : entry.streaming ? "tool..." : "tool ok";
-			const color = entry.isError ? "error" : entry.streaming ? "warning" : "success";
-			lines.push(`${buildTranscriptBadge(theme, label, "toolPendingBg", color)} ${entry.toolName}: ${entry.content}`);
+		if (entry.type === "notice" && entry.level === "error") {
+			pushInlineBlock(errorBadge, entry.text);
 			continue;
 		}
-		const badge =
-			entry.level === "error"
-				? buildTranscriptBadge(theme, "error", "toolPendingBg", "error")
-				: entry.level === "advice"
-					? buildTranscriptBadge(theme, "advice", "toolPendingBg", "warning")
-					: buildTranscriptBadge(theme, "status", "customMessageBg", "accent");
-		lines.push(`${badge} ${entry.text}`);
 	}
-	return lines.length > 0 ? lines : [theme.fg("dim", "Advisor has not produced transcript entries yet.")];
+	return lines.length > 0 ? lines : [theme.fg("dim", "No Advisor chat yet.")];
 }
 
 function appendTranscriptEntry(
@@ -211,19 +266,6 @@ function findLatestTranscriptEntry<TType extends AdvisorTranscriptEntry["type"]>
 	return undefined;
 }
 
-function ensureTranscriptTurnForUserMessage(state: AdvisorTranscriptState): number {
-	if (state.currentTurnId !== null) {
-		return state.currentTurnId;
-	}
-	if (state.lastTurnId !== null) {
-		const latestUser = findLatestTranscriptEntry(state, state.lastTurnId, "user-message");
-		if (!latestUser) {
-			return state.lastTurnId;
-		}
-	}
-	return ensureTranscriptTurn(state);
-}
-
 function extractMessageText(message: {
 	content?: string | AssistantMessage["content"] | UserMessage["content"];
 }): string {
@@ -243,15 +285,6 @@ function extractMessageText(message: {
 		})
 		.filter(Boolean)
 		.join("\n");
-}
-
-function upsertUserMessageEntry(state: AdvisorTranscriptState, turnId: number, text: string): void {
-	const existing = findLatestTranscriptEntry(state, turnId, "user-message");
-	if (existing) {
-		existing.text = text;
-		return;
-	}
-	appendTranscriptEntry(state, { turnId, type: "user-message", text });
 }
 
 function upsertTranscriptTextEntry(
@@ -395,6 +428,74 @@ function formatToolPreview(value: unknown): string {
 	} catch {
 		return String(value);
 	}
+}
+
+function formatToolSummary(
+	call: Extract<AdvisorTranscriptEntry, { type: "tool-call" }>,
+	result: AdvisorTranscriptEntry | undefined,
+): { call: string; result?: string; isError: boolean } {
+	if (call.toolName === "pull_transcript") {
+		let since = "";
+		let count = "";
+		let timeout = "";
+		let pulled =
+			result?.type === "tool-result" ? (result.streaming ? "running" : result.isError ? "error" : "ok") : "running";
+		try {
+			const args = JSON.parse(call.args) as { since_index?: unknown; count?: unknown; timeout_ms?: unknown };
+			if (typeof args.since_index === "number") {
+				since = ` since=${args.since_index}`;
+			}
+			if (typeof args.count === "number") {
+				count = ` count=${args.count}`;
+			}
+			if (typeof args.timeout_ms === "number") {
+				timeout = ` wait=${args.timeout_ms}ms`;
+			}
+		} catch {
+			// Keep the summary readable even when Pi changes argument formatting.
+		}
+		if (result?.type === "tool-result") {
+			const match = result.content.match(/\[(\d+),\s*(\d+)\).*?wait_result=([a-z_]+).*?waited_ms=(\d+).*?total=(\d+)/);
+			pulled = match ? `[${match[1]}, ${match[2]}) total=${match[5]} ${match[3]}` : pulled;
+		}
+		return {
+			call: `pull_transcript${since || " since=0"}${count}${timeout}`,
+			result: pulled,
+			isError: result?.type === "tool-result" ? result.isError : false,
+		};
+	}
+	if (call.toolName === "advise") {
+		try {
+			const args = JSON.parse(call.args) as { kind?: unknown; advice?: unknown };
+			const kind = typeof args.kind === "string" ? args.kind : "advice";
+			const delivered =
+				result?.type === "tool-result" ? result.content.match(/delivered \w+ as (\w+)/)?.[1] : undefined;
+			const advice = typeof args.advice === "string" ? oneLine(args.advice, 160) : "";
+			return {
+				call: `advise ${kind}`,
+				result: delivered
+					? `${delivered}${advice ? `: ${advice}` : ""}`
+					: result?.type === "tool-result"
+						? "ok"
+						: "running",
+				isError: result?.type === "tool-result" ? result.isError : false,
+			};
+		} catch {
+			return {
+				call: "advise",
+				result: result?.type === "tool-result" ? (result.isError ? "error" : "ok") : "running",
+				isError: result?.type === "tool-result" ? result.isError : false,
+			};
+		}
+	}
+	if (result?.type === "tool-result") {
+		return {
+			call: `${call.toolName}${call.args ? ` ${call.args}` : ""}`,
+			result: result.isError ? "error" : result.streaming ? "running" : "ok",
+			isError: result.isError,
+		};
+	}
+	return { call: `${call.toolName}${call.args ? ` ${call.args}` : ""}`, result: "running", isError: false };
 }
 
 function buildTranscriptBadge(
