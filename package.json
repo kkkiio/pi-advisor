@@ -1,5 +1,5 @@
 {
-  "name": "pi-advisor",
+  "name": "@kkkiio/pi-advisor",
   "version": "0.1.0",
   "description": "A pi extension for asynchronous Advisor review with /advisor",
   "type": "module",
@@ -20,6 +20,10 @@
   ],
   "publishConfig": {
     "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kkkiio/pi-advisor.git"
   },
   "scripts": {
     "fmt": "prettier --write --ignore-unknown .",
