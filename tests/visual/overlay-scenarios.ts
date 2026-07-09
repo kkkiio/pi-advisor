@@ -24,7 +24,7 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 
 	const askAdvisor = new AdvisorOverlayState();
 	askAdvisor.setContextUsage({ tokens: 2_688, contextWindow: 128_000, percent: 2.1 });
-	askAdvisor.recordUserMessage("Review the primary transcript and send a Hint if useful.");
+	askAdvisor.recordUserMessage("Review the primary transcript.");
 	askAdvisor.recordContext({
 		start: 0,
 		end: 12,
@@ -49,23 +49,10 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 		isError: false,
 	} as AgentSessionEvent);
 	askAdvisor.applyAgentEvent({
-		type: "tool_execution_start",
-		toolCallId: "advise-1",
-		toolName: "advise",
-		args: { kind: "hint", advice: "E2E_ASK_HINT: primary_transcript=seen" },
-	} as AgentSessionEvent);
-	askAdvisor.applyAgentEvent({
-		type: "tool_execution_end",
-		toolCallId: "advise-1",
-		toolName: "advise",
-		result: "delivered hint as steer",
-		isError: false,
-	} as AgentSessionEvent);
-	askAdvisor.applyAgentEvent({
 		type: "message_end",
 		message: {
 			role: "assistant",
-			content: [{ type: "text", text: "E2E_ADVISOR_DONE" }],
+			content: [{ type: "text", text: "E2E_SECOND_OPINION: primary_transcript=seen" }],
 			stopReason: "stop",
 		},
 	} as AgentSessionEvent);
@@ -124,11 +111,11 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 			title: "Ask Advisor Overlay Transcript",
 			width: 50,
 			height: 30,
-			requiredText: ["Prompt", "Context", "Tool", "pull_transcript", "advise hint", "Advisor", "E2E_ADVISOR_DONE"],
+			requiredText: ["Prompt", "Context", "Tool", "pull_transcript", "Advisor", "E2E_SECOND_OPINION"],
 			checklist: [
 				"Prompt, Context, Tool, and Advisor sections are visible in that order.",
 				"Tool call summaries stay compact and do not expose full transcript text.",
-				"Hint delivery is visible as steer without breaking the border.",
+				"Second Opinion text is visible without exposing raw Primary Transcript details.",
 			],
 			state: askAdvisor,
 		},

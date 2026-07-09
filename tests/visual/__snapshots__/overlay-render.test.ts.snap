@@ -2,8 +2,7 @@
 
 exports[`Advisor overlay visual snapshots > overlay-ask-advisor renders a stable bounded overlay 1`] = `
 "╭ Advisor · idle · ctx 2.1%/128k ────────────────╮
-│ Prompt  Review the primary transcript and send │
-│a Hint if useful.                               │
+│ Prompt  Review the primary transcript.         │
 │                                                │
 │ Context  primary transcript [0, 12) total=12   │
 │state=idle wait=new_messages                    │
@@ -11,11 +10,12 @@ exports[`Advisor overlay visual snapshots > overlay-ask-advisor renders a stable
 │ Tool  pull_transcript since=0 count=20 wait=0ms│
 │↳ [0, 12) total=12 new_messages                 │
 │                                                │
-│ Tool  advise hint                              │
-│↳ steer: E2E_ASK_HINT: primary_transcript=seen  │
-│                                                │
 │ Advisor                                        │
-│    E2E_ADVISOR_DONE                            │
+│    E2E_SECOND_OPINION: primary_transcript=seen │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
 │                                                │
 │                                                │
 │                                                │

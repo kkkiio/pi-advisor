@@ -31,7 +31,7 @@ const scenarios: TuiVisualScenario[] = [
 	{
 		id: "ask-advisor-overlay",
 		title: "Ask Advisor Overlay",
-		description: "Ask Advisor opens the right-side overlay with prompt, context, tool, advice, and advisor output.",
+		description: "Ask Advisor opens the right-side overlay with prompt, context, tool, and advisor output.",
 		options: { advisorModelConfigured: true, width: 100, height: 30 },
 		captures: ["whole", "overlay"],
 		checklist: [
@@ -42,9 +42,9 @@ const scenarios: TuiVisualScenario[] = [
 			"Advisor completion text is visible without breaking panel borders.",
 		],
 		async run(pi) {
-			await pi.submit("/advisor Review the primary transcript and send a Hint if useful.");
+			await pi.submit("/advisor Review the primary transcript.");
 			await pi.waitForScreen(
-				(screen) => screen.includes("Advisor · idle") && screen.includes("E2E_ADVISOR_DONE"),
+				(screen) => screen.includes("Advisor · idle") && screen.includes("E2E_SECOND_OPINION"),
 				20_000,
 				"Ask Advisor overlay completion",
 			);
@@ -62,9 +62,9 @@ const scenarios: TuiVisualScenario[] = [
 			"Restored overlay still contains the previous Advisor output.",
 		],
 		async run(pi) {
-			await pi.submit("/advisor Review the primary transcript and send a Hint if useful.");
+			await pi.submit("/advisor Review the primary transcript.");
 			await pi.waitForScreen(
-				(screen) => screen.includes("Advisor · idle") && screen.includes("E2E_ADVISOR_DONE"),
+				(screen) => screen.includes("Advisor · idle") && screen.includes("E2E_SECOND_OPINION"),
 				20_000,
 				"Ask Advisor overlay completion before hide",
 			);
@@ -72,7 +72,7 @@ const scenarios: TuiVisualScenario[] = [
 			await pi.waitForScreen((screen) => !screen.includes("Advisor ·"), 10_000, "Advisor overlay hidden");
 			await pi.submit("/advisor:show");
 			await pi.waitForScreen(
-				(screen) => screen.includes("Advisor ·") && screen.includes("E2E_ADVISOR_DONE"),
+				(screen) => screen.includes("Advisor ·") && screen.includes("E2E_SECOND_OPINION"),
 				10_000,
 				"Advisor overlay restored",
 			);
@@ -90,9 +90,9 @@ const scenarios: TuiVisualScenario[] = [
 			"Long tool and advice summaries wrap or truncate without corrupting adjacent lines.",
 		],
 		async run(pi) {
-			await pi.submit("/advisor Review the primary transcript and send a Hint if useful.");
+			await pi.submit("/advisor Review the primary transcript.");
 			await pi.waitForScreen(
-				(screen) => screen.includes("Advisor · idle") && screen.includes("E2E_ADVISOR_DONE"),
+				(screen) => screen.includes("Advisor · idle") && screen.includes("E2E_SECOND_OPINION"),
 				20_000,
 				"Small terminal Advisor overlay completion",
 			);

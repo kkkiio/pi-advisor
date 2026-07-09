@@ -1,6 +1,6 @@
 # Advisor
 
-Advisor 是一个依附 Primary Agent 的会话内持久化第二 agent，用于异步审查 Primary Agent 的工作，向用户提供 Second Opinion，并向 Primary Agent 送达 Advice。
+Advisor 是一个依附 Primary Agent 的会话内持久化第二 agent，用于异步审查 Primary Agent 的工作，向用户提供 Second Opinion，并在用户确认或 Watch Run 期间把有效观点送达 Primary Agent。
 
 ## 目标
 
@@ -15,18 +15,37 @@ Advisor 是一个依附 Primary Agent 的会话内持久化第二 agent，用于
 
 ## 功能
 
-### 两种入口
+### 入口与转交
 
-| 命令              | 说明                                                                                     |
-| ----------------- | ---------------------------------------------------------------------------------------- |
-| `/advisor <消息>` | Ask Advisor：向 Advisor 索取 Second Opinion，附带最近 Primary Transcript View 作为上下文 |
-| `/advisor:watch`  | 启动一次 Watch Run，由 Advisor 根据 Primary Agent 的工作进展自行判断何时结束             |
+| 命令                              | 说明                                                                                     |
+| --------------------------------- | ---------------------------------------------------------------------------------------- |
+| `/advisor <消息>`                 | Ask Advisor：向 Advisor 索取 Second Opinion，附带最近 Primary Transcript View 作为上下文 |
+| `/advisor:handoff [instructions]` | 把最近一次完成的 Ask Advisor Second Opinion 作为用户消息转交给 Primary Agent             |
+| `/advisor:watch`                  | 启动一次 Watch Run，由 Advisor 根据 Primary Agent 的工作进展自行判断何时结束             |
 
-Ask Advisor 和 Watch Run 复用同一个 Advisor，Advisor Transcript 保持连续。Second Opinion 是 Advisor 面向用户的第二视角；Advice 是 Advisor 送达 Primary Agent 的 Hint 或 Concern。
+Ask Advisor 和 Watch Run 复用同一个 Advisor，Advisor Transcript 保持连续。Second Opinion 是 Advisor 面向用户的第二视角；Advice 是 Watch Run 期间 Advisor 送达 Primary Agent 的 Hint 或 Concern。Watch Run 外，Advisor 不会自行向 Primary Agent 发送 Advice；用户认可某个 Second Opinion 时，用 `/advisor:handoff` 显式转交。
+
+handoff 会把最近一次完成的 Ask Advisor 回答格式化为普通用户消息。Primary Agent 空闲时立即收到；Primary Agent 正忙时，这条消息会排为 follow-up。
+
+```text
+/advisor:handoff Please verify this concern and fix it if it is real.
+```
+
+Primary Agent 收到的内容形如：
+
+```text
+Here is the latest Advisor Second Opinion I want you to use. Please verify this concern and fix it if it is real.
+
+Original Advisor request:
+review the current change
+
+Advisor Second Opinion:
+...
+```
 
 ### 智能送达
 
-根据建议的**意图**自动选择送达通道：
+Watch Run 根据 Advice 的**意图**自动选择送达通道：
 
 - **Hint**（加速信息）：正确的 API 用法、更好的算法 → 通过 Steer 尽快送达，减少浪费时间
 - **Concern**（风险/质疑）：可能的 bug、架构疑虑 → 通过 Follow-up 等 Primary Agent 完成当前工作后再处理，不打断连贯性
@@ -46,6 +65,7 @@ Ask Advisor 和 Watch Run 复用同一个 Advisor，Advisor Transcript 保持连
 | 命令                        | 说明                                          |
 | --------------------------- | --------------------------------------------- |
 | `/advisor:watch-off`        | 取消当前 Watch Run，保留 Advisor 实例和上下文 |
+| `/advisor:handoff [text]`   | 转交最近一次 Ask Advisor Second Opinion       |
 | `/advisor:new`              | 清空 Advisor Transcript，重置上下文           |
 | `/advisor:model [model]`    | 打开模型选择器，或直接设置 Advisor 使用的模型 |
 | `/advisor:thinking [level]` | 打开 thinking 选择器，或直接设置 thinking     |

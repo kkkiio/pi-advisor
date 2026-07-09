@@ -9,6 +9,7 @@ import {
 	type ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AssistantMessage } from "@earendil-works/pi-ai";
 import { ADVISOR_ADVICE_CUSTOM_TYPE } from "./types";
 import type {
 	AdviceDeliveryRequest,
@@ -48,6 +49,11 @@ interface PrimaryWaiter {
 	cleanup: () => void;
 }
 
+interface LatestSecondOpinion {
+	request: string;
+	answer: string;
+}
+
 export class AdvisorRuntime implements AdvisorRuntimePort {
 	private readonly pi: ExtensionAPI;
 	private readonly settingsStore: AdvisorSettingsStore;
@@ -60,6 +66,8 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 	private waiters = new Set<PrimaryWaiter>();
 	private watchAbortController: AbortController | undefined;
 	private autoResumeSuppressed = false;
+	private latestSecondOpinion: LatestSecondOpinion | undefined;
+	private askCompletion: Promise<void> | undefined;
 
 	constructor(pi: ExtensionAPI, settingsStore = new AdvisorSettingsStore(), overlay?: AdvisorOverlayController) {
 		this.pi = pi;
@@ -132,7 +140,8 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 		this.overlay.state.recordContext(recent.details);
 		this.overlay.state.setStatus("ask started");
 		this.overlay.refresh();
-		void session
+		const messageStartIndex = session.state.messages.length;
+		const askCompletion = session
 			.prompt(
 				`Ask Advisor request:\n\n${question}\n\nRecent Primary Transcript View:\n\n${recent.text}\n\nGive the user a Second Opinion directly.`,
 				{
@@ -140,13 +149,81 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 					streamingBehavior: session.isStreaming ? "followUp" : undefined,
 				},
 			)
+			.then(() => {
+				const messages = session.state.messages.slice(messageStartIndex);
+				for (let index = messages.length - 1; index >= 0; index--) {
+					const message = messages[index];
+					if (message.role !== "assistant") {
+						continue;
+					}
+					const assistant = message as AssistantMessage;
+					const answer = assistant.content
+						.filter((part) => part.type === "text")
+						.map((part) => part.text.trim())
+						.filter(Boolean)
+						.join("\n\n")
+						.trim();
+					if (!answer) {
+						continue;
+					}
+					this.latestSecondOpinion = {
+						request: question,
+						answer,
+					};
+					return;
+				}
+			})
 			.catch((error) => {
 				this.overlay.state.recordError(error);
 				ctx.ui.notify(error instanceof Error ? error.message : String(error), "error");
 			})
 			.finally(() => {
+				if (this.askCompletion === askCompletion) {
+					this.askCompletion = undefined;
+				}
 				this.overlay.refresh();
 			});
+		this.askCompletion = askCompletion;
+		void askCompletion;
+	}
+
+	async handoff(args: string, ctx: ExtensionCommandContext): Promise<void> {
+		this.bindPrimaryContext(ctx);
+		if (this.askCompletion) {
+			await this.askCompletion;
+		}
+		const latest = this.latestSecondOpinion;
+		if (!latest) {
+			ctx.ui.notify("No completed Advisor Second Opinion to hand off.", "warning");
+			return;
+		}
+		const instructions = args.trim();
+		const content = instructions
+			? `Here is the latest Advisor Second Opinion I want you to use. ${instructions}
+
+Original Advisor request:
+${latest.request}
+
+Advisor Second Opinion:
+${latest.answer}`
+			: `Here is the latest Advisor Second Opinion I want you to use as supporting context.
+
+Original Advisor request:
+${latest.request}
+
+Advisor Second Opinion:
+${latest.answer}`;
+		if (ctx.isIdle()) {
+			this.pi.sendUserMessage(content);
+			this.overlay.state.setStatus("handoff sent");
+			this.overlay.refresh();
+			ctx.ui.notify("Handed off latest Advisor Second Opinion.", "info");
+			return;
+		}
+		this.pi.sendUserMessage(content, { deliverAs: "followUp" });
+		this.overlay.state.setStatus("handoff queued");
+		this.overlay.refresh();
+		ctx.ui.notify("Queued latest Advisor Second Opinion as a follow-up.", "info");
 	}
 
 	async startWatch(ctx: ExtensionCommandContext): Promise<void> {
@@ -225,6 +302,8 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 	async reset(ctx: ExtensionCommandContext): Promise<void> {
 		this.bindPrimaryContext(ctx);
 		await this.disposeSession();
+		this.latestSecondOpinion = undefined;
+		this.askCompletion = undefined;
 		this.overlay.state.clear();
 		this.overlay.state.setStatus("reset");
 		this.overlay.refresh();
@@ -348,6 +427,9 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 		const ctx = this.primaryCtx;
 		if (!ctx) {
 			throw new Error("Advisor cannot deliver advice before Primary Agent context is available.");
+		}
+		if (!this.watchAbortController || this.watchAbortController.signal.aborted) {
+			throw new Error("Advisor can deliver advice only during an active Watch Run.");
 		}
 		const result = createAdviceDelivery(request, this.autoResumeSuppressed);
 		this.pi.sendMessage(

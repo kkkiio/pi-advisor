@@ -75,16 +75,20 @@ function scriptedResponse(
 	if (process.env.PI_ADVISOR_TEST_SCRIPT === "watch-wait") {
 		return fauxAssistantMessage("E2E_WATCH_WAIT_DONE");
 	}
+	if (!isWatchRun) {
+		const primaryTranscriptState = toolResultText(context, "pull_transcript").includes("E2E_PRIMARY_SENTINEL")
+			? "seen"
+			: "missing";
+		return fauxAssistantMessage(`E2E_SECOND_OPINION: primary_transcript=${primaryTranscriptState}`);
+	}
 	if (!hasToolResult(context, "advise")) {
 		const primaryTranscriptState = toolResultText(context, "pull_transcript").includes("E2E_PRIMARY_SENTINEL")
 			? "seen"
 			: "missing";
-		const kind = isWatchRun ? "concern" : "hint";
-		const marker = isWatchRun ? "E2E_WATCH_CONCERN" : "E2E_ASK_HINT";
 		return fauxAssistantMessage(
 			fauxToolCall("advise", {
-				kind,
-				advice: `${marker}: primary_transcript=${primaryTranscriptState}`,
+				kind: "concern",
+				advice: `E2E_WATCH_CONCERN: primary_transcript=${primaryTranscriptState}`,
 			}),
 			{ stopReason: "toolUse" },
 		);
