@@ -212,7 +212,6 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 	async hideOverlay(ctx: ExtensionCommandContext): Promise<void> {
 		this.bindPrimaryContext(ctx);
 		this.overlay.hide();
-		ctx.ui.notify("Advisor overlay hidden. Use /advisor:show to show it again.", "info");
 	}
 
 	async showOverlay(ctx: ExtensionCommandContext): Promise<void> {
