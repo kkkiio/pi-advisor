@@ -106,11 +106,13 @@ export class TuiPi {
 	captureAdvisorOverlayPlainText(): string {
 		const lines = this.capturePlainText().split("\n");
 		const overlayStart = lines.reduce((start, line) => {
-			const headerIndex = line.indexOf("│Advisor ·");
-			const borderIndex = line.indexOf("┌");
-			const candidate =
-				headerIndex === -1 ? borderIndex : borderIndex === -1 ? headerIndex : Math.min(headerIndex, borderIndex);
-			return candidate === -1 ? start : Math.min(start, candidate);
+			const headerIndex = line.indexOf("Advisor ·");
+			const squareBorderIndex = line.indexOf("┌");
+			const roundedBorderIndex = line.indexOf("╭");
+			const candidate = [headerIndex, squareBorderIndex, roundedBorderIndex]
+				.filter((index) => index !== -1)
+				.reduce((min, index) => Math.min(min, index), Number.POSITIVE_INFINITY);
+			return Number.isFinite(candidate) ? Math.min(start, candidate) : start;
 		}, Number.POSITIVE_INFINITY);
 		if (!Number.isFinite(overlayStart)) {
 			throw new Error(`Advisor overlay was not found.\n\nScreen:\n${lines.join("\n")}`);

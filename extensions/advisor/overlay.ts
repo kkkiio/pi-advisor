@@ -11,7 +11,7 @@ import {
 	type AdvisorTranscriptState,
 } from "./transcript-state";
 
-const ADVISOR_OVERLAY_CHROME_LINES = 4;
+const ADVISOR_OVERLAY_CHROME_LINES = 2;
 
 export class AdvisorOverlayState {
 	private transcriptState: AdvisorTranscriptState = createEmptyTranscriptState();
@@ -188,9 +188,7 @@ export class AdvisorOverlayComponent implements Component {
 				? `${this.headerTextValue.trim()} · ↑${hiddenAbove} ↓${hiddenBelow}`
 				: this.headerTextValue.trim();
 
-		const lines = [this.borderLine(innerWidth, "top")];
-		lines.push(this.frameLine(this.theme.fg("accent", this.theme.bold(header)), innerWidth));
-		lines.push(this.ruleLine(innerWidth));
+		const lines = [this.borderLine(innerWidth, "top", header)];
 		for (const line of visibleTranscript) {
 			lines.push(this.frameLine(line, innerWidth));
 		}
@@ -208,14 +206,20 @@ export class AdvisorOverlayComponent implements Component {
 		return `${this.theme.fg("border", "│")}${truncated}${" ".repeat(padding)}${this.theme.fg("border", "│")}`;
 	}
 
-	private ruleLine(innerWidth: number): string {
-		return this.theme.fg("border", `├${"─".repeat(innerWidth)}┤`);
-	}
-
-	private borderLine(innerWidth: number, edge: "top" | "bottom"): string {
-		const left = edge === "top" ? "┌" : "└";
-		const right = edge === "top" ? "┐" : "┘";
-		return this.theme.fg("border", `${left}${"─".repeat(innerWidth)}${right}`);
+	private borderLine(innerWidth: number, edge: "top" | "bottom", title = ""): string {
+		const left = edge === "top" ? "╭" : "╰";
+		const right = edge === "top" ? "╮" : "╯";
+		if (edge === "bottom" || !title.trim()) {
+			return this.theme.fg("border", `${left}${"─".repeat(innerWidth)}${right}`);
+		}
+		const titleWidth = Math.max(0, innerWidth - 1);
+		const clippedTitle = truncateToWidth(` ${title.trim()} `, titleWidth, "");
+		const titlePadding = Math.max(0, innerWidth - visibleWidth(clippedTitle));
+		return (
+			this.theme.fg("border", left) +
+			this.theme.fg("accent", this.theme.bold(clippedTitle)) +
+			this.theme.fg("border", `${"─".repeat(titlePadding)}${right}`)
+		);
 	}
 
 	private wrapTranscript(innerWidth: number): string[] {

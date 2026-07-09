@@ -58,6 +58,7 @@ Ask Advisor 和 Watch Run 复用同一个 Advisor，Advisor Transcript 保持连
 ## 限制
 
 - **暂无 Advisor Transcript 磁盘持久化**：Advisor Transcript 仅在当前 session 内存中保留，关闭后不保存。这是出于首版简洁性考虑，Transcript 磁盘持久化方案尚未确定。
+- **Advisor Overlay 当前无法滚动查看历史内容**：Overlay 采用 Pi TUI 的 `nonCapturing` 形态，保持右侧 split panel 可见，同时让键盘输入继续进入 Primary Agent。当前 `pi-tui` 还没有面向这种旁路面板的滚动输入通道，长内容会自动跟随最新输出；后续等 Pi TUI 支持后再接入滚动。
 
 ## 配置
 

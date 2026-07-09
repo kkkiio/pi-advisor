@@ -11,10 +11,10 @@ describe("Advisor overlay visual snapshots", () => {
 			const lastLine = lines[lines.length - 1] ?? "";
 			const failures: string[] = [];
 
-			if (!firstLine.startsWith("┌") || !firstLine.endsWith("┐")) {
+			if (!firstLine.startsWith("╭") || !firstLine.endsWith("╮")) {
 				failures.push("top border is not closed");
 			}
-			if (!lastLine.startsWith("└") || !lastLine.endsWith("┘")) {
+			if (!lastLine.startsWith("╰") || !lastLine.endsWith("╯")) {
 				failures.push("bottom border is not closed");
 			}
 			if (lines.length !== scenario.height) {
@@ -26,8 +26,7 @@ describe("Advisor overlay visual snapshots", () => {
 					failures.push(`line ${index + 1} width ${width} exceeds ${scenario.width}: ${line}`);
 				}
 				const framed = line.startsWith("│") && line.endsWith("│");
-				const rule = line.startsWith("├") && line.endsWith("┤");
-				if (index > 0 && index < lines.length - 1 && !framed && !rule) {
+				if (index > 0 && index < lines.length - 1 && !framed) {
 					failures.push(`line ${index + 1} is not framed: ${line}`);
 				}
 			}

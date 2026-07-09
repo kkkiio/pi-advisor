@@ -4,9 +4,22 @@ import { Type } from "typebox";
 import type { AdvisorRuntimePort, AdviceDeliveryResult, PullTranscriptResult } from "./types";
 
 const pullTranscriptSchema = Type.Object({
-	since_index: Type.Optional(Type.Number()),
-	timeout_ms: Type.Optional(Type.Number()),
-	count: Type.Optional(Type.Number()),
+	since_index: Type.Optional(
+		Type.Number({
+			description:
+				"Primary Transcript View start index. Omit to start at 0. Pass the previous [start, end) header's end for incremental follow-up. Pass -N to start at max(0, total + since_index), for example -20 to read the 20 most recent entries.",
+		}),
+	),
+	timeout_ms: Type.Optional(
+		Type.Number({
+			description: "Milliseconds to wait for new Primary Agent progress during Watch Run before returning.",
+		}),
+	),
+	count: Type.Optional(
+		Type.Number({
+			description: "Maximum number of entries to return after since_index is resolved.",
+		}),
+	),
 });
 
 const adviseSchema = Type.Object({
@@ -19,7 +32,7 @@ export function createAdvisorTools(runtime: AdvisorRuntimePort): ToolDefinition[
 		name: "pull_transcript",
 		label: "Pull Primary Transcript",
 		description:
-			"Read a Primary Transcript View delta. Pass since_index from the previous [start, end) header; use timeout_ms to wait for new primary progress during Watch Run.",
+			"Read a Primary Transcript View delta. For incremental follow-up, pass since_index from the previous [start, end) header's end. For recent context, pass a negative since_index such as -20 to read the 20 most recent entries. Use timeout_ms to wait for new primary progress during Watch Run.",
 		promptSnippet: "pull_transcript: read Primary Agent progress as a filtered markdown transcript view.",
 		parameters: pullTranscriptSchema,
 		executionMode: "sequential",

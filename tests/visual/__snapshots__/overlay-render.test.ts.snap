@@ -1,9 +1,7 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`Advisor overlay visual snapshots > overlay-ask-advisor renders a stable bounded overlay 1`] = `
-"┌────────────────────────────────────────────────┐
-│Advisor · idle · ctx 2.1%/128k                  │
-├────────────────────────────────────────────────┤
+"╭ Advisor · idle · ctx 2.1%/128k ────────────────╮
 │ Prompt  Review the primary transcript and send │
 │a Hint if useful.                               │
 │                                                │
@@ -30,13 +28,13 @@ exports[`Advisor overlay visual snapshots > overlay-ask-advisor renders a stable
 │                                                │
 │                                                │
 │                                                │
-└────────────────────────────────────────────────┘"
+│                                                │
+│                                                │
+╰────────────────────────────────────────────────╯"
 `;
 
 exports[`Advisor overlay visual snapshots > overlay-empty renders a stable bounded overlay 1`] = `
-"┌────────────────────────────────────────────────┐
-│Advisor · idle · ctx ?/128k                     │
-├────────────────────────────────────────────────┤
+"╭ Advisor · idle · ctx ?/128k ───────────────────╮
 │No Advisor chat yet.                            │
 │                                                │
 │                                                │
@@ -49,13 +47,14 @@ exports[`Advisor overlay visual snapshots > overlay-empty renders a stable bound
 │                                                │
 │                                                │
 │                                                │
-└────────────────────────────────────────────────┘"
+│                                                │
+│                                                │
+╰────────────────────────────────────────────────╯"
 `;
 
 exports[`Advisor overlay visual snapshots > overlay-long-content-small-terminal renders a stable bounded overlay 1`] = `
-"┌──────────────────────────────────────────┐
-│Advisor · idle · ctx 13.3%/128k · ↑1 ↓0   │
-├──────────────────────────────────────────┤
+"╭ Advisor · idle · ctx 13.3%/128k ─────────╮
+│ Prompt  Check whether this very long     │
 │prompt wraps without breaking the panel   │
 │border or hiding the input area.          │
 │                                          │
@@ -70,13 +69,12 @@ exports[`Advisor overlay visual snapshots > overlay-long-content-small-terminal 
 │continuing inside a narrow overlay. The   │
 │panel should wrap or truncate without     │
 │widening.                                 │
-└──────────────────────────────────────────┘"
+│                                          │
+╰──────────────────────────────────────────╯"
 `;
 
 exports[`Advisor overlay visual snapshots > overlay-reset renders a stable bounded overlay 1`] = `
-"┌────────────────────────────────────────────────┐
-│Advisor · reset · ctx 0.0%/128k                 │
-├────────────────────────────────────────────────┤
+"╭ Advisor · reset · ctx 0.0%/128k ───────────────╮
 │No Advisor chat yet.                            │
 │                                                │
 │                                                │
@@ -89,5 +87,7 @@ exports[`Advisor overlay visual snapshots > overlay-reset renders a stable bound
 │                                                │
 │                                                │
 │                                                │
-└────────────────────────────────────────────────┘"
+│                                                │
+│                                                │
+╰────────────────────────────────────────────────╯"
 `;
