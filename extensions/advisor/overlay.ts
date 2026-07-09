@@ -58,7 +58,7 @@ export class AdvisorOverlayState {
 			watchRunState: this.watchRunState,
 			transcriptState: {
 				...this.transcriptState,
-				entries: this.transcriptState.entries.map(entry => ({ ...entry })),
+				entries: this.transcriptState.entries.map((entry) => ({ ...entry })),
 				toolCalls: new Map(this.transcriptState.toolCalls),
 			},
 		};
@@ -174,7 +174,7 @@ class AdvisorOverlayComponent implements Component {
 		lines.push(this.frameLine(this.theme.fg("dim", this.hintsTextValue.trim()), innerWidth));
 		lines.push(this.borderLine(innerWidth, "bottom"));
 
-		return lines.map(line => this.fitRenderedLine(line, width));
+		return lines.map((line) => this.fitRenderedLine(line, width));
 	}
 
 	private frameLine(content: string, innerWidth: number): string {
@@ -265,7 +265,7 @@ export class AdvisorOverlayController {
 						margin: { top: 1, left: 2, right: 2 },
 						nonCapturing: true,
 					},
-					onHandle: handle => {
+					onHandle: (handle) => {
 						this.handle = handle;
 						handle.setHidden(false);
 						if (handle.isFocused()) {
@@ -274,7 +274,7 @@ export class AdvisorOverlayController {
 					},
 				},
 			)
-			.catch(error => {
+			.catch((error) => {
 				this.state.recordError(error);
 				this.handle = undefined;
 				this.component = undefined;

@@ -19,7 +19,7 @@ export function messageContentToText(content: string | readonly (TextContent | I
 	if (typeof content === "string") {
 		return content;
 	}
-	return content.map(part => (part.type === "text" ? part.text : "[image]")).join("\n");
+	return content.map((part) => (part.type === "text" ? part.text : "[image]")).join("\n");
 }
 
 export function isAdvisorAdviceMessage(message: AgentMessage): boolean {
@@ -40,7 +40,7 @@ export function isAdvisorCommandMessage(message: AgentMessage): boolean {
 
 export function buildPrimaryTranscriptView(ctx: Pick<ExtensionContext, "sessionManager">): PrimaryTranscriptView {
 	const branch = ctx.sessionManager.getBranch();
-	const rawMessages = branch.flatMap(entry => {
+	const rawMessages = branch.flatMap((entry) => {
 		const message = sessionEntryToMessage(entry);
 		return message ? [message] : [];
 	});
@@ -211,7 +211,7 @@ function redactMessage<T extends AgentMessage>(message: T): T {
 	if (cloned.role === "user") {
 		cloned.content = redactContent(cloned.content);
 	} else if (cloned.role === "assistant") {
-		cloned.content = cloned.content.map(block => {
+		cloned.content = cloned.content.map((block) => {
 			if (block.type === "text") {
 				return { ...block, text: redactText(block.text) };
 			}
@@ -221,7 +221,9 @@ function redactMessage<T extends AgentMessage>(message: T): T {
 			return { ...block, arguments: redactUnknown(block.arguments) as ToolCall["arguments"] };
 		});
 	} else if (cloned.role === "toolResult") {
-		cloned.content = cloned.content.map(part => (part.type === "text" ? { ...part, text: redactText(part.text) } : part));
+		cloned.content = cloned.content.map((part) =>
+			part.type === "text" ? { ...part, text: redactText(part.text) } : part,
+		);
 		cloned.details = redactUnknown(cloned.details);
 	} else if (cloned.role === "custom") {
 		cloned.content = redactContent(cloned.content);
@@ -240,7 +242,7 @@ function redactContent(content: string | (TextContent | ImageContent)[]): string
 	if (typeof content === "string") {
 		return redactText(content);
 	}
-	return content.map(part => (part.type === "text" ? { ...part, text: redactText(part.text) } : part));
+	return content.map((part) => (part.type === "text" ? { ...part, text: redactText(part.text) } : part));
 }
 
 function redactUnknown(value: unknown): unknown {
@@ -248,7 +250,7 @@ function redactUnknown(value: unknown): unknown {
 		return redactText(value);
 	}
 	if (Array.isArray(value)) {
-		return value.map(item => redactUnknown(item));
+		return value.map((item) => redactUnknown(item));
 	}
 	if (value && typeof value === "object") {
 		const entries = Object.entries(value).map(([key, nested]) => [key, redactUnknown(nested)]);

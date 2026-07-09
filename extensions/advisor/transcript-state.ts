@@ -98,7 +98,7 @@ export function applyTranscriptEvent(state: AdvisorTranscriptState, event: Agent
 }
 
 export function hasStreamingTranscriptEntry(entries: AdvisorTranscript): boolean {
-	return entries.some(entry => "streaming" in entry && entry.streaming);
+	return entries.some((entry) => "streaming" in entry && entry.streaming);
 }
 
 export function getCompletedExchangeCount(entries: AdvisorTranscript): number {
@@ -188,7 +188,7 @@ function finishTranscriptTurn(state: AdvisorTranscriptState, turnId?: number | n
 	}
 	if (
 		!state.entries.some(
-			entry => entry.type === "turn-boundary" && entry.turnId === resolvedTurnId && entry.phase === "end",
+			(entry) => entry.type === "turn-boundary" && entry.turnId === resolvedTurnId && entry.phase === "end",
 		)
 	) {
 		appendTranscriptEntry(state, { turnId: resolvedTurnId, type: "turn-boundary", phase: "end" });
@@ -224,7 +224,9 @@ function ensureTranscriptTurnForUserMessage(state: AdvisorTranscriptState): numb
 	return ensureTranscriptTurn(state);
 }
 
-function extractMessageText(message: { content?: string | AssistantMessage["content"] | UserMessage["content"] }): string {
+function extractMessageText(message: {
+	content?: string | AssistantMessage["content"] | UserMessage["content"];
+}): string {
 	const content = message.content;
 	if (typeof content === "string") {
 		return content;
@@ -233,7 +235,7 @@ function extractMessageText(message: { content?: string | AssistantMessage["cont
 		return "";
 	}
 	return content
-		.map(part => {
+		.map((part) => {
 			if (part.type === "text") return part.text ?? "";
 			if (part.type === "thinking") return part.thinking ?? "";
 			if (part.type === "toolCall") return `${part.name}(${formatToolPreview(part.arguments)})`;
@@ -268,15 +270,10 @@ function upsertTranscriptTextEntry(
 	appendTranscriptEntry(state, { turnId, type, text, streaming });
 }
 
-function ensureToolCallEntry(
-	state: AdvisorTranscriptState,
-	toolCallId: string,
-	toolName: string,
-	args: unknown,
-): void {
+function ensureToolCallEntry(state: AdvisorTranscriptState, toolCallId: string, toolName: string, args: unknown): void {
 	const tracked = state.toolCalls.get(toolCallId);
 	if (tracked) {
-		const existing = state.entries.find(entry => entry.id === tracked.callEntryId && entry.type === "tool-call");
+		const existing = state.entries.find((entry) => entry.id === tracked.callEntryId && entry.type === "tool-call");
 		if (existing?.type === "tool-call") {
 			existing.toolName = toolName;
 			existing.args = formatToolPreview(args);
@@ -306,7 +303,7 @@ function upsertToolResultEntry(
 	const turnId = tracked?.turnId ?? ensureTranscriptTurn(state);
 	const summary = summarizeToolResult(value);
 	if (tracked?.resultEntryId) {
-		const existing = state.entries.find(entry => entry.id === tracked.resultEntryId && entry.type === "tool-result");
+		const existing = state.entries.find((entry) => entry.id === tracked.resultEntryId && entry.type === "tool-result");
 		if (existing?.type === "tool-result") {
 			existing.content = summary.content;
 			existing.truncated = summary.truncated;
@@ -339,8 +336,8 @@ function applyAssistantMessageToTranscript(state: AdvisorTranscriptState, messag
 	}
 	const assistant = message as AssistantMessage;
 	const turnId = state.currentTurnId ?? state.lastTurnId ?? ensureTranscriptTurn(state);
-	const thinking = extractMessageText({ content: assistant.content.filter(part => part.type === "thinking") });
-	const text = extractMessageText({ content: assistant.content.filter(part => part.type === "text") });
+	const thinking = extractMessageText({ content: assistant.content.filter((part) => part.type === "thinking") });
+	const text = extractMessageText({ content: assistant.content.filter((part) => part.type === "text") });
 	if (thinking) {
 		upsertTranscriptTextEntry(state, turnId, "thinking", thinking, assistant.stopReason === "toolUse");
 	}
@@ -362,7 +359,7 @@ function summarizeToolResult(value: unknown, maxLength = 400): { content: string
 		const maybeContent = (value as { content?: unknown }).content;
 		if (Array.isArray(maybeContent)) {
 			text = maybeContent
-				.map(part => {
+				.map((part) => {
 					if (part && typeof part === "object" && (part as { type?: string }).type === "text") {
 						return String((part as { text?: unknown }).text ?? "");
 					}

@@ -33,11 +33,13 @@ Overlay 展示 advisor 的完整 transcript：thinking、text、tool calls、too
 ## Consequences
 
 **正面：**
+
 - 用户可随时看到 advisor 的工作状态，无需手动切换视图
 - 不干扰用户与 primary agent 的正常交互
 - 单一入口（`/advisor`）降低 UI 复杂度
 
 **负面：**
+
 - nonCapturing 下用户可能忽略 overlay 更新，依赖 notify toast 提示
 - overlay 占用屏幕空间，在终端尺寸较小时影响体验
 

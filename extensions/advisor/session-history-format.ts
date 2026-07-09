@@ -92,7 +92,7 @@ function lineCount(text: string): number {
 }
 
 function escapeXmlText(input: string): string {
-	return input.replace(/[<>&'"]/g, char => {
+	return input.replace(/[<>&'"]/g, (char) => {
 		switch (char) {
 			case "<":
 				return "&lt;";
@@ -112,7 +112,7 @@ function escapeXmlText(input: string): string {
 
 function primaryArgValue(value: unknown): string {
 	if (typeof value === "string" && value.length > 0) return value;
-	if (Array.isArray(value) && value.length > 0 && value.every(v => typeof v === "string")) {
+	if (Array.isArray(value) && value.length > 0 && value.every((v) => typeof v === "string")) {
 		return value.join(", ");
 	}
 	return "";
@@ -260,7 +260,7 @@ function customOneLiner(msg: CustomMessage | HookMessage): string {
 		case "async-result": {
 			const jobs = Array.isArray(details.jobs) && details.jobs.length > 0 ? details.jobs : [details];
 			const labels = jobs
-				.map(job => {
+				.map((job) => {
 					const j = (job ?? {}) as Record<string, unknown>;
 					return typeof j.label === "string" && j.label ? j.label : typeof j.jobId === "string" ? j.jobId : "job";
 				})
@@ -377,12 +377,7 @@ export function formatSessionHistoryMarkdown(messages: unknown[], opts?: History
 				if (opts?.expandPrimaryContext && PRIMARY_CONTEXT_CUSTOM_TYPES.has(custom.customType)) {
 					const text = contentToText(custom.content).trim();
 					if (text) {
-						lines.push(
-							`<primary-context kind="${custom.customType}">`,
-							escapeXmlText(text),
-							"</primary-context>",
-							"",
-						);
+						lines.push(`<primary-context kind="${custom.customType}">`, escapeXmlText(text), "</primary-context>", "");
 					}
 				} else {
 					lines.push(customOneLiner(custom), "");
@@ -404,7 +399,7 @@ export function formatSessionHistoryMarkdown(messages: unknown[], opts?: History
 			}
 			case "fileMention": {
 				const fileMsg = msg as FileMentionMessage;
-				lines.push(`[file-mention] ${oneLine(fileMsg.files.map(f => f.path).join(", "))}`, "");
+				lines.push(`[file-mention] ${oneLine(fileMsg.files.map((f) => f.path).join(", "))}`, "");
 				lastWatchedLabel = undefined;
 				break;
 			}

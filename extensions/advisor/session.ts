@@ -58,11 +58,7 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 	private watchAbortController: AbortController | undefined;
 	private autoResumeSuppressed = false;
 
-	constructor(
-		pi: ExtensionAPI,
-		settingsStore = new AdvisorSettingsStore(),
-		overlay = new AdvisorOverlayController(),
-	) {
+	constructor(pi: ExtensionAPI, settingsStore = new AdvisorSettingsStore(), overlay = new AdvisorOverlayController()) {
 		this.pi = pi;
 		this.settingsStore = settingsStore;
 		this.overlay = overlay;
@@ -87,8 +83,9 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 			return;
 		}
 		if (event.type === "agent_end") {
-			const lastAssistant = [...(event.messages ?? [])].reverse().find(message => message.role === "assistant");
-			this.primaryLoopState = lastAssistant?.role === "assistant" && lastAssistant.stopReason === "aborted" ? "aborted" : "idle";
+			const lastAssistant = [...(event.messages ?? [])].reverse().find((message) => message.role === "assistant");
+			this.primaryLoopState =
+				lastAssistant?.role === "assistant" && lastAssistant.stopReason === "aborted" ? "aborted" : "idle";
 			this.autoResumeSuppressed = this.primaryLoopState === "aborted";
 			this.bumpPrimary("state_changed");
 			return;
@@ -157,7 +154,7 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 					streamingBehavior: session.isStreaming ? "followUp" : undefined,
 				},
 			)
-			.catch(error => {
+			.catch((error) => {
 				if (!controller.signal.aborted) {
 					this.overlay.state.recordError(error);
 					this.primaryCtx?.ui.notify(error instanceof Error ? error.message : String(error), "error");
@@ -256,7 +253,10 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 				sinceIndexOutOfBounds: false,
 				omittedAdvisorAdviceCount: 0,
 			};
-			return { text: `[0, 0) primary_agent_loop_state=${this.primaryLoopState} wait_result=timeout waited_ms=0 total=0\n\n(no primary context)\n`, details };
+			return {
+				text: `[0, 0) primary_agent_loop_state=${this.primaryLoopState} wait_result=timeout waited_ms=0 total=0\n\n(no primary context)\n`,
+				details,
+			};
 		}
 		let view = buildPrimaryTranscriptView(ctx);
 		let waitResult: PullWaitResult = hasNewTranscriptEntries(view, request) ? "new_messages" : "timeout";
@@ -335,7 +335,7 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 			resourceLoader,
 		});
 		this.session = session;
-		this.sessionUnsubscribe = session.subscribe(event => this.handleAdvisorEvent(event));
+		this.sessionUnsubscribe = session.subscribe((event) => this.handleAdvisorEvent(event));
 		this.overlay.state.setStatus(`Advisor ready: ${resolved.modelRef} thinking=${resolved.thinkingLevel}`);
 		this.overlay.refresh();
 		return session;
@@ -383,7 +383,7 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 		if (this.primaryLoopState !== baselineState) {
 			return Promise.resolve("state_changed");
 		}
-		return new Promise(resolve => {
+		return new Promise((resolve) => {
 			const timeout = setTimeout(() => {
 				this.waiters.delete(waiter);
 				cleanup();
@@ -423,7 +423,9 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 				this.waiters.delete(waiter);
 				clearTimeout(waiter.timeout);
 				waiter.cleanup();
-				waiter.resolve(reason === "new_messages" && this.primaryLoopState !== waiter.baselineState ? "state_changed" : reason);
+				waiter.resolve(
+					reason === "new_messages" && this.primaryLoopState !== waiter.baselineState ? "state_changed" : reason,
+				);
 			}
 		}
 	}
@@ -438,6 +440,11 @@ function normalizePullTimeout(timeoutMs: number | undefined): number {
 
 export function renderAdviceMessage(content: unknown, details: unknown): string {
 	const info = details as { advisorAdviceKind?: string; deliverAs?: string; advisorAdviceId?: string } | undefined;
-	const body = typeof content === "string" ? content : Array.isArray(content) ? messageContentToText(content) : String(content ?? "");
+	const body =
+		typeof content === "string"
+			? content
+			: Array.isArray(content)
+				? messageContentToText(content)
+				: String(content ?? "");
 	return `[Advisor ${info?.advisorAdviceKind ?? "advice"} -> ${info?.deliverAs ?? "primary"} ${info?.advisorAdviceId ?? ""}]\n${body}`;
 }

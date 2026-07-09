@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createAdviceDelivery, deliveryChannelForKind, formatAdviceForPrimary } from "../../../extensions/advisor/delivery";
+import {
+	createAdviceDelivery,
+	deliveryChannelForKind,
+	formatAdviceForPrimary,
+} from "../../../extensions/advisor/delivery";
 
 describe("Feature: Advice Delivery", () => {
 	it("Scenario: Hint is delivered through Steer", () => {
@@ -32,7 +36,7 @@ describe("Feature: Advice Delivery", () => {
 	it("Scenario: Advice content is wrapped without leaking markup control", () => {
 		const body = formatAdviceForPrimary("adv_test", {
 			kind: "hint",
-			advice: "Prefer <parse()> & keep \"quotes\" literal.",
+			advice: 'Prefer <parse()> & keep "quotes" literal.',
 		});
 		expect(body).toContain('id="adv_test"');
 		expect(body).toContain('kind="hint"');

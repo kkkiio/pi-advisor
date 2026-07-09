@@ -17,10 +17,10 @@ Advisor 是一个依附 Primary Agent 的会话内持久化第二 agent，用于
 
 ### 两种入口
 
-| 命令 | 说明 |
-|------|------|
+| 命令              | 说明                                                                                     |
+| ----------------- | ---------------------------------------------------------------------------------------- |
 | `/advisor <消息>` | Ask Advisor：向 Advisor 索取 Second Opinion，附带最近 Primary Transcript View 作为上下文 |
-| `/advisor:watch` | 启动一次 Watch Run，由 Advisor 根据 Primary Agent 的工作进展自行判断何时结束 |
+| `/advisor:watch`  | 启动一次 Watch Run，由 Advisor 根据 Primary Agent 的工作进展自行判断何时结束             |
 
 Ask Advisor 和 Watch Run 复用同一个 Advisor，Advisor Transcript 保持连续。Second Opinion 是 Advisor 面向用户的第二视角；Advice 是 Advisor 送达 Primary Agent 的 Hint 或 Concern。
 
@@ -43,12 +43,12 @@ Ask Advisor 和 Watch Run 复用同一个 Advisor，Advisor Transcript 保持连
 
 ### 生命周期控制
 
-| 命令 | 说明 |
-|------|------|
-| `/advisor:watch-off` | 取消当前 Watch Run，保留 Advisor 实例和上下文 |
-| `/advisor:new` | 清空 Advisor Transcript，重置上下文 |
-| `/advisor:model <model>` | 设置 Advisor 使用的模型 |
-| `/advisor:thinking <level>` | 设置 Advisor 的 thinking level |
+| 命令                        | 说明                                          |
+| --------------------------- | --------------------------------------------- |
+| `/advisor:watch-off`        | 取消当前 Watch Run，保留 Advisor 实例和上下文 |
+| `/advisor:new`              | 清空 Advisor Transcript，重置上下文           |
+| `/advisor:model <model>`    | 设置 Advisor 使用的模型                       |
+| `/advisor:thinking <level>` | 设置 Advisor 的 thinking level                |
 
 ### 健壮性
 

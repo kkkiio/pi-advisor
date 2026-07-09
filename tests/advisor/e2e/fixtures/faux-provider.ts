@@ -28,7 +28,7 @@ export default function advisorE2EFauxProvider(pi: ExtensionAPI): void {
 		baseUrl: "http://localhost:0",
 		apiKey: "PI_ADVISOR_TEST_FAUX_API_KEY",
 		api: registration.api as any,
-		models: registration.models.map(model => ({
+		models: registration.models.map((model) => ({
 			id: model.id,
 			name: model.name,
 			api: model.api as any,
@@ -42,14 +42,17 @@ export default function advisorE2EFauxProvider(pi: ExtensionAPI): void {
 	});
 }
 
-function scriptedResponse(context: Context, _options: StreamOptions | undefined, _state: unknown, model: Model<string>) {
+function scriptedResponse(
+	context: Context,
+	_options: StreamOptions | undefined,
+	_state: unknown,
+	model: Model<string>,
+) {
 	if (model.id === primaryModelId) {
-		return fauxAssistantMessage(
-			fauxText("E2E_PRIMARY_RESPONSE: primary agent completed a deterministic faux turn."),
-		);
+		return fauxAssistantMessage(fauxText("E2E_PRIMARY_RESPONSE: primary agent completed a deterministic faux turn."));
 	}
 	const isWatchRun = context.messages.some(
-		message =>
+		(message) =>
 			message.role === "user" &&
 			contentText(message.content).includes("Start a Watch Run for the current Primary Agent task."),
 	);
@@ -84,13 +87,13 @@ function scriptedResponse(context: Context, _options: StreamOptions | undefined,
 }
 
 function hasToolResult(context: Context, toolName: string): boolean {
-	return context.messages.some(message => message.role === "toolResult" && message.toolName === toolName);
+	return context.messages.some((message) => message.role === "toolResult" && message.toolName === toolName);
 }
 
 function toolResultText(context: Context, toolName: string): string {
 	return context.messages
-		.filter(message => message.role === "toolResult" && message.toolName === toolName)
-		.map(message => contentText(message.content))
+		.filter((message) => message.role === "toolResult" && message.toolName === toolName)
+		.map((message) => contentText(message.content))
 		.join("\n");
 }
 
@@ -99,6 +102,8 @@ function contentText(content: Context["messages"][number]["content"]): string {
 		return content;
 	}
 	return content
-		.map(block => (block && typeof block === "object" && "text" in block && typeof block.text === "string" ? block.text : ""))
+		.map((block) =>
+			block && typeof block === "object" && "text" in block && typeof block.text === "string" ? block.text : "",
+		)
 		.join("\n");
 }

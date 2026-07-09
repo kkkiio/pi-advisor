@@ -39,7 +39,10 @@ export class RpcPi {
 	readonly advisorSettingsPath: string;
 	private readonly proc: ChildProcessWithoutNullStreams;
 	private readonly events: RpcJson[] = [];
-	private readonly pending = new Map<string, { resolve: (response: RpcJson) => void; reject: (error: Error) => void }>();
+	private readonly pending = new Map<
+		string,
+		{ resolve: (response: RpcJson) => void; reject: (error: Error) => void }
+	>();
 	private stderr = "";
 	private nextRequestId = 0;
 
@@ -116,7 +119,11 @@ export class RpcPi {
 	async promptAndWait(message: string, timeoutMs: number): Promise<RpcJson[]> {
 		const before = this.events.length;
 		await this.prompt(message);
-		await this.waitFor(() => this.events.slice(before).some(event => event.type === "agent_end"), timeoutMs, "agent_end");
+		await this.waitFor(
+			() => this.events.slice(before).some((event) => event.type === "agent_end"),
+			timeoutMs,
+			"agent_end",
+		);
 		return this.events.slice(before);
 	}
 
@@ -139,18 +146,15 @@ export class RpcPi {
 		return this.waitFor(
 			() =>
 				this.events.find(
-					event => event.type === "extension_ui_request" && event.method === "notify" && pattern.test(event.message ?? ""),
+					(event) =>
+						event.type === "extension_ui_request" && event.method === "notify" && pattern.test(event.message ?? ""),
 				),
 			timeoutMs,
 			`notification matching ${pattern}`,
 		);
 	}
 
-	async waitForMessage(
-		predicate: (message: RpcJson) => boolean,
-		timeoutMs: number,
-		label: string,
-	): Promise<RpcJson> {
+	async waitForMessage(predicate: (message: RpcJson) => boolean, timeoutMs: number, label: string): Promise<RpcJson> {
 		const started = Date.now();
 		while (Date.now() - started < timeoutMs) {
 			const message = (await this.getMessages()).find(predicate);
@@ -163,7 +167,7 @@ export class RpcPi {
 	}
 
 	async sleep(ms: number): Promise<void> {
-		await new Promise(resolve => setTimeout(resolve, ms));
+		await new Promise((resolve) => setTimeout(resolve, ms));
 	}
 
 	async dispose(): Promise<void> {
@@ -174,7 +178,7 @@ export class RpcPi {
 		if (!this.proc.killed) {
 			this.proc.kill("SIGTERM");
 			await Promise.race([
-				new Promise<void>(resolve => this.proc.once("exit", () => resolve())),
+				new Promise<void>((resolve) => this.proc.once("exit", () => resolve())),
 				this.sleep(1_000).then(() => {
 					if (!this.proc.killed) {
 						this.proc.kill("SIGKILL");
@@ -194,7 +198,7 @@ export class RpcPi {
 				reject(new Error(`timeout waiting for ${command.type} response\nStderr:\n${this.stderr}`));
 			}, timeoutMs);
 			this.pending.set(id, {
-				resolve: response => {
+				resolve: (response) => {
 					clearTimeout(timeout);
 					if (response.success === false) {
 						reject(new Error(response.error ?? `RPC ${command.type} failed`));
@@ -202,7 +206,7 @@ export class RpcPi {
 					}
 					resolve(response);
 				},
-				reject: error => {
+				reject: (error) => {
 					clearTimeout(timeout);
 					reject(error);
 				},
@@ -214,7 +218,7 @@ export class RpcPi {
 	private attachReaders(): void {
 		let buffer = "";
 		const decoder = new StringDecoder("utf8");
-		this.proc.stdout.on("data", chunk => {
+		this.proc.stdout.on("data", (chunk) => {
 			buffer += decoder.write(chunk);
 			for (;;) {
 				const nextLine = buffer.indexOf("\n");
@@ -229,10 +233,10 @@ export class RpcPi {
 				this.handleLine(line);
 			}
 		});
-		this.proc.stderr.on("data", chunk => {
+		this.proc.stderr.on("data", (chunk) => {
 			this.stderr += String(chunk);
 		});
-		this.proc.on("exit", code => {
+		this.proc.on("exit", (code) => {
 			for (const [id, pending] of this.pending) {
 				pending.reject(new Error(`RPC process exited with code ${code}\nStderr:\n${this.stderr}`));
 				this.pending.delete(id);

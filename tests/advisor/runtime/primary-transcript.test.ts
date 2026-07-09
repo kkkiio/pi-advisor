@@ -68,7 +68,13 @@ describe("Feature: Primary Transcript View", () => {
 
 		const view = buildPrimaryTranscriptView({ sessionManager });
 		const first = renderPrimaryTranscriptSlice(view, { sinceIndex: 0, count: 2 }, "running", "new_messages", 5);
-		const second = renderPrimaryTranscriptSlice(view, { sinceIndex: first.details.end, count: 2 }, "running", "new_messages", 5);
+		const second = renderPrimaryTranscriptSlice(
+			view,
+			{ sinceIndex: first.details.end, count: 2 },
+			"running",
+			"new_messages",
+			5,
+		);
 
 		expect(first.details.start).toBe(0);
 		expect(first.details.end).toBe(2);

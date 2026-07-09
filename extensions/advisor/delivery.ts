@@ -6,7 +6,7 @@ export function deliveryChannelForKind(kind: AdviceDeliveryRequest["kind"]): Del
 }
 
 export function formatAdviceForPrimary(id: string, request: AdviceDeliveryRequest): string {
-	const escaped = request.advice.replace(/[<>&'"]/g, char => {
+	const escaped = request.advice.replace(/[<>&'"]/g, (char) => {
 		switch (char) {
 			case "<":
 				return "&lt;";

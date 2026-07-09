@@ -48,6 +48,7 @@ Advisor 送达 Primary Agent 的内容是 Advice。加速信息是 Hint，应尽
 用户可以通过 `/advisor <消息>` 向 Advisor 提问。Advisor 应复用同一个会话内实例，并保留已有 Advisor Transcript。
 
 验收标准：
+
 - 用户发起 Ask Advisor 后，Advisor 能基于 Primary Agent 的近期工作给出 Second Opinion。
 - 多次 Ask Advisor 之间，Advisor 能延续自己的上下文。
 - Ask Advisor 不会创建与 Watch Run 分离的第二套 Advisor 记忆。
@@ -57,6 +58,7 @@ Advisor 送达 Primary Agent 的内容是 Advice。加速信息是 Hint，应尽
 用户可以通过 `/advisor:watch` 启动一次 Watch Run。Advisor 应异步观察 Primary Agent 的工作进展，并自行结束本次审查。
 
 验收标准：
+
 - Watch Run 不阻塞 Primary Agent 的执行。
 - Watch Run 可以在 Advisor 判断审查完成后自然结束。
 - 用户可以通过 `/advisor:watch-off` 取消当前 Watch Run。
@@ -67,6 +69,7 @@ Advisor 送达 Primary Agent 的内容是 Advice。加速信息是 Hint，应尽
 Advisor 的建议分为 Hint 和 Concern。
 
 验收标准：
+
 - Hint 表达加速当前工作的建议，例如更合适的 API、文件、做法或事实。
 - Concern 表达风险、错误或设计疑虑。
 - Hint 应尽快影响当前工作。
@@ -77,6 +80,7 @@ Advisor 的建议分为 Hint 和 Concern。
 用户可以通过 Advisor Overlay 看到 Advisor 的工作过程。
 
 验收标准：
+
 - Overlay 展示 Advisor 的思考、文本输出、工具活动和建议。
 - Overlay 保持可见时不抢占 Primary Agent 的输入焦点。
 - 重要 Concern 出现时，用户能获得额外提醒。
@@ -86,6 +90,7 @@ Advisor 的建议分为 Hint 和 Concern。
 用户可以控制 Advisor 的当前运行和上下文。
 
 验收标准：
+
 - `/advisor:new` 清空 Advisor Transcript，并开始新的 Advisor 上下文。
 - `/advisor:watch-off` 只取消当前 Watch Run，不清空 Advisor Transcript。
 - 用户中断 Primary Agent 后，Advisor 不会自动唤醒 Primary Agent。
@@ -95,6 +100,7 @@ Advisor 的建议分为 Hint 和 Concern。
 用户可以设置 Advisor 使用的模型和 thinking level。
 
 验收标准：
+
 - 用户可以查看或更新 Advisor 的模型偏好。
 - 用户可以查看或更新 Advisor 的 thinking 偏好。
 - Advisor 偏好保存在用户级配置文件 `~/.pi/agent/advisor.json`。
@@ -108,6 +114,7 @@ Advisor 的建议分为 Hint 和 Concern。
 Advisor 只在有实际 Advice 时打扰 Primary Agent。
 
 验收标准：
+
 - 没有 Advice 时，Advisor 保持静默。
 - Advisor 不应重复消费自己刚送达的 Advice。
 - Advisor 不应因为自己的 Advice 形成反馈循环。

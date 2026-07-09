@@ -97,7 +97,9 @@ export function resolveAdvisorSettings(
 	modelRegistry: ModelRegistry,
 ): AdvisorResolvedSettings | { error: string } {
 	if (!settings.model) {
-		return { error: `Advisor model is not set. Run /advisor:model <provider/model> first. Config: ${getAdvisorSettingsPath()}` };
+		return {
+			error: `Advisor model is not set. Run /advisor:model <provider/model> first. Config: ${getAdvisorSettingsPath()}`,
+		};
 	}
 	const ref = parseAdvisorModelRef(settings.model);
 	if (!ref) {

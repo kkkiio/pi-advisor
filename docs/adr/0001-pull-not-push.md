@@ -9,6 +9,7 @@ Accepted
 Advisor 需要获取 Primary Agent 的对话历史以进行审查。现有实现（oh-my-pi、pi-omplike-advisor）采用 Push 模型：在 Primary Agent 的 `turn_end` 事件中回调 Advisor，被动推送 delta。
 
 Push 模型带来的复杂性（来自 oh-my-pi `AdvisorRuntime` 的实际实现）：
+
 - 需要维护 `#lastCount` 光标跟踪已推送位置
 - 需要 `#pending` 队列缓冲异步到达的消息
 - 需要 drain loop 在 advisor 准备好时消费队列
@@ -99,11 +100,13 @@ pull_transcript(since_index?, timeout_ms?, count?)
 ## Consequences
 
 **正面：**
+
 - 消除了 `#lastCount`、`#pending`、drain loop、`#seenContext` 去重等 Push 模型下的维护负担；secret redaction 收敛到 Primary Transcript View 构造阶段
 - Advisor 批量审查，更接近人类 code review 节奏
 - 无 Advice 时 Advisor 自然静默，无需额外过滤器处理噪音
 
 **负面：**
+
 - Advisor 的审查天然滞后于 Primary Agent 进度（异步性）
 - Advisor 需主动管理自己的拉取策略
 - Advisor 长期运行自身 context 会溢出，需要自我 compaction 机制（首版标注风险，后续解决）

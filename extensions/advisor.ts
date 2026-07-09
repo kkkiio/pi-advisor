@@ -7,7 +7,7 @@ export default function advisorExtension(pi: ExtensionAPI): void {
 	const runtime = new AdvisorRuntime(pi);
 
 	pi.registerMessageRenderer(ADVISOR_ADVICE_CUSTOM_TYPE, (message, _options, theme) => {
-		const box = new Box(1, 1, text => theme.bg("customMessageBg", text));
+		const box = new Box(1, 1, (text) => theme.bg("customMessageBg", text));
 		box.addChild(new Text(renderAdviceMessage(message.content, message.details), 0, 0));
 		return box;
 	});

@@ -48,7 +48,7 @@ describe("Feature: Advisor Overlay Transcript", () => {
 			},
 		} as any);
 
-		expect(state.entries.map(entry => entry.type)).toEqual([
+		expect(state.entries.map((entry) => entry.type)).toEqual([
 			"turn-boundary",
 			"user-message",
 			"thinking",
@@ -158,7 +158,7 @@ function findEntry<TType extends AdvisorTranscriptEntry["type"]>(
 	entries: AdvisorTranscriptEntry[],
 	type: TType,
 ): Extract<AdvisorTranscriptEntry, { type: TType }> {
-	const entry = entries.find(candidate => candidate.type === type);
+	const entry = entries.find((candidate) => candidate.type === type);
 	if (!entry) {
 		throw new Error(`Missing transcript entry ${type}`);
 	}

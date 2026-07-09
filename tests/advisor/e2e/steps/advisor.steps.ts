@@ -15,9 +15,12 @@ Given("a Pi RPC session with an Advisor model and a waiting Watch Run script", a
 	await this.startRpcPi({ advisorModelConfigured: true, script: "watch-wait" });
 });
 
-Given("the Primary Agent has completed a turn containing {string}", async function (this: AdvisorE2EWorld, message: string) {
-	await this.rpcPi.promptAndWait(message, 30_000);
-});
+Given(
+	"the Primary Agent has completed a turn containing {string}",
+	async function (this: AdvisorE2EWorld, message: string) {
+		await this.rpcPi.promptAndWait(message, 30_000);
+	},
+);
 
 When("the user asks Advisor {string}", async function (this: AdvisorE2EWorld, message: string) {
 	await this.rpcPi.prompt(`/advisor ${message}`);
@@ -45,7 +48,7 @@ When("the user cancels Watch Run", async function (this: AdvisorE2EWorld) {
 
 Then("Advisor commands should be registered", async function (this: AdvisorE2EWorld) {
 	const commands = await this.rpcPi.getCommands();
-	const names = commands.map(command => command.name);
+	const names = commands.map((command) => command.name);
 
 	expect(names).toEqual(
 		expect.arrayContaining([
@@ -57,7 +60,9 @@ Then("Advisor commands should be registered", async function (this: AdvisorE2EWo
 			"advisor:thinking",
 		]),
 	);
-	expect(commands.filter(command => command.source === "extension").map(command => command.name)).toContain("advisor");
+	expect(commands.filter((command) => command.source === "extension").map((command) => command.name)).toContain(
+		"advisor",
+	);
 });
 
 Then("the user should be warned that the Advisor model is not set", async function (this: AdvisorE2EWorld) {
@@ -77,7 +82,7 @@ Then(
 
 Then("Advisor should deliver a Hint through Steer", async function (this: AdvisorE2EWorld) {
 	const message = await this.rpcPi.waitForMessage(
-		candidate =>
+		(candidate) =>
 			candidate.role === "custom" &&
 			candidate.customType === "advisor:advice" &&
 			JSON.stringify(candidate).includes("E2E_ASK_HINT"),
@@ -95,7 +100,7 @@ Then("Advisor should deliver a Hint through Steer", async function (this: Adviso
 
 Then("Advisor should deliver a Concern through Follow-up", async function (this: AdvisorE2EWorld) {
 	const message = await this.rpcPi.waitForMessage(
-		candidate =>
+		(candidate) =>
 			candidate.role === "custom" &&
 			candidate.customType === "advisor:advice" &&
 			JSON.stringify(candidate).includes("E2E_WATCH_CONCERN"),

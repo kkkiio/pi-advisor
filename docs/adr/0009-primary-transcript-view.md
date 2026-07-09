@@ -77,11 +77,13 @@ Redaction 发生在 markdown render 之前，避免 secret 同时出现在正文
 ## Consequences
 
 **正面：**
+
 - 阻断 Advisor Advice 回流造成的 feedback loop
 - `pull_transcript` 的索引契约稳定，过滤规则不会泄漏给模型自行猜测
 - future persistence / compaction / branch switching 都有统一的 view 边界
 
 **负面：**
+
 - 需要为 Advisor 注入消息建立可靠 provenance
 - Primary Agent 后续响应可能引用被 omitted 的 Advice，view 需要 marker 保持时间线可解释
 - 过滤和 redaction 成为 `pull_transcript` 的核心行为，需要专门测试

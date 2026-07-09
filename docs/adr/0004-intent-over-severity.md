@@ -9,10 +9,12 @@ Accepted
 Advisor 向 Primary Agent 发送 Advice 时，需要决定两件事：1）用什么维度区分不同类型的 Advice；2）不同类型的 Advice 走什么 Delivery Channel。
 
 Pi 的 agent loop 提供两种送达机制：
+
 - **Steer**：注入到 Primary Agent 的 rollout 中，可能改变其当前行为路径
 - **Follow-up**：在 Primary Agent 完成当前工作后作为后续消息呈现
 
 现有方案 pi-omplike-advisor 使用 **severity** 作为路由依据，分为三层：
+
 - **nit** → 立即 steer + triggerTurn（但也可能滞后，需 tag 标注"raised about earlier step"）
 - **concern / blocker** → 先 hold（异步审查下 advice 到达时 primary 已完成后续工作，advice 已 stale），下一轮 review 时 reconfirm（只保留仍然有效的），terminal turn 时 catch-up block 等待 Advisor 追上
 - nits 在 terminal turn 时也受特殊处理：同样不立即送，需通过 reconfirm preamble 存活验证
@@ -41,11 +43,13 @@ pi.sendUserMessage(content, { deliverAs: "followUp" });
 ## Consequences
 
 **正面：**
+
 - 区分"帮助加速"和"指出风险"两种本质不同的干预
 - Steer 仅用于 Hint，不会因风险质疑而打断 agent 连贯性
 - 不需要 hold / reconfirm / catch-up block 等 Push 模型下的复杂机制
 
 **负面：**
+
 - Advisor 模型需要正确判断意图类型，可能存在误判
 - Concern 在 Follow-up 中可能被 Primary Agent 忽略
 - Steer 并非即刻送达——Primary Agent 当前 tool batch 执行完才会注入
