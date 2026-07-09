@@ -111,15 +111,65 @@ When("the user resets Advisor", async function (this: AdvisorE2EWorld) {
 	await this.rpcPi.prompt("/advisor:new");
 });
 
-When("the user checks the Advisor model setting", async function (this: AdvisorE2EWorld) {
+When("the user opens the Advisor model preference", async function (this: AdvisorE2EWorld) {
 	this.lastEventIndex = this.rpcPi.eventCount();
 	await this.rpcPi.prompt("/advisor:model");
 });
 
-When("the user checks the Advisor thinking setting", async function (this: AdvisorE2EWorld) {
+When("the user opens the Advisor thinking preference", async function (this: AdvisorE2EWorld) {
 	this.lastEventIndex = this.rpcPi.eventCount();
 	await this.rpcPi.prompt("/advisor:thinking");
 });
+
+When(
+	"the user chooses a registered Advisor model from the Advisor model picker",
+	async function (this: AdvisorE2EWorld) {
+		this.lastEventIndex = this.rpcPi.eventCount();
+		await this.rpcPi.prompt("/advisor:model", { select: selectedAdvisorModel });
+		const selection = this.rpcPi.events
+			.slice(this.lastEventIndex)
+			.find(
+				(event) =>
+					event.type === "extension_ui_request" &&
+					event.method === "select" &&
+					/Select Advisor model/i.test(event.title ?? ""),
+			);
+		if (!selection) {
+			throw new Error("Advisor model picker was not shown.");
+		}
+		this.lastSelect = selection;
+		this.lastNotification = await this.rpcPi.waitForNotificationAfter(
+			/Advisor model set to/i,
+			this.lastEventIndex,
+			10_000,
+		);
+	},
+);
+
+When(
+	"the user chooses Advisor thinking {string} from the Advisor thinking picker",
+	async function (this: AdvisorE2EWorld, thinking: string) {
+		this.lastEventIndex = this.rpcPi.eventCount();
+		await this.rpcPi.prompt("/advisor:thinking", { select: thinking });
+		const selection = this.rpcPi.events
+			.slice(this.lastEventIndex)
+			.find(
+				(event) =>
+					event.type === "extension_ui_request" &&
+					event.method === "select" &&
+					/Select Advisor thinking/i.test(event.title ?? ""),
+			);
+		if (!selection) {
+			throw new Error("Advisor thinking picker was not shown.");
+		}
+		this.lastSelect = selection;
+		this.lastNotification = await this.rpcPi.waitForNotificationAfter(
+			/Advisor thinking set to/i,
+			this.lastEventIndex,
+			10_000,
+		);
+	},
+);
 
 When("the user enters an invalid Advisor model format", async function (this: AdvisorE2EWorld) {
 	this.lastEventIndex = this.rpcPi.eventCount();
@@ -266,35 +316,45 @@ Then("Advisor should warn with {string}", async function (this: AdvisorE2EWorld,
 	this.lastNotification = notification;
 });
 
-Then("Advisor should report that no model is set", async function (this: AdvisorE2EWorld) {
-	const text = "Advisor model is not set.";
-	const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-	const notification = await this.rpcPi.waitForNotificationAfter(new RegExp(escaped, "i"), this.lastEventIndex, 10_000);
+Then("Advisor should offer registered Advisor models", async function (this: AdvisorE2EWorld) {
+	const selection = this.rpcPi.events
+		.slice(this.lastEventIndex)
+		.find(
+			(event) =>
+				event.type === "extension_ui_request" &&
+				event.method === "select" &&
+				/Select Advisor model/i.test(event.title ?? ""),
+		);
+	if (!selection) {
+		throw new Error("Advisor model picker was not shown.");
+	}
 
-	expect(notification.message).toContain(text);
-	expect(notification.notifyType).toBe("info");
-	this.lastNotification = notification;
+	expect(selection.options).toContain(selectedAdvisorModel);
+	this.lastSelect = selection;
 });
 
-Then("Advisor should show the selected model", async function (this: AdvisorE2EWorld) {
-	const text = `Advisor model: ${selectedAdvisorModel}`;
-	const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-	const notification = await this.rpcPi.waitForNotificationAfter(new RegExp(escaped, "i"), this.lastEventIndex, 10_000);
+Then(
+	"Advisor should offer thinking levels with default {string}",
+	async function (this: AdvisorE2EWorld, thinking: string) {
+		const selection = this.rpcPi.events
+			.slice(this.lastEventIndex)
+			.find(
+				(event) =>
+					event.type === "extension_ui_request" &&
+					event.method === "select" &&
+					/Select Advisor thinking/i.test(event.title ?? ""),
+			);
+		if (!selection) {
+			throw new Error("Advisor thinking picker was not shown.");
+		}
 
-	expect(notification.message).toContain(text);
-	expect(notification.notifyType).toBe("info");
-	this.lastNotification = notification;
-});
-
-Then("Advisor should show default thinking {string}", async function (this: AdvisorE2EWorld, thinking: string) {
-	const text = `Advisor thinking: ${thinking}.`;
-	const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-	const notification = await this.rpcPi.waitForNotificationAfter(new RegExp(escaped, "i"), this.lastEventIndex, 10_000);
-
-	expect(notification.message).toContain(text);
-	expect(notification.notifyType).toBe("info");
-	this.lastNotification = notification;
-});
+		expect(selection.title).toContain(`current: ${thinking}`);
+		expect(selection.options).toEqual(
+			expect.arrayContaining(["off", "minimal", "low", `${thinking} (current)`, "high", "xhigh"]),
+		);
+		this.lastSelect = selection;
+	},
+);
 
 Then("Advisor should report that the selected model is unavailable", async function (this: AdvisorE2EWorld) {
 	const text = "Model missing-provider/missing-model is not registered in Pi.";

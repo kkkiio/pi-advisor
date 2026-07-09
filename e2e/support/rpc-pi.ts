@@ -38,11 +38,12 @@ export class RpcPi {
 	readonly home: string;
 	readonly advisorSettingsPath: string;
 	private readonly proc: ChildProcessWithoutNullStreams;
-	private readonly events: RpcJson[] = [];
+	readonly events: RpcJson[] = [];
 	private readonly pending = new Map<
 		string,
 		{ resolve: (response: RpcJson) => void; reject: (error: Error) => void }
 	>();
+	private readonly selectResponses: string[] = [];
 	private stderr = "";
 	private nextRequestId = 0;
 
@@ -112,7 +113,10 @@ export class RpcPi {
 		this.advisorSettingsPath = join(home, ".pi", "agent", "advisor.json");
 	}
 
-	async prompt(message: string): Promise<RpcJson> {
+	async prompt(message: string, response?: { select?: string }): Promise<RpcJson> {
+		if (response?.select) {
+			this.selectResponses.push(response.select);
+		}
 		return this.request({ type: "prompt", message }, 30_000);
 	}
 
@@ -274,7 +278,9 @@ export class RpcPi {
 			const response =
 				event.method === "confirm"
 					? { type: "extension_ui_response", id: event.id, confirmed: false }
-					: { type: "extension_ui_response", id: event.id, cancelled: true };
+					: event.method === "select" && this.selectResponses.length > 0
+						? { type: "extension_ui_response", id: event.id, value: this.selectResponses.shift() }
+						: { type: "extension_ui_response", id: event.id, cancelled: true };
 			this.proc.stdin.write(`${JSON.stringify(response)}\n`);
 		}
 	}

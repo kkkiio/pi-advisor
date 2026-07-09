@@ -47,8 +47,8 @@ Ask Advisor 和 Watch Run 复用同一个 Advisor，Advisor Transcript 保持连
 | --------------------------- | --------------------------------------------- |
 | `/advisor:watch-off`        | 取消当前 Watch Run，保留 Advisor 实例和上下文 |
 | `/advisor:new`              | 清空 Advisor Transcript，重置上下文           |
-| `/advisor:model <model>`    | 设置 Advisor 使用的模型                       |
-| `/advisor:thinking <level>` | 设置 Advisor 的 thinking level                |
+| `/advisor:model [model]`    | 打开模型选择器，或直接设置 Advisor 使用的模型 |
+| `/advisor:thinking [level]` | 打开 thinking 选择器，或直接设置 thinking     |
 
 ### 健壮性
 
@@ -70,7 +70,7 @@ Ask Advisor 和 Watch Run 复用同一个 Advisor，Advisor Transcript 保持连
 }
 ```
 
-这是用户级配置，对同一用户的所有项目生效。Advisor model 需要用户通过 `/advisor:model <model>` 显式设置；未设置时 Advisor 不启动，并提示用户先设置 model。`thinking` 可通过 `/advisor:thinking <level>` 设置，未设置时使用 Advisor 的固定默认值。
+这是用户级配置，对同一用户的所有项目生效。Advisor model 需要用户通过 `/advisor:model` 选择或 `/advisor:model <model>` 显式设置；未设置时 Advisor 不启动，并提示用户先设置 model。`thinking` 可通过 `/advisor:thinking` 选择或 `/advisor:thinking <level>` 设置，未设置时使用 Advisor 的固定默认值。
 
 ## 产品与架构
 

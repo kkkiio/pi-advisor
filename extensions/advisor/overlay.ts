@@ -132,12 +132,7 @@ export class AdvisorOverlayComponent implements Component {
 		this.tui = tui;
 		this.theme = theme;
 		this.state = state;
-		this.tui.terminal?.write?.("\x1b[?1000h\x1b[?1006h");
 		this.refresh();
-	}
-
-	dispose(): void {
-		this.tui.terminal?.write?.("\x1b[?1000l\x1b[?1006l");
 	}
 
 	invalidate(): void {
@@ -152,11 +147,6 @@ export class AdvisorOverlayComponent implements Component {
 	}
 
 	handleInput(data: string): void {
-		const mouseScrollDelta = this.getMouseScrollDelta(data);
-		if (mouseScrollDelta !== null) {
-			this.scrollTranscript(mouseScrollDelta);
-			return;
-		}
 		if (matchesKey(data, Key.pageUp) || matchesKey(data, Key.up)) {
 			const step = matchesKey(data, Key.pageUp) ? Math.max(1, this.transcriptViewportHeight - 1) : 1;
 			this.scrollTranscript(-step);
@@ -253,18 +243,6 @@ export class AdvisorOverlayComponent implements Component {
 		this.tui.requestRender();
 	}
 
-	private getMouseScrollDelta(data: string): number | null {
-		const match = data.match(/^\x1b\[<(\d+);\d+;\d+[Mm]$/);
-		if (!match) {
-			return null;
-		}
-		const button = Number(match[1]);
-		if ((button & 64) !== 64) {
-			return null;
-		}
-		return (button & 1) === 0 ? -3 : 3;
-	}
-
 	private fitRenderedLine(line: string, width: number): string {
 		return visibleWidth(line) > width ? truncateToWidth(line, width, "") : line;
 	}
@@ -329,7 +307,6 @@ export class AdvisorOverlayController {
 	}
 
 	close(): void {
-		this.component?.dispose();
 		this.handle?.hide();
 		this.handle = undefined;
 		this.component = undefined;

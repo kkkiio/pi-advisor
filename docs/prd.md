@@ -148,8 +148,8 @@ UI 内容契约：
 
 验收标准：
 
-- 用户可以查看或更新 Advisor 的模型偏好。
-- 用户可以查看或更新 Advisor 的 thinking 偏好。
+- 用户可以通过交互选择器或命令参数更新 Advisor 的模型偏好。
+- 用户可以通过交互选择器或命令参数更新 Advisor 的 thinking 偏好。
 - Advisor 偏好保存在用户级配置文件 `~/.pi/agent/advisor.json`。
 - Advisor 偏好对同一用户的所有项目生效。
 - Advisor model 需要用户显式设置，未设置时应提示用户完成设置。

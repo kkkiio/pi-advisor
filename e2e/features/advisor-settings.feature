@@ -10,15 +10,18 @@ Feature: Advisor Settings
     And the user sets Advisor thinking to "high"
     Then Advisor preferences should persist the selected model and thinking "high"
 
-  Scenario: User can inspect current Advisor preferences
+  Scenario: User preference commands open interactive pickers
     Given Advisor has no configured model
-    When the user checks the Advisor model setting
-    Then Advisor should report that no model is set
-    When the user selects a registered Advisor model
-    And the user checks the Advisor model setting
-    Then Advisor should show the selected model
-    When the user checks the Advisor thinking setting
-    Then Advisor should show default thinking "medium"
+    When the user opens the Advisor model preference
+    Then Advisor should offer registered Advisor models
+    When the user opens the Advisor thinking preference
+    Then Advisor should offer thinking levels with default "medium"
+
+  Scenario: User model and thinking pickers persist Advisor preferences
+    Given Advisor has no configured model
+    When the user chooses a registered Advisor model from the Advisor model picker
+    And the user chooses Advisor thinking "high" from the Advisor thinking picker
+    Then Advisor preferences should persist the selected model and thinking "high"
 
   Scenario: Invalid Advisor preference commands report validation errors
     Given Advisor has no configured model
