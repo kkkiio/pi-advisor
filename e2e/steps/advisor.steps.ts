@@ -111,6 +111,19 @@ When("the user resets Advisor", async function (this: AdvisorE2EWorld) {
 	await this.rpcPi.prompt("/advisor:new");
 });
 
+When(
+	"the user hands off the latest Advisor Second Opinion with {string}",
+	async function (this: AdvisorE2EWorld, instructions: string) {
+		this.lastEventIndex = this.rpcPi.eventCount();
+		await this.rpcPi.prompt(`/advisor:handoff ${instructions}`);
+		this.lastNotification = await this.rpcPi.waitForNotificationAfter(
+			/Handed off latest Advisor Second Opinion|Queued latest Advisor Second Opinion/i,
+			this.lastEventIndex,
+			30_000,
+		);
+	},
+);
+
 When("the user opens the Advisor model preference", async function (this: AdvisorE2EWorld) {
 	this.lastEventIndex = this.rpcPi.eventCount();
 	await this.rpcPi.prompt("/advisor:model");
@@ -195,6 +208,7 @@ Then("Advisor commands should be available", async function (this: AdvisorE2EWor
 			"advisor",
 			"advisor:watch",
 			"advisor:watch-off",
+			"advisor:handoff",
 			"advisor:hide",
 			"advisor:show",
 			"advisor:new",
@@ -251,22 +265,25 @@ Then(
 	},
 );
 
-Then("Advisor should deliver a Hint through Steer", async function (this: AdvisorE2EWorld) {
+Then("Primary Agent should receive the latest Advisor Second Opinion handoff", async function (this: AdvisorE2EWorld) {
 	const message = await this.rpcPi.waitForMessage(
-		(candidate) =>
-			candidate.role === "custom" &&
-			candidate.customType === "advisor:advice" &&
-			JSON.stringify(candidate).includes("E2E_ASK_HINT"),
-		60_000,
-		"Advisor Hint custom message",
+		(candidate) => {
+			const serialized = JSON.stringify(candidate);
+			return (
+				candidate.role === "user" &&
+				serialized.includes("Here is the latest Advisor Second Opinion") &&
+				serialized.includes("Original Advisor request:") &&
+				serialized.includes("Review the primary transcript.") &&
+				serialized.includes("Advisor Second Opinion:") &&
+				serialized.includes("E2E_SECOND_OPINION: primary_transcript=seen") &&
+				serialized.includes("Please verify and apply this if it is real.")
+			);
+		},
+		30_000,
+		"Advisor Second Opinion handoff",
 	);
 
-	expect(message.details).toMatchObject({
-		origin: "advisor",
-		advisorAdviceKind: "hint",
-		deliverAs: "steer",
-	});
-	this.lastAdvisorMessage = message;
+	expect(JSON.stringify(message)).not.toContain("advisor-advice");
 });
 
 Then("Advisor should deliver a Concern through Follow-up", async function (this: AdvisorE2EWorld) {

@@ -69,6 +69,13 @@ export default function advisorExtension(pi: ExtensionAPI): void {
 		},
 	});
 
+	pi.registerCommand("advisor:handoff", {
+		description: "Hand off the latest Advisor Second Opinion to the Primary Agent.",
+		handler: async (args, ctx) => {
+			await runtime.handoff(args, ctx);
+		},
+	});
+
 	pi.registerCommand("advisor:hide", {
 		description: "Hide the Advisor overlay without resetting the Advisor transcript.",
 		handler: async (_args, ctx) => {

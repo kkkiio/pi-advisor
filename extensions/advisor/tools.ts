@@ -56,8 +56,8 @@ export function createAdvisorTools(runtime: AdvisorRuntimePort): ToolDefinition[
 		name: "advise",
 		label: "Advise Primary Agent",
 		description:
-			"Send one useful Advisor Advice to the Primary Agent. Use kind=hint for acceleration and kind=concern for risk or doubt. Stay silent when there is no real advice.",
-		promptSnippet: "advise: deliver a Hint or Concern to the Primary Agent.",
+			"During an active Watch Run, send one useful Advisor Advice to the Primary Agent. Use kind=hint for acceleration and kind=concern for risk or doubt. Stay silent when there is no real advice.",
+		promptSnippet: "advise: during active Watch Run, deliver a Hint or Concern to the Primary Agent.",
 		parameters: adviseSchema,
 		executionMode: "sequential",
 		execute: async (_toolCallId, params): Promise<AgentToolResult<AdviceDeliveryResult>> => {
