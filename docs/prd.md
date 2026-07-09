@@ -4,15 +4,18 @@
 
 Primary Agent 在执行复杂开发任务时，用户常常需要第二视角来发现遗漏、提醒风险或给出更快的做法。Advisor 提供一个依附 Primary Agent 的会话内第二 agent，让审查和建议在主流程旁边异步发生。
 
-Advisor 的价值是让用户获得持续的旁路审查，同时不把 Primary Agent 从当前工作中拉走。
+Advisor 的价值是让用户获得 Second Opinion 和持续的旁路审查，同时不把 Primary Agent 从当前工作中拉走。
 
 ## 目标
 
-- 让用户在不中断 Primary Agent 的情况下获得第二视角。
-- 让明显能加速当前工作的建议尽快到达。
-- 让风险、疑虑和审查意见在合适时机到达，减少对当前工作节奏的破坏。
-- 让用户能看到 Advisor 正在做什么，并能随时取消或重置它。
-- 让 Advisor 的建议保持安静、相关、可追溯，避免无意义输出和重复建议。
+### Advisor 目标
+
+- **Review**：发现 Primary Agent 工作中的 bug、设计问题、流程问题和它们的根因，向用户提供独立 reviewer 的 Second Opinion。Advisor 作为 reviewer，不承担实现功能的职责。
+- **Guide**：引导可能陷入 tunnel effect 的 Primary Agent，用高效率事实、关键文件、API、约束和顺序提示帮助它越过障碍，并用 review 视角帮助它在工作结束前检查和修正工作。
+
+### 产品体验目标
+
+- 保持旁路审查安静、相关、可追溯、可观察，避免破坏 Primary Agent 的工作节奏；用户能看到 Advisor 正在做什么，并能随时取消或重置它。
 
 ## 用户
 
@@ -22,7 +25,7 @@ Advisor 的价值是让用户获得持续的旁路审查，同时不把 Primary 
 
 ### Ask Advisor
 
-用户有一个明确问题时，可以直接询问 Advisor。Advisor 应理解当前 Primary Agent 的近期工作，不要求用户手动复制上下文。
+用户有一个明确问题时，可以直接询问 Advisor 并获得 Second Opinion。Advisor 应理解当前 Primary Agent 的近期工作，不要求用户手动复制上下文。
 
 ### Watch Run
 
@@ -30,11 +33,11 @@ Advisor 的价值是让用户获得持续的旁路审查，同时不把 Primary 
 
 ### Advice Delivery
 
-Advisor 输出的是 Advice。加速信息是 Hint，应尽快影响 Primary Agent 当前工作。风险或疑虑是 Concern，应在 Primary Agent 完成当前工作后再处理，避免中途打断。
+Advisor 送达 Primary Agent 的内容是 Advice。加速信息是 Hint，应尽快影响 Primary Agent 当前工作。风险或疑虑是 Concern，应在 Primary Agent 完成当前工作后再处理，避免中途打断。
 
 ### Advisor Overlay
 
-用户需要知道 Advisor 是否在工作、看到了什么、给出了什么建议。Advisor Overlay 应展示 Advisor 的审查活动和输出，但不抢占用户正在与 Primary Agent 交互的输入焦点。
+用户需要知道 Advisor 是否在工作、看到了什么、形成了什么 Second Opinion 或 Advice。Advisor Overlay 应展示 Advisor 的审查活动和输出，但不抢占用户正在与 Primary Agent 交互的输入焦点。
 
 ## 需求
 
@@ -45,7 +48,7 @@ Advisor 输出的是 Advice。加速信息是 Hint，应尽快影响 Primary Age
 用户可以通过 `/advisor <消息>` 向 Advisor 提问。Advisor 应复用同一个会话内实例，并保留已有 Advisor Transcript。
 
 验收标准：
-- 用户发起 Ask Advisor 后，Advisor 能基于 Primary Agent 的近期工作回答。
+- 用户发起 Ask Advisor 后，Advisor 能基于 Primary Agent 的近期工作给出 Second Opinion。
 - 多次 Ask Advisor 之间，Advisor 能延续自己的上下文。
 - Ask Advisor 不会创建与 Watch Run 分离的第二套 Advisor 记忆。
 
@@ -128,4 +131,4 @@ Advisor 只在有实际 Advice 时打扰 Primary Agent。
 
 ## 发布边界
 
-首版发布应覆盖 Ask Advisor、Watch Run、Advice 类型、Advisor Overlay、生命周期控制、模型和 thinking 偏好、安静输出，以及 Advisor Advice 的来源过滤。
+首版发布应覆盖 Ask Advisor、Second Opinion、Watch Run、Advice 类型、Advisor Overlay、生命周期控制、模型和 thinking 偏好、安静输出，以及 Advisor Advice 的来源过滤。

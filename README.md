@@ -1,6 +1,17 @@
 # Advisor
 
-Advisor 是一个依附 Primary Agent 的会话内持久化第二 agent，用于异步审查 Primary Agent 的工作并给出 Advice。
+Advisor 是一个依附 Primary Agent 的会话内持久化第二 agent，用于异步审查 Primary Agent 的工作，向用户提供 Second Opinion，并向 Primary Agent 送达 Advice。
+
+## 目标
+
+### Advisor 目标
+
+- **Review**：发现 bug、设计问题、流程问题和它们的根因，向用户提供独立 reviewer 的 Second Opinion。Advisor 作为 reviewer，不承担实现功能的职责。
+- **Guide**：引导可能陷入 tunnel effect 的 Primary Agent，用高效率事实、关键文件、API、约束和顺序提示帮助它越过障碍，并用 review 视角帮助它在工作结束前检查和修正工作。
+
+### 产品体验目标
+
+- 保持旁路审查安静、相关、可追溯、可观察，避免破坏 Primary Agent 的工作节奏。
 
 ## 功能
 
@@ -8,10 +19,10 @@ Advisor 是一个依附 Primary Agent 的会话内持久化第二 agent，用于
 
 | 命令 | 说明 |
 |------|------|
-| `/advisor <消息>` | Ask Advisor：向 Advisor 提问，附带最近 Primary Transcript View 作为上下文 |
+| `/advisor <消息>` | Ask Advisor：向 Advisor 索取 Second Opinion，附带最近 Primary Transcript View 作为上下文 |
 | `/advisor:watch` | 启动一次 Watch Run，由 Advisor 根据 Primary Agent 的工作进展自行判断何时结束 |
 
-Ask Advisor 和 Watch Run 复用同一个 Advisor，Advisor Transcript 保持连续。
+Ask Advisor 和 Watch Run 复用同一个 Advisor，Advisor Transcript 保持连续。Second Opinion 是 Advisor 面向用户的第二视角；Advice 是 Advisor 送达 Primary Agent 的 Hint 或 Concern。
 
 ### 智能送达
 
@@ -64,3 +75,5 @@ Ask Advisor 和 Watch Run 复用同一个 Advisor，Advisor Transcript 保持连
 ## 产品与架构
 
 产品需求详见 [`docs/prd.md`](docs/prd.md)。架构决策详见 [`docs/adr/`](docs/adr/)，记录了所有关键技术决策及其理由。
+
+灵感致谢：本项目受到 pi-btw、oh-my-pi 和 pi-omplike-advisor 的启发。

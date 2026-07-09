@@ -1,0 +1,48 @@
+{
+  "name": "pi-advisor",
+  "version": "0.1.0",
+  "description": "A pi extension for asynchronous Advisor review with /advisor",
+  "type": "module",
+  "license": "Apache-2.0",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "pi-coding-agent",
+    "agent",
+    "tui"
+  ],
+  "files": [
+    "CONTEXT.md",
+    "extensions",
+    "docs",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "vitest --run",
+    "test:e2e": "cucumber-js --config tests/advisor/e2e/cucumber.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/advisor.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-agent-core": "*",
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  },
+  "devDependencies": {
+    "@cucumber/cucumber": "^11.3.0",
+    "tsx": "^4.23.0",
+    "typebox": "^1.1.38",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.0"
+  }
+}
