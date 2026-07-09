@@ -10,9 +10,6 @@ When implementing Advisor runtime code under `extensions/`, follow the accepted 
 
 - Use the Pull model from `docs/adr/0001-pull-not-push.md`.
 - Keep one Advisor instance shared by Ask Advisor and Watch Run.
-- Treat `/advisor` commands as user-facing extension entrypoints, not tools the Advisor agent calls.
-- Give the Advisor agent Pull and Advise tools; do not make it operate itself through slash commands.
-- Keep config-file behavior in `docs/prd.md` and `README.md`; create ADRs only for technical storage or runtime tradeoffs.
 
 ### Compatibility Policy
 
@@ -24,11 +21,11 @@ When changing public APIs, persisted data, config files, CLI flags, plugin contr
 
 ### Testing Policy
 
-- Do not add runtime/unit tests for Advisor behavior. Cover behavior through BDD E2E, SDK integration, or TUI snapshot tests instead.
+- Do not add runtime/unit tests for Advisor behavior. Cover behavior through BDD E2E, SDK integration, or visual tests instead.
 - The only allowed unit test is `tests/advisor/session-history-format.test.ts`, because markdown transcript serialization is dense, deterministic, and valuable to pin directly.
-- Put BDD E2E tests under `e2e/`. TUI visual behavior belongs in Cucumber scenarios tagged `@tui` and plain text snapshots under `e2e/snapshots/`.
-- Do not mask dynamic values in TUI snapshots. Stabilize the tmux/Pi test environment so captured plain text can be compared as-is.
-- Update TUI snapshots with `PI_ADVISOR_UPDATE_TUI_SNAPSHOTS=1 npm run test:e2e -- --tags @tui`.
+- Write `.feature` files in Advisor domain and user-observable business language. Keep implementation details such as RPC sessions, faux providers, test scripts, snapshots, tmux, and harnesses out of BDD scenario text.
+- Use deterministic overlay snapshots for stable TUI layout checks. Use generated HTML artifacts for visual review against `docs/prd.md`.
+- Do not use whole-TUI exact text snapshots as the default E2E oracle.
 
 ## Project Structure Guide
 
@@ -52,7 +49,6 @@ This package provides a Pi extension that runs a session-persistent Advisor agen
 │   │   ├── constants.ts            # Custom message/entry IDs, command/tool names, overlay constants, defaults, system prompt
 │   │   ├── settings.ts             # Read/write ~/.pi/agent/advisor.json, parse model refs, validate thinking levels
 │   │   ├── session.ts              # Long-lived Advisor AgentSession, Primary lifecycle binding, Watch Run reset/cancel, disposal
-│   │   ├── session-runtime.ts      # Prompt dispatch, watch orchestration, primary event binding, AgentSession subscriptions
 │   │   ├── primary-transcript.ts   # Primary Transcript View filtering, redaction, compaction boundaries, index normalization, rendering
 │   │   ├── transcript-state.ts     # Advisor transcript UI state: turn boundaries, thinking/text streams, tool calls/results, notices
 │   │   ├── messages.ts             # Bridge missing Pi message role types until Pi exports them publicly
@@ -65,12 +61,13 @@ This package provides a Pi extension that runs a session-persistent Advisor agen
 │   ├── advisor/
 │   │   ├── sdk/                     # Pi SDK + faux provider integration tests eligible for just test
 │   │   └── session-history-format.test.ts # The only allowed unit test; transcript formatter tests
+│   └── visual/                       # TUI visual tests: overlay snapshots plus HTML artifact capture
 ├── e2e/
 │   ├── features/                    # Advisor BDD feature files
 │   ├── steps/                       # Cucumber step definitions
 │   ├── support/                     # Real pi RPC and tmux TUI E2E harnesses
-│   ├── snapshots/                   # Plain text tmux capture-pane snapshots
 │   └── fixtures/                    # Faux provider and E2E fixtures
+├── test-results/                    # Gitignored generated visual artifacts and test outputs
 ├── package.json                    # Package metadata, Pi entrypoints, scripts, dependencies
 ├── package-lock.json               # npm lockfile
 ├── tsconfig.json                   # TypeScript project config
@@ -88,3 +85,11 @@ just test
 ```
 
 That sequence is the default submit-ready check. Run extra commands only when the user asks for them or the change clearly needs them.
+
+When changing Advisor Overlay layout or TUI visual behavior, run the visual test flow:
+
+```bash
+npm run test:visual
+```
+
+Use `test-results/visual/index.html` as the review entrypoint for generated visual artifacts.

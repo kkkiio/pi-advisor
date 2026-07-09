@@ -142,13 +142,23 @@ export class RpcPi {
 		return response.data?.messages ?? [];
 	}
 
+	eventCount(): number {
+		return this.events.length;
+	}
+
 	async waitForNotification(pattern: RegExp, timeoutMs: number): Promise<RpcJson> {
+		return this.waitForNotificationAfter(pattern, 0, timeoutMs);
+	}
+
+	async waitForNotificationAfter(pattern: RegExp, afterEventIndex: number, timeoutMs: number): Promise<RpcJson> {
 		return this.waitFor(
-			() =>
-				this.events.find(
+			() => {
+				const events = this.events.slice(afterEventIndex);
+				return events.find(
 					(event) =>
 						event.type === "extension_ui_request" && event.method === "notify" && pattern.test(event.message ?? ""),
-				),
+				);
+			},
 			timeoutMs,
 			`notification matching ${pattern}`,
 		);

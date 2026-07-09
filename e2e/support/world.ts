@@ -7,6 +7,7 @@ export class AdvisorE2EWorld {
 	tui: TuiPi | undefined;
 	lastAdvisorMessage: RpcJson | undefined;
 	lastNotification: RpcJson | undefined;
+	lastEventIndex = 0;
 
 	async startRpcPi(options: RpcPiOptions): Promise<void> {
 		if (this.pi) {
@@ -15,6 +16,7 @@ export class AdvisorE2EWorld {
 		this.pi = await RpcPi.start(options);
 		this.lastAdvisorMessage = undefined;
 		this.lastNotification = undefined;
+		this.lastEventIndex = 0;
 	}
 
 	async startTuiPi(options: TuiPiOptions): Promise<void> {
@@ -46,6 +48,7 @@ export class AdvisorE2EWorld {
 		this.pi = undefined;
 		this.lastAdvisorMessage = undefined;
 		this.lastNotification = undefined;
+		this.lastEventIndex = 0;
 	}
 
 	async disposeTuiPi(): Promise<void> {

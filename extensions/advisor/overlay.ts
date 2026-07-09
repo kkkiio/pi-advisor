@@ -118,7 +118,7 @@ export class AdvisorOverlayState {
 	}
 }
 
-class AdvisorOverlayComponent implements Component {
+export class AdvisorOverlayComponent implements Component {
 	private readonly tui: TUI;
 	private readonly theme: ExtensionContext["ui"]["theme"];
 	private readonly state: AdvisorOverlayState;

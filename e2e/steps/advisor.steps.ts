@@ -3,12 +3,30 @@ import { readFile } from "node:fs/promises";
 import { expect } from "vitest";
 import type { AdvisorE2EWorld } from "../support/world";
 
-Given("a fresh Pi RPC session", async function (this: AdvisorE2EWorld) {
+const selectedAdvisorModel = "advisor-e2e/faux-advisor";
+const recentPrimaryWork = "E2E_PRIMARY_SENTINEL: review the current Advisor scenario.";
+
+Given("Advisor is installed", async function (this: AdvisorE2EWorld) {
 	await this.startRpcPi({});
 });
 
-Given("a Pi RPC session with an Advisor model", async function (this: AdvisorE2EWorld) {
+Given("Advisor has no configured model", async function (this: AdvisorE2EWorld) {
+	await this.startRpcPi({});
+});
+
+Given("Advisor has a configured model", async function (this: AdvisorE2EWorld) {
 	await this.startRpcPi({ advisorModelConfigured: true });
+});
+
+Given(
+	"Advisor is configured and Watch Run can wait for Primary Agent progress",
+	async function (this: AdvisorE2EWorld) {
+		await this.startRpcPi({ advisorModelConfigured: true, script: "watch-wait" });
+	},
+);
+
+Given("the Primary Agent has recent work for Advisor to review", async function (this: AdvisorE2EWorld) {
+	await this.rpcPi.promptAndWait(recentPrimaryWork, 30_000);
 });
 
 Given("a Pi RPC session with an Advisor model and a waiting Watch Run script", async function (this: AdvisorE2EWorld) {
@@ -23,20 +41,57 @@ Given(
 );
 
 When("the user asks Advisor {string}", async function (this: AdvisorE2EWorld, message: string) {
+	this.lastEventIndex = this.rpcPi.eventCount();
 	await this.rpcPi.prompt(`/advisor ${message}`);
 });
 
+When("the user asks Advisor without a message", async function (this: AdvisorE2EWorld) {
+	this.lastEventIndex = this.rpcPi.eventCount();
+	await this.rpcPi.prompt("/advisor");
+});
+
+When("the user runs Advisor command {string}", async function (this: AdvisorE2EWorld, command: string) {
+	this.lastEventIndex = this.rpcPi.eventCount();
+	await this.rpcPi.prompt(command);
+});
+
+When("the user selects a registered Advisor model", async function (this: AdvisorE2EWorld) {
+	this.lastEventIndex = this.rpcPi.eventCount();
+	await this.rpcPi.prompt(`/advisor:model ${selectedAdvisorModel}`);
+	this.lastNotification = await this.rpcPi.waitForNotificationAfter(
+		/Advisor model set to/i,
+		this.lastEventIndex,
+		10_000,
+	);
+});
+
 When("the user sets the Advisor model to {string}", async function (this: AdvisorE2EWorld, modelRef: string) {
+	this.lastEventIndex = this.rpcPi.eventCount();
 	await this.rpcPi.prompt(`/advisor:model ${modelRef}`);
-	this.lastNotification = await this.rpcPi.waitForNotification(/Advisor model set to/i, 10_000);
+	this.lastNotification = await this.rpcPi.waitForNotificationAfter(
+		/Advisor model set to/i,
+		this.lastEventIndex,
+		10_000,
+	);
 });
 
 When("the user sets Advisor thinking to {string}", async function (this: AdvisorE2EWorld, thinking: string) {
+	this.lastEventIndex = this.rpcPi.eventCount();
 	await this.rpcPi.prompt(`/advisor:thinking ${thinking}`);
-	this.lastNotification = await this.rpcPi.waitForNotification(/Advisor thinking set to/i, 10_000);
+	this.lastNotification = await this.rpcPi.waitForNotificationAfter(
+		/Advisor thinking set to/i,
+		this.lastEventIndex,
+		10_000,
+	);
 });
 
 When("the user starts Watch Run", async function (this: AdvisorE2EWorld) {
+	this.lastEventIndex = this.rpcPi.eventCount();
+	await this.rpcPi.prompt("/advisor:watch");
+});
+
+When("the user starts Watch Run again", async function (this: AdvisorE2EWorld) {
+	this.lastEventIndex = this.rpcPi.eventCount();
 	await this.rpcPi.prompt("/advisor:watch");
 });
 
@@ -46,7 +101,42 @@ When("the user cancels Watch Run", async function (this: AdvisorE2EWorld) {
 	await this.rpcPi.prompt("/advisor:watch-off");
 });
 
-Then("Advisor commands should be registered", async function (this: AdvisorE2EWorld) {
+When("the user turns Watch Run off", async function (this: AdvisorE2EWorld) {
+	this.lastEventIndex = this.rpcPi.eventCount();
+	await this.rpcPi.prompt("/advisor:watch-off");
+});
+
+When("the user resets Advisor", async function (this: AdvisorE2EWorld) {
+	this.lastEventIndex = this.rpcPi.eventCount();
+	await this.rpcPi.prompt("/advisor:new");
+});
+
+When("the user checks the Advisor model setting", async function (this: AdvisorE2EWorld) {
+	this.lastEventIndex = this.rpcPi.eventCount();
+	await this.rpcPi.prompt("/advisor:model");
+});
+
+When("the user checks the Advisor thinking setting", async function (this: AdvisorE2EWorld) {
+	this.lastEventIndex = this.rpcPi.eventCount();
+	await this.rpcPi.prompt("/advisor:thinking");
+});
+
+When("the user enters an invalid Advisor model format", async function (this: AdvisorE2EWorld) {
+	this.lastEventIndex = this.rpcPi.eventCount();
+	await this.rpcPi.prompt("/advisor:model invalid-model-ref");
+});
+
+When("the user selects an unavailable Advisor model", async function (this: AdvisorE2EWorld) {
+	this.lastEventIndex = this.rpcPi.eventCount();
+	await this.rpcPi.prompt("/advisor:model missing-provider/missing-model");
+});
+
+When("the user selects an unsupported Advisor thinking level", async function (this: AdvisorE2EWorld) {
+	this.lastEventIndex = this.rpcPi.eventCount();
+	await this.rpcPi.prompt("/advisor:thinking loud");
+});
+
+Then("Advisor commands should be available", async function (this: AdvisorE2EWorld) {
 	const commands = await this.rpcPi.getCommands();
 	const names = commands.map((command) => command.name);
 
@@ -68,10 +158,30 @@ Then("Advisor commands should be registered", async function (this: AdvisorE2EWo
 });
 
 Then("the user should be warned that the Advisor model is not set", async function (this: AdvisorE2EWorld) {
-	const notification = await this.rpcPi.waitForNotification(/Advisor model is not set/i, 10_000);
+	const notification = await this.rpcPi.waitForNotificationAfter(
+		/Advisor model is not set/i,
+		this.lastEventIndex,
+		10_000,
+	);
 
 	expect(notification.notifyType).toBe("warning");
 });
+
+Then(
+	"the next Advisor notification should contain {string} with type {string}",
+	async function (this: AdvisorE2EWorld, text: string, notifyType: string) {
+		const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+		const notification = await this.rpcPi.waitForNotificationAfter(
+			new RegExp(escaped, "i"),
+			this.lastEventIndex,
+			10_000,
+		);
+
+		expect(notification.message).toContain(text);
+		expect(notification.notifyType).toBe(notifyType);
+		this.lastNotification = notification;
+	},
+);
 
 Then(
 	"Advisor settings should be persisted with model {string} and thinking {string}",
@@ -79,6 +189,15 @@ Then(
 		const settings = JSON.parse(await readFile(this.rpcPi.advisorSettingsPath, "utf8"));
 
 		expect(settings).toEqual({ model: modelRef, thinking });
+	},
+);
+
+Then(
+	"Advisor preferences should persist the selected model and thinking {string}",
+	async function (this: AdvisorE2EWorld, thinking: string) {
+		const settings = JSON.parse(await readFile(this.rpcPi.advisorSettingsPath, "utf8"));
+
+		expect(settings).toEqual({ model: selectedAdvisorModel, thinking });
 	},
 );
 
@@ -122,10 +241,97 @@ Then("the delivered Advice should include {string}", function (this: AdvisorE2EW
 	expect(JSON.stringify(this.lastAdvisorMessage)).toContain(text);
 });
 
+Then("the Advice should be based on the Primary Agent's recent work", function (this: AdvisorE2EWorld) {
+	expect(JSON.stringify(this.lastAdvisorMessage)).toContain("primary_transcript=seen");
+});
+
 Then("Watch Run should be cancelled without delivering a Concern", async function (this: AdvisorE2EWorld) {
-	const notification = await this.rpcPi.waitForNotification(/Advisor Watch Run cancelled/i, 20_000);
+	const notification = await this.rpcPi.waitForNotificationAfter(
+		/Advisor Watch Run cancelled/i,
+		this.lastEventIndex,
+		20_000,
+	);
 	const messages = await this.rpcPi.getMessages();
 
 	expect(notification.notifyType).toBe("info");
 	expect(JSON.stringify(messages)).not.toContain("E2E_WATCH_CONCERN");
+});
+
+Then("Advisor should warn with {string}", async function (this: AdvisorE2EWorld, text: string) {
+	const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	const notification = await this.rpcPi.waitForNotificationAfter(new RegExp(escaped, "i"), this.lastEventIndex, 10_000);
+
+	expect(notification.message).toContain(text);
+	expect(notification.notifyType).toBe("warning");
+	this.lastNotification = notification;
+});
+
+Then("Advisor should report that no model is set", async function (this: AdvisorE2EWorld) {
+	const text = "Advisor model is not set.";
+	const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	const notification = await this.rpcPi.waitForNotificationAfter(new RegExp(escaped, "i"), this.lastEventIndex, 10_000);
+
+	expect(notification.message).toContain(text);
+	expect(notification.notifyType).toBe("info");
+	this.lastNotification = notification;
+});
+
+Then("Advisor should show the selected model", async function (this: AdvisorE2EWorld) {
+	const text = `Advisor model: ${selectedAdvisorModel}`;
+	const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	const notification = await this.rpcPi.waitForNotificationAfter(new RegExp(escaped, "i"), this.lastEventIndex, 10_000);
+
+	expect(notification.message).toContain(text);
+	expect(notification.notifyType).toBe("info");
+	this.lastNotification = notification;
+});
+
+Then("Advisor should show default thinking {string}", async function (this: AdvisorE2EWorld, thinking: string) {
+	const text = `Advisor thinking: ${thinking}.`;
+	const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	const notification = await this.rpcPi.waitForNotificationAfter(new RegExp(escaped, "i"), this.lastEventIndex, 10_000);
+
+	expect(notification.message).toContain(text);
+	expect(notification.notifyType).toBe("info");
+	this.lastNotification = notification;
+});
+
+Then("Advisor should report that the selected model is unavailable", async function (this: AdvisorE2EWorld) {
+	const text = "Model missing-provider/missing-model is not registered in Pi.";
+	const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	const notification = await this.rpcPi.waitForNotificationAfter(new RegExp(escaped, "i"), this.lastEventIndex, 10_000);
+
+	expect(notification.message).toContain(text);
+	expect(notification.notifyType).toBe("error");
+	this.lastNotification = notification;
+});
+
+Then("Advisor should confirm the transcript was reset", async function (this: AdvisorE2EWorld) {
+	const text = "Advisor transcript reset.";
+	const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	const notification = await this.rpcPi.waitForNotificationAfter(new RegExp(escaped, "i"), this.lastEventIndex, 10_000);
+
+	expect(notification.message).toContain(text);
+	expect(notification.notifyType).toBe("info");
+	this.lastNotification = notification;
+});
+
+Then("Advisor should report that no Watch Run is active", async function (this: AdvisorE2EWorld) {
+	const text = "No active Advisor Watch Run.";
+	const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	const notification = await this.rpcPi.waitForNotificationAfter(new RegExp(escaped, "i"), this.lastEventIndex, 10_000);
+
+	expect(notification.message).toContain(text);
+	expect(notification.notifyType).toBe("info");
+	this.lastNotification = notification;
+});
+
+Then("Advisor should report that Watch Run is already running", async function (this: AdvisorE2EWorld) {
+	const text = "Advisor Watch Run is already running.";
+	const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	const notification = await this.rpcPi.waitForNotificationAfter(new RegExp(escaped, "i"), this.lastEventIndex, 10_000);
+
+	expect(notification.message).toContain(text);
+	expect(notification.notifyType).toBe("info");
+	this.lastNotification = notification;
 });
