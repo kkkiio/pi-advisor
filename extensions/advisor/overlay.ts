@@ -42,13 +42,6 @@ export class AdvisorOverlayState {
 				phase: "start",
 			});
 		}
-		const existing = [...this.transcriptState.entries]
-			.reverse()
-			.find((entry) => entry.type === "user-message" && entry.turnId === turnId);
-		if (existing?.type === "user-message") {
-			existing.text = text;
-			return;
-		}
 		this.transcriptState.entries.push({
 			id: this.transcriptState.nextEntryId++,
 			turnId,

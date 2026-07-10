@@ -62,11 +62,15 @@ function scriptedResponse(
 	if (model.id === advisorModelId && process.env.PI_ADVISOR_TEST_OBSERVATIONS_PATH) {
 		const latestQuestionText = latestUserMessage ? contentText(latestUserMessage.content) : "";
 		const latestContextText = latestContextMessage ? contentText(latestContextMessage.content) : "";
+		const askContextMessageCount = context.messages.filter(
+			(message) => message.role === "user" && contentText(message.content).includes("Primary Transcript position:"),
+		).length;
 		appendFileSync(
 			process.env.PI_ADVISOR_TEST_OBSERVATIONS_PATH,
 			`${JSON.stringify({
 				latestQuestionText,
 				latestRequestText: [latestContextText, latestQuestionText].filter(Boolean).join("\n\n"),
+				askContextMessageCount,
 				messageCount: context.messages.length,
 				toolNames: context.tools?.map((tool) => tool.name) ?? [],
 			})}\n`,
@@ -109,7 +113,7 @@ function scriptedResponse(
 		return fauxAssistantMessage(
 			fauxToolCall("pull_transcript", {
 				since_index: 0,
-				timeout_ms: script === "advisor-busy" ? 20_000 : script === "watch-wait" ? 15_000 : 0,
+				timeout_ms: script === "advisor-busy" ? 3_000 : script === "watch-wait" ? 15_000 : 0,
 				count: 20,
 			}),
 			{ stopReason: "toolUse" },

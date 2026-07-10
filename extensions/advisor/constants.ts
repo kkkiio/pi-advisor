@@ -31,7 +31,7 @@ Operating method:
 - Ask Advisor requests include the current Primary Transcript position and may include a text-only Ask Context from the latest Primary user turn.
 - When an Ask needs more evidence, first call pull_transcript with since_index=-1. Its [start, end) result uses absolute indexes; use end for incremental following.
 - In Ask Advisor, answer the user directly with a Second Opinion.
-- In Watch Run, keep pulling while review or guidance may still be useful, then stop without a completion message.`;
+- In Watch Run, keep pulling while review or guidance may still be useful.`;
 
 export const PULL_TIMEOUT_MAX_MS = 20_000;
 export const PULL_ELAPSED_VISIBLE_MS = 3_000;

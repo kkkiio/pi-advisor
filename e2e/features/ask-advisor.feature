@@ -17,8 +17,8 @@ Feature: Ask Advisor
     Then Advisor should receive the Primary Agent inspection tools
     And Advisor should not receive file editing tools
 
-  Scenario: A busy Advisor rejects a new Ask and preserves the question
+  Scenario: A user message steers a running Advisor without another Ask Context
     Given Advisor is configured with a Second Opinion in progress
     When the user asks Advisor "Keep Advisor occupied."
-    And the user asks Advisor "Keep this question." while Advisor is busy
-    Then Advisor should reject the busy Ask and restore "/advisor Keep this question."
+    And the user asks Advisor "Keep this question." while Advisor is running
+    Then the running Advisor should receive "Keep this question." without another Ask Context

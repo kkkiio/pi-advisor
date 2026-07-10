@@ -142,24 +142,24 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 			ctx.ui.notify("Usage: /advisor <message>", "warning");
 			return;
 		}
-		if (
-			this.askCompletion ||
-			(this.watchAbortController && !this.watchAbortController.signal.aborted) ||
-			this.session?.isStreaming
-		) {
-			ctx.ui.notify("Advisor is busy. Try again when the current run finishes.", "warning");
-			ctx.ui.setEditorText(`/advisor ${question}`);
-			return;
-		}
 		const session = await this.ensureSession(ctx);
 		if (!session) {
 			return;
 		}
-		if (
-			this.askCompletion ||
-			(this.watchAbortController && !this.watchAbortController.signal.aborted) ||
-			session.isStreaming
-		) {
+		if (session.isStreaming) {
+			this.overlay.open(ctx);
+			try {
+				await session.sendUserMessage(question, { deliverAs: "steer" });
+				this.overlay.state.recordUserMessage(question);
+				this.overlay.refresh();
+			} catch (error) {
+				this.overlay.state.recordError(error);
+				this.overlay.refresh();
+				ctx.ui.notify(error instanceof Error ? error.message : String(error), "error");
+			}
+			return;
+		}
+		if (this.askCompletion || (this.watchAbortController && !this.watchAbortController.signal.aborted)) {
 			ctx.ui.notify("Advisor is busy. Try again when the current run finishes.", "warning");
 			ctx.ui.setEditorText(`/advisor ${question}`);
 			return;
