@@ -1,7 +1,7 @@
 import type { AgentSessionEvent, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { Component, OverlayHandle, TUI } from "@earendil-works/pi-tui";
 import { Key, matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
-import type { AdviceDeliveryResult, AdvisorContextUsage, AskContext, WatchRunState } from "./types";
+import type { AdviceDeliveryResult, AdvisorContextUsage, AskContext, TranscriptLine, WatchRunState } from "./types";
 import {
 	appendAskContext,
 	appendTranscriptNotice,
@@ -133,7 +133,7 @@ export class AdvisorOverlayComponent implements Component {
 	private readonly tui: TUI;
 	private readonly theme: ExtensionContext["ui"]["theme"];
 	private readonly state: AdvisorOverlayState;
-	private transcriptLines: string[] = [];
+	private transcriptLines: TranscriptLine[] = [];
 	private transcriptScrollOffset = 0;
 	private transcriptViewportHeight = 8;
 	private followTranscript = true;
@@ -172,10 +172,10 @@ export class AdvisorOverlayComponent implements Component {
 	render(width: number): string[] {
 		const dialogWidth = Math.max(36, width);
 		const innerWidth = Math.max(34, dialogWidth - 2);
-		const transcriptLines = this.wrapTranscript(innerWidth);
 		const dialogHeight = this.getDialogHeight();
 		const transcriptHeight = Math.max(8, dialogHeight - ADVISOR_OVERLAY_CHROME_LINES);
 		this.transcriptViewportHeight = transcriptHeight;
+		const transcriptLines = this.wrapTranscript(innerWidth);
 
 		const maxScroll = Math.max(0, transcriptLines.length - transcriptHeight);
 		if (this.followTranscript) {
@@ -191,6 +191,7 @@ export class AdvisorOverlayComponent implements Component {
 			this.transcriptScrollOffset,
 			this.transcriptScrollOffset + transcriptHeight,
 		);
+
 		const transcriptPadCount = Math.max(0, transcriptHeight - visibleTranscript.length);
 		const hiddenAbove = this.transcriptScrollOffset;
 		const hiddenBelow = Math.max(0, maxScroll - this.transcriptScrollOffset);
@@ -211,9 +212,15 @@ export class AdvisorOverlayComponent implements Component {
 		return lines.map((line) => this.fitRenderedLine(line, width));
 	}
 
-	private frameLine(content: string, innerWidth: number): string {
-		const truncated = truncateToWidth(content, innerWidth, "");
+	private frameLine(line: TranscriptLine, innerWidth: number): string {
+		const text = typeof line === "string" ? line : line.text;
+		const bg = typeof line === "string" ? undefined : line.bg;
+		const truncated = truncateToWidth(text, innerWidth, "");
 		const padding = Math.max(0, innerWidth - visibleWidth(truncated));
+		if (bg) {
+			const fullContent = `${truncated}${" ".repeat(padding)}`;
+			return `${this.theme.fg("border", "│")}${this.theme.bg(bg, fullContent)}${this.theme.fg("border", "│")}`;
+		}
 		return `${this.theme.fg("border", "│")}${truncated}${" ".repeat(padding)}${this.theme.fg("border", "│")}`;
 	}
 
@@ -233,22 +240,27 @@ export class AdvisorOverlayComponent implements Component {
 		);
 	}
 
-	private wrapTranscript(innerWidth: number): string[] {
-		const wrapped: string[] = [];
+	private wrapTranscript(innerWidth: number): TranscriptLine[] {
+		const wrapped: TranscriptLine[] = [];
 		for (const line of this.transcriptLines) {
-			if (!line) {
+			const text = typeof line === "string" ? line : line.text;
+			const bg = typeof line === "string" ? undefined : line.bg;
+			if (!text) {
 				wrapped.push("");
 				continue;
 			}
-			const indent = line.match(/^\s+/)?.[0] ?? "";
+			const indent = text.match(/^\s+/)?.[0] ?? "";
 			if (!indent) {
-				wrapped.push(...wrapTextWithAnsi(line, Math.max(1, innerWidth)));
+				for (const t of wrapTextWithAnsi(text, Math.max(1, innerWidth))) {
+					wrapped.push(bg ? { text: t, bg } : t);
+				}
 				continue;
 			}
 			const availableWidth = Math.max(1, innerWidth - visibleWidth(indent));
-			const bodyLines = wrapTextWithAnsi(line.slice(indent.length), availableWidth);
+			const bodyLines = wrapTextWithAnsi(text.slice(indent.length), availableWidth);
 			for (const bodyLine of bodyLines) {
-				wrapped.push(`${indent}${bodyLine}`);
+				const fullLine = `${indent}${bodyLine}`;
+				wrapped.push(bg ? { text: fullLine, bg } : fullLine);
 			}
 		}
 		return wrapped;

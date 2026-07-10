@@ -53,22 +53,20 @@ Overlay 是 Advisor 的旁路工作视图。它展示的是用户可理解的 Ad
 Primary Agent transcript and input                     +----------------------------------------------+
                                                        | Advisor · thinking · ctx 0.1%/128k          |
 Pi can explain its own work...                         +----------------------------------------------+
-                                                       | Prompt Review the current change.           |
+                                                       |Review the current change.                    |
 [Context]                                              |                                              |
-  AGENTS.md                                            | Context                                      |
+  AGENTS.md                                            |Context                                       |
                                                        |User → Primary                                |
 [Extensions]                                           |Review the cache design.                      |
   @johnnywu/pi-advisor                                 |Primary                                       |
                                                        |The cache now owns request deduplication.     |
                                                        |                                              |
-                                                       | Pull [12,18) · 4.2s                          |
+                                                       |Pull [12,18) · 4.2s                           |
 ------------------------------------------------------ |                                              |
-~/work/project                                         | Tool advise hint                            |
-0.0%/128k (auto)                                      | ↳ steer: Use the SDK path                   |
-                                                       |                                              |
-                                                       | Advisor                                     |
-                                                       |     The main risk is the overlay opening    |
-                                                       |     before user intent.                     |
+~/work/project                                         |Hint Use the SDK path                         |
+0.0%/128k (auto)                                      |                                              |
+                                                       |The main risk is the overlay opening          |
+                                                       |before user intent.                           |
                                                        +----------------------------------------------+
 ```
 
@@ -159,13 +157,13 @@ Advisor 的建议分为 Hint 和 Concern。
 
 UI 内容契约：
 
-| 区域            | 内容                                       | 说明                                                                               |
-| --------------- | ------------------------------------------ | ---------------------------------------------------------------------------------- |
-| Header          | `Advisor · <status> · ctx <used>/<window>` | 展示 Advisor 当前状态和 context window 使用情况。                                  |
-| `Prompt` block  | 用户传给 Advisor 的原始提问或任务          | 这是用户意图，不展示 Advisor 内部 prompt envelope。                                |
-| `Context` block | 这次 Ask 实际发送的 Ask Context            | 只在附带 Ask Context 时出现，展示 user text 和 Primary assistant text 的实际内容。 |
-| `Tool` block    | `pull_transcript`、`advise` 等工具轨迹     | Pull 完成后使用单行 `Pull [start,end)` 展示实际读取范围；耗时达到 3 秒时追加耗时。 |
-| `Advisor` block | Advisor chat 内容                          | Advisor 对用户可见的文字输出完整展示。                                             |
+| 区域            | 内容                                                | 说明                                                                               |
+| --------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Header          | `Advisor · <status> · ctx <used>/<window>`          | 展示 Advisor 当前状态和 context window 使用情况。                                  |
+| 用户消息        | 用户传给 Advisor 的原始提问或任务                   | 使用 `userMessageBg` 背景色 + `userMessageText` 前景色，与 pi 主 transcript 一致。 |
+| `Context` block | 这次 Ask 实际发送的 Ask Context                     | 只在附带 Ask Context 时出现，展示 user text 和 Primary assistant text 的实际内容。 |
+| 工具轨迹        | `Pull`、`Hint`/`Concern`、`read`、`grep` 等工具轨迹 | 工具名直接作为行首标签（不使用 "Tool" badge），单行展示 call + result。            |
+| Advisor 回答    | Advisor chat 内容                                   | 不设 badge，直接以 `text` 颜色展示。                                               |
 
 不进入 Overlay 的内容：Ask Context 之外的完整 Primary Transcript 原文、冗长 tool result 明细、重复 footer hints、仅供实现调试的状态噪音。
 
