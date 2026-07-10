@@ -33,75 +33,80 @@ pi install ./path/to/pi-advisor
 
 ## 功能
 
-### 入口与转交
+### `/advisor <消息>` — Ask Advisor
 
-| 命令                              | 说明                                                                         |
-| --------------------------------- | ---------------------------------------------------------------------------- |
-| `/advisor <消息>`                 | Advisor 空闲时索取 Second Opinion；运行时直接发送不带 Ask Context 的消息     |
-| `/advisor:handoff [instructions]` | 把最近一次完成的 Ask Advisor Second Opinion 作为用户消息转交给 Primary Agent |
-| `/advisor:watch`                  | 启动一次 Watch Run，由 Advisor 根据 Primary Agent 的工作进展自行判断何时结束 |
+向 Advisor 发送消息，行为取决于 Advisor 当前状态：
 
-Ask Advisor 和 Watch Run 复用同一个 Advisor，Advisor Transcript 保持连续。Second Opinion 是 Advisor 面向用户的第二视角；Advice 是 Watch Run 期间 Advisor 送达 Primary Agent 的 Hint 或 Concern。Watch Run 外，Advisor 不会自行向 Primary Agent 发送 Advice；用户认可某个 Second Opinion 时，用 `/advisor:handoff` 显式转交。
+- **Advisor 空闲**：启动一次新的 Ask Advisor。当用户在 Primary Agent 进入新的用户对话轮次后首次使用时，自动附带 **Ask Context**：该 Primary user text message，以及它之后当前可见的 Primary assistant text（包含 streaming 文本，不包含 thinking、tool call、tool result 或 custom message）。同一个 Primary 用户对话轮次中的后续 Ask 不会重复附带 Ask Context。
+- **Advisor 正在 streaming**（Ask Advisor 或 Watch Run 期间）：消息直接 Steer 进当前运行。这条消息只包含用户输入，不附带 Ask Context 或 Primary Transcript 位置，在当前工具调用结束后、下一次模型调用前送达。用户可以借此及时补充信息、纠正理解或对齐方向。
+- **Advisor 正忙但不在 streaming**（例如工具调用之间）：请求会被拒绝，完整的 `/advisor <消息>` 恢复到主输入框。
 
-### Ask Context
+每次 Ask（空闲时启动的）都会告诉 Advisor 当前 Primary Transcript 的位置和 Primary Agent 运行状态。当用户的问题需要更多历史、工具过程或更新的进展时，Advisor 可以自行 Pull Primary Transcript View，无需用户手动复制上下文。
 
-Advisor 空闲时，当用户在 Primary Agent 进入新的用户对话轮次后首次使用 `/advisor`，Ask Advisor 会自动附带该 Primary 用户消息，以及它之后当前可见的 Primary Agent 文本回复。当前可见的 streaming 文本也可以进入这段 Ask Context。
+Ask Context 实际发送的内容会显示在 Advisor Overlay 的 `Context` block 中；没有附带 Ask Context 时，Overlay 不显示空 `Context` block。
 
-同一个 Primary 用户对话轮次中的后续 Ask 不会重复附带 Ask Context。每次 Ask 都会让 Advisor 知道 Primary Transcript 当前到了哪里；当用户的问题需要更多历史、工具过程或更新的进展时，Advisor 可以自行 Pull Primary Transcript View。
+Ask Advisor 和 Watch Run 复用同一个 Advisor，Advisor Transcript 保持连续。Second Opinion 是 Advisor 面向用户的第二视角；Advice 是 Watch Run 期间 Advisor 送达 Primary Agent 的 Hint 或 Concern。Advisor 不获得 `write` 和 `edit` 写入工具，需要修改时代码通过 Second Opinion 或 Advice 交给 Primary Agent 处理。
 
-Ask Context 只包含 Primary user text 和 assistant text。它实际发送的内容会显示在 Advisor Overlay 的 `Context` block 中；这次 Ask 没有附带 Ask Context 时，Overlay 不显示空 `Context` block。
+### `/advisor:handoff [instructions]` — 转交 Second Opinion
 
-Advisor 正在处理 Ask Advisor 或 Watch Run 时，`/advisor` 会把用户输入直接 Steer 给当前运行。这条消息不会附带新的 Primary Transcript 位置或 Ask Context，也不会消耗 Ask Context 注入记录；它会在当前工具调用结束后、Advisor 下一次模型调用前送达。
+将最近一次完成的 Ask Advisor Second Opinion 作为用户消息转交给 Primary Agent。未提供 `instructions` 时，默认要求 Primary Agent 使用该 Second Opinion 作为参考上下文。
 
-handoff 会把最近一次完成的 Ask Advisor 回答格式化为普通用户消息。Primary Agent 空闲时立即收到；Primary Agent 正忙时，这条消息会排为 follow-up。
+Primary Agent 空闲时立即收到；Primary Agent 正忙时，这条消息会排为 follow-up。
 
-```text
-/advisor:handoff Please verify this concern and fix it if it is real.
-```
-
-Primary Agent 收到的内容形如：
+转交消息格式：
 
 ```text
-Here is the latest Advisor Second Opinion I want you to use. Please verify this concern and fix it if it is real.
+Here is the latest Advisor Second Opinion I want you to use. <instructions>
 
 Original Advisor request:
-review the current change
+<Ask Advisor prompt>
 
 Advisor Second Opinion:
-...
+<latest completed Ask Advisor answer>
 ```
 
-### 智能送达
+如果 Advisor 正在处理上一次 Ask，handoff 会等待其完成后再转交。没有完成过 Ask Advisor Second Opinion 时，用户收到明确提示。handoff 不清空 Advisor Transcript。
 
-Watch Run 根据 Advice 的**意图**自动选择送达通道：
+### `/advisor:watch` — 启动 Watch Run
 
-- **Hint**（加速信息）：正确的 API 用法、更好的算法 → 通过 Steer 尽快送达，减少浪费时间
-- **Concern**（风险/质疑）：可能的 bug、架构疑虑 → 通过 Follow-up 等 Primary Agent 完成当前工作后再处理，不打断连贯性
+启动一次异步 Watch Run。Advisor 跟随 Primary Agent 的工作进展，自行判断何时完成本次审查。用户可以通过 `/advisor:watch-off` 提前取消。
 
-### 审查能力
+Watch Run 期间，Advisor 根据 Advice 的意图自动选择送达通道：
 
-- **自主拉取**：Advisor 自己决定何时查看 Primary Transcript View、查看多少，无需等待被动推送
-- **异步审查**：review 自然滞后于 Primary Agent 进度，不阻塞主流程
-- **受限工具集**：Advisor 复用 Primary Agent 的读取、搜索和命令类工具以理解代码，但不会获得 `write` 和 `edit` 写入工具
+- **Hint**（加速信息）：正确的 API 用法、更好的算法等，通过 Steer 尽快送达，减少浪费时间
+- **Concern**（风险/质疑）：可能的 bug、架构疑虑等，通过 Follow-up 等 Primary Agent 完成当前工作后再处理，不打断连贯性
 
-### 可视化
+Watch Run 外，Advisor 不会自行向 Primary Agent 发送 Advice。用户认可某个 Second Opinion 时，用 `/advisor:handoff` 显式转交。没有实质性 Advice 时 Advisor 保持静默。
 
-- Advisor 的思考过程通过 Advisor Overlay 实时展示，用户可随时查看其输入输出和实际附带的 Ask Context
+### `/advisor:watch-off` — 取消 Watch Run
 
-### 生命周期控制
+取消当前 Watch Run，保留 Advisor 实例和已有 Advisor Transcript。
 
-| 命令                        | 说明                                            |
-| --------------------------- | ----------------------------------------------- |
-| `/advisor:watch-off`        | 取消当前 Watch Run，保留 Advisor 实例和上下文   |
-| `/advisor:handoff [text]`   | 转交最近一次 Ask Advisor Second Opinion         |
-| `/advisor:new`              | 清空 Advisor Transcript 和 Ask Context 注入记录 |
-| `/advisor:model [model]`    | 打开可移动、可搜索的模型选择器，或直接设置模型  |
-| `/advisor:thinking [level]` | 打开 thinking 选择器，或直接设置 thinking       |
+### `/advisor:new` — 重置 Advisor
 
-### 健壮性
+清空 Advisor Transcript、Ask Context 自动注入记录和 Second Opinion 记录，开始新的 Advisor 上下文。
 
-- **中断保护**：用户按 Esc 中断 Primary Agent 后，Advisor 不会自动唤醒它
-- **无噪音**：无 Advice 时 Advisor 保持静默，不会产生无意义的 "Stop." / "Done."
+### `/advisor:model [model]` — 设置模型
+
+打开可移动、可搜索的模型选择器，或直接通过参数设置 Advisor 使用的模型。修改后会自动重置 Advisor 会话。偏好保存在 `~/.pi/agent/advisor.json`，对同一用户的所有项目生效。未设置时 Advisor 不启动，并提示用户先设置 model。
+
+### `/advisor:thinking [level]` — 设置 Thinking Level
+
+打开 thinking 级别选择器，或直接设置 Advisor 的 thinking level。可用级别：`off`、`minimal`、`low`、`medium`、`high`、`xhigh`，默认为 `medium`。修改后会自动重置 Advisor 会话。未设置时使用 Advisor 的固定默认值。
+
+### `/advisor:hide` — 隐藏 Overlay
+
+隐藏 Advisor Overlay，不清空 Advisor Transcript。可随时通过 `/advisor:show` 重新显示。
+
+### `/advisor:show` — 显示 Overlay
+
+重新显示 Advisor Overlay，恢复已有的 Advisor Transcript 视图。
+
+接受 `/advisor` 或 `/advisor:watch` 后 Overlay 自动打开。Overlay 采用右侧 split panel 形态，以 prefixed transcript blocks 实时展示 Advisor 的审查轨迹：用户消息、Ask Context、工具调用（Pull、Hint、Concern 等）和 Advisor 回答。Overlay header 显示 Advisor 状态和 context window 用量（如 `Advisor · thinking · ctx 0.1%/128k`），内容超出可视区域时显示 `↑N ↓M` 滚动指示器。
+
+Overlay 使用 non-capturing 模式，保持可见时不抢占 Primary Agent 的输入焦点。
+
+用户中断 Primary Agent 后，Advisor 不会自动唤醒 Primary Agent。
 
 ## 限制
 
