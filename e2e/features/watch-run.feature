@@ -1,4 +1,11 @@
 Feature: Watch Run
+  Scenario: Watch Run delivers a Hint through Steer
+    Given Advisor is configured to find a timely improvement
+    And the Primary Agent has recent work for Advisor to review
+    When the user starts Watch Run
+    Then Advisor should deliver a Hint through Steer
+    And the Advice should be based on the Primary Agent's recent work
+
   Scenario: Watch Run delivers a Concern through Follow-up
     Given Advisor has a configured model
     And the Primary Agent has recent work for Advisor to review

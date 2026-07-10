@@ -18,6 +18,22 @@ Given("Advisor has a configured model", async function (this: AdvisorE2EWorld) {
 	await this.startRpcPi({ advisorModelConfigured: true });
 });
 
+Given("Advisor is configured for Ask Context review", async function (this: AdvisorE2EWorld) {
+	await this.startRpcPi({ advisorModelConfigured: true, script: "ask-context" });
+});
+
+Given("Advisor is configured to review the Primary Agent while it is running", async function (this: AdvisorE2EWorld) {
+	await this.startRpcPi({ advisorModelConfigured: true, script: "ask-context-streaming" });
+});
+
+Given("Advisor is configured to find a timely improvement", async function (this: AdvisorE2EWorld) {
+	await this.startRpcPi({ advisorModelConfigured: true, script: "watch-hint" });
+});
+
+Given("Advisor is configured with a Second Opinion in progress", async function (this: AdvisorE2EWorld) {
+	await this.startRpcPi({ advisorModelConfigured: true, script: "advisor-busy" });
+});
+
 Given(
 	"Advisor is configured and Watch Run can wait for Primary Agent progress",
 	async function (this: AdvisorE2EWorld) {
@@ -43,6 +59,41 @@ Given(
 When("the user asks Advisor {string}", async function (this: AdvisorE2EWorld, message: string) {
 	this.lastEventIndex = this.rpcPi.eventCount();
 	await this.rpcPi.prompt(`/advisor ${message}`);
+	this.previousAdvisorObservation = this.lastAdvisorObservation;
+	if (this.advisorModelConfigured) {
+		this.lastAdvisorObservation = await this.rpcPi.waitForAdvisorObservation(message, 10_000);
+	}
+});
+
+When("the Primary Agent starts working on {string}", async function (this: AdvisorE2EWorld, message: string) {
+	this.lastEventIndex = this.rpcPi.eventCount();
+	await this.rpcPi.prompt(message);
+});
+
+When("the user asks Advisor {string} while Advisor is busy", async function (this: AdvisorE2EWorld, message: string) {
+	this.lastEventIndex = this.rpcPi.eventCount();
+	await this.rpcPi.prompt(`/advisor ${message}`);
+});
+
+When("the Primary Agent response {string} becomes visible", async function (this: AdvisorE2EWorld, text: string) {
+	const started = Date.now();
+	while (Date.now() - started < 20_000) {
+		const update = this.rpcPi.events
+			.slice(this.lastEventIndex)
+			.find(
+				(event) =>
+					event.type === "message_update" &&
+					event.message?.role === "assistant" &&
+					JSON.stringify(event.message).includes(text),
+			);
+		if (update) {
+			return;
+		}
+		await this.rpcPi.sleep(100);
+	}
+	throw new Error(
+		`timeout waiting for visible Primary Agent response ${JSON.stringify(text)} after event ${this.lastEventIndex}`,
+	);
 });
 
 When("the user asks Advisor without a message", async function (this: AdvisorE2EWorld) {
@@ -303,6 +354,135 @@ Then("Advisor should deliver a Concern through Follow-up", async function (this:
 	});
 	this.lastAdvisorMessage = message;
 });
+
+Then("Advisor should deliver a Hint through Steer", async function (this: AdvisorE2EWorld) {
+	const message = await this.rpcPi.waitForMessage(
+		(candidate) =>
+			candidate.role === "custom" &&
+			candidate.customType === "advisor:advice" &&
+			JSON.stringify(candidate).includes("E2E_WATCH_HINT"),
+		60_000,
+		"Advisor Hint custom message",
+	);
+
+	expect(message.details).toMatchObject({
+		origin: "advisor",
+		advisorAdviceKind: "hint",
+		deliverAs: "steer",
+	});
+	this.lastAdvisorMessage = message;
+});
+
+Then("Advisor should receive the Primary Agent inspection tools", function (this: AdvisorE2EWorld) {
+	const observation = this.lastAdvisorObservation;
+	if (!observation) {
+		throw new Error("No Advisor provider observation was captured for the latest Ask.");
+	}
+	const toolNames = Array.isArray(observation.toolNames) ? observation.toolNames : [];
+
+	expect(toolNames).toEqual(expect.arrayContaining(["read", "bash", "grep", "pull_transcript", "advise"]));
+});
+
+Then("Advisor should not receive file editing tools", function (this: AdvisorE2EWorld) {
+	const observation = this.lastAdvisorObservation;
+	if (!observation) {
+		throw new Error("No Advisor provider observation was captured for the latest Ask.");
+	}
+	const toolNames = Array.isArray(observation.toolNames) ? observation.toolNames : [];
+
+	expect(toolNames).not.toContain("edit");
+	expect(toolNames).not.toContain("write");
+});
+
+Then(
+	"the latest Advisor Ask should report the Primary Agent state as {string}",
+	function (this: AdvisorE2EWorld, state: string) {
+		const observation = this.lastAdvisorObservation;
+		if (!observation || typeof observation.latestRequestText !== "string") {
+			throw new Error("No Advisor provider observation was captured for the latest Ask.");
+		}
+
+		expect(observation.latestRequestText).toMatch(/primary_transcript_end_index=\d+/);
+		expect(observation.latestRequestText).toContain(`primary_agent_loop_state=${state}`);
+	},
+);
+
+Then(
+	"the latest Ask Context should include Primary text {string} and {string}",
+	function (this: AdvisorE2EWorld, userText: string, assistantText: string) {
+		const observation = this.lastAdvisorObservation;
+		if (!observation || typeof observation.latestRequestText !== "string") {
+			throw new Error("No Advisor provider observation was captured for the latest Ask.");
+		}
+
+		expect(observation.latestRequestText).toContain("Ask Context:");
+		expect(observation.latestRequestText).toContain(userText);
+		expect(observation.latestRequestText).toContain(assistantText);
+	},
+);
+
+Then(
+	"the latest Ask Context should omit Primary tool activity {string}",
+	function (this: AdvisorE2EWorld, toolActivity: string) {
+		const observation = this.lastAdvisorObservation;
+		if (!observation || typeof observation.latestRequestText !== "string") {
+			throw new Error("No Advisor provider observation was captured for the latest Ask.");
+		}
+
+		expect(observation.latestRequestText).not.toContain(toolActivity);
+	},
+);
+
+Then("the repeated Ask should keep the same Primary Transcript position", function (this: AdvisorE2EWorld) {
+	const previous = this.previousAdvisorObservation?.latestRequestText;
+	const current = this.lastAdvisorObservation?.latestRequestText;
+	if (typeof previous !== "string" || typeof current !== "string") {
+		throw new Error("Two Advisor provider observations are required to compare Primary Transcript positions.");
+	}
+	const previousPosition = previous.match(/primary_transcript_end_index=(\d+)/)?.[1];
+	const currentPosition = current.match(/primary_transcript_end_index=(\d+)/)?.[1];
+
+	expect(previousPosition).toBeDefined();
+	expect(currentPosition).toBe(previousPosition);
+});
+
+Then("the repeated Ask should not include Ask Context", function (this: AdvisorE2EWorld) {
+	const observation = this.lastAdvisorObservation;
+	if (!observation || typeof observation.latestRequestText !== "string") {
+		throw new Error("No Advisor provider observation was captured for the latest Ask.");
+	}
+
+	expect(observation.latestRequestText).not.toContain("Ask Context:");
+});
+
+Then(
+	"Advisor should reject the busy Ask and restore {string}",
+	async function (this: AdvisorE2EWorld, completeCommand: string) {
+		const notification = await this.rpcPi.waitForNotificationAfter(
+			/Advisor is busy\. Try again when the current run finishes\./i,
+			this.lastEventIndex,
+			10_000,
+		);
+		const editorEvent = this.rpcPi.events
+			.slice(this.lastEventIndex)
+			.find((event) => event.type === "extension_ui_request" && event.method === "set_editor_text");
+		const observations = (await readFile(this.rpcPi.advisorObservationsPath, "utf8"))
+			.split("\n")
+			.filter(Boolean)
+			.map((line) => JSON.parse(line));
+		const rejectedQuestion = completeCommand.replace(/^\/advisor\s+/, "");
+
+		expect(notification.notifyType).toBe("warning");
+		expect(editorEvent?.text).toBe(completeCommand);
+		expect(
+			observations.some(
+				(observation) =>
+					typeof observation.latestQuestionText === "string" &&
+					observation.latestQuestionText.includes(rejectedQuestion),
+			),
+		).toBe(false);
+	},
+);
 
 Then("the delivered Advice should include {string}", function (this: AdvisorE2EWorld, text: string) {
 	expect(JSON.stringify(this.lastAdvisorMessage)).toContain(text);

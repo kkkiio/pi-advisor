@@ -22,7 +22,7 @@ When changing public APIs, persisted data, config files, CLI flags, plugin contr
 
 ### Testing Policy
 
-- Do not add runtime/unit tests for Advisor behavior. Cover behavior through BDD E2E, SDK integration, or visual tests instead.
+- Do not add runtime/unit tests for Advisor behavior. Cover behavior through BDD E2E or visual tests instead.
 - The only allowed unit test is `tests/advisor/session-history-format.test.ts`, because markdown transcript serialization is dense, deterministic, and valuable to pin directly.
 - Write `.feature` files in Advisor domain and user-observable business language. Keep implementation details such as RPC sessions, faux providers, test scripts, snapshots, tmux, and harnesses out of BDD scenario text.
 - Use deterministic overlay snapshots for stable TUI layout checks. Use generated HTML artifacts for visual review against `docs/prd.md`.
@@ -60,7 +60,6 @@ This package provides a Pi extension that runs a session-persistent Advisor agen
 │   │   └── types.ts                # Shared Advisor domain types and runtime port interfaces
 ├── tests/
 │   ├── advisor/
-│   │   ├── sdk/                     # Pi SDK + faux provider integration tests eligible for just test
 │   │   └── session-history-format.test.ts # The only allowed unit test; transcript formatter tests
 │   └── visual/                       # TUI visual tests: overlay snapshots plus HTML artifact capture
 ├── e2e/
@@ -83,6 +82,7 @@ Before committing or handing work back, run the local verification flow through 
 just fmt
 just check
 just test
+just test-e2e
 ```
 
 That sequence is the default submit-ready check. Run extra commands only when the user asks for them or the change clearly needs them.

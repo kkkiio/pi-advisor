@@ -5,8 +5,11 @@ import { TuiPi, type TuiPiOptions } from "./tui-pi";
 export class AdvisorE2EWorld {
 	pi: RpcPi | undefined;
 	tui: TuiPi | undefined;
+	advisorModelConfigured = false;
 	lastAdvisorMessage: RpcJson | undefined;
+	lastAdvisorObservation: RpcJson | undefined;
 	lastNotification: RpcJson | undefined;
+	previousAdvisorObservation: RpcJson | undefined;
 	lastSelect: RpcJson | undefined;
 	lastTuiScreen: string | undefined;
 	lastEventIndex = 0;
@@ -16,8 +19,11 @@ export class AdvisorE2EWorld {
 			await this.pi.dispose();
 		}
 		this.pi = await RpcPi.start(options);
+		this.advisorModelConfigured = options.advisorModelConfigured ?? false;
 		this.lastAdvisorMessage = undefined;
+		this.lastAdvisorObservation = undefined;
 		this.lastNotification = undefined;
+		this.previousAdvisorObservation = undefined;
 		this.lastSelect = undefined;
 		this.lastTuiScreen = undefined;
 		this.lastEventIndex = 0;
@@ -51,8 +57,11 @@ export class AdvisorE2EWorld {
 		}
 		await this.pi.dispose();
 		this.pi = undefined;
+		this.advisorModelConfigured = false;
 		this.lastAdvisorMessage = undefined;
+		this.lastAdvisorObservation = undefined;
 		this.lastNotification = undefined;
+		this.previousAdvisorObservation = undefined;
 		this.lastSelect = undefined;
 		this.lastEventIndex = 0;
 	}
