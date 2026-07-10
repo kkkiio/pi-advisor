@@ -59,7 +59,6 @@ describe("Feature: Watch Run", () => {
 					content: request.advice,
 					details: {
 						origin: "advisor",
-						advisorAdviceId: "adv_test",
 						advisorAdviceKind: request.kind,
 						deliverAs: "steer",
 						createdAt: 1,

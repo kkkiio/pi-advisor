@@ -188,17 +188,15 @@ function createOmittedAdviceMarker(message: AgentMessage): AgentMessage | undefi
 	}
 	const details = message.details as Partial<AdvisorAdviceDetails> | undefined;
 	const kind = details?.advisorAdviceKind ?? "hint";
-	const id = details?.advisorAdviceId ?? "unknown";
 	const deliverAs = details?.deliverAs ?? "steer";
 	return {
 		role: "custom",
 		customType: ADVISOR_OMITTED_CUSTOM_TYPE,
-		content: `[advisor ${kind} omitted: id=${id} deliverAs=${deliverAs}]`,
+		content: `[advisor ${kind} omitted: deliverAs=${deliverAs}]`,
 		display: false,
 		details: {
 			origin: "advisor",
 			omitted: true,
-			advisorAdviceId: id,
 			advisorAdviceKind: kind,
 			deliverAs,
 		},

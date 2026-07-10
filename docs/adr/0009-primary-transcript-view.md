@@ -44,7 +44,6 @@ Advisor 通过 `pull_transcript` 阅读 Primary Agent 的工作进展。primary 
 ```ts
 {
   origin: "advisor",
-  advisorAdviceId: "...",
   advisorAdviceKind: "hint" | "concern",
   deliverAs: "steer" | "followUp"
 }
@@ -57,7 +56,7 @@ Advisor 通过 `pull_transcript` 阅读 Primary Agent 的工作进展。primary 
 为了保留时间线可解释性，view 可以用短 marker 替代被过滤的 Advisor Advice 原文：
 
 ```text
-[advisor hint omitted: id=adv_123 deliverAs=steer]
+[advisor hint omitted: deliverAs=steer]
 ```
 
 marker 不包含 Advice 原文。Advisor 已经在自己的 transcript 中知道 Advice 内容；marker 只说明 Primary Agent 后续行为可能受 Advisor Advice 影响。

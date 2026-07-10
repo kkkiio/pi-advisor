@@ -28,7 +28,6 @@ export interface AdvisorModelRef {
 
 export interface AdvisorAdviceDetails {
 	origin: "advisor";
-	advisorAdviceId: string;
 	advisorAdviceKind: AdviceKind;
 	deliverAs: DeliveryChannel;
 	createdAt: number;
@@ -40,7 +39,6 @@ export interface AdviceDeliveryRequest {
 }
 
 export interface AdviceDeliveryResult {
-	id: string;
 	kind: AdviceKind;
 	deliverAs: DeliveryChannel;
 	content: string;

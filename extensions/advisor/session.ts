@@ -472,7 +472,7 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 		this.overlay.state.recordAdvice(result);
 		this.overlay.refresh();
 		if (result.kind === "concern") {
-			ctx.ui.notify(`Advisor concern delivered: ${result.id}`, "warning");
+			ctx.ui.notify("Advisor concern delivered", "warning");
 		}
 		return result;
 	}
@@ -628,12 +628,12 @@ function normalizePullTimeout(timeoutMs: number | undefined): number {
 }
 
 export function renderAdviceMessage(content: unknown, details: unknown): string {
-	const info = details as { advisorAdviceKind?: string; deliverAs?: string; advisorAdviceId?: string } | undefined;
+	const info = details as { advisorAdviceKind?: string; deliverAs?: string } | undefined;
 	const body =
 		typeof content === "string"
 			? content
 			: Array.isArray(content)
 				? messageContentToText(content)
 				: String(content ?? "");
-	return `[Advisor ${info?.advisorAdviceKind ?? "advice"} -> ${info?.deliverAs ?? "primary"} ${info?.advisorAdviceId ?? ""}]\n${body}`;
+	return `[Advisor ${info?.advisorAdviceKind ?? "advice"} -> ${info?.deliverAs ?? "primary"}]\n${body}`;
 }
