@@ -1,6 +1,8 @@
 import {
 	DefaultResourceLoader,
+	ModelSelectorComponent,
 	SessionManager,
+	SettingsManager,
 	createAgentSession,
 	type AgentSession,
 	type AgentSessionEvent,
@@ -9,7 +11,7 @@ import {
 	type ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import type { AssistantMessage } from "@earendil-works/pi-ai";
+import type { AssistantMessage, Model } from "@earendil-works/pi-ai";
 import { ADVISOR_ADVICE_CUSTOM_TYPE } from "./types";
 import type {
 	AdviceDeliveryRequest,
@@ -320,6 +322,24 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 		const value = args.trim();
 		if (!value) {
 			const settings = await this.settingsStore.read();
+			if (ctx.mode === "tui") {
+				const currentRef = settings.model ? parseAdvisorModelRef(settings.model) : undefined;
+				const currentModel = currentRef ? ctx.modelRegistry.find(currentRef.provider, currentRef.id) : undefined;
+				const selected = await ctx.ui.custom<Model<any> | undefined>(
+					(tui, _theme, _keybindings, done) =>
+						new ModelSelectorComponent(tui, currentModel, SettingsManager.inMemory(), ctx.modelRegistry, [], done, () =>
+							done(undefined),
+						),
+				);
+				if (!selected) {
+					return;
+				}
+				const selectedRef = `${selected.provider}/${selected.id}`;
+				await this.settingsStore.patch({ model: selectedRef });
+				await this.disposeSession();
+				ctx.ui.notify(`Advisor model set to ${selectedRef}.`, "info");
+				return;
+			}
 			ctx.modelRegistry.refresh();
 			const models = ctx.modelRegistry
 				.getAvailable()

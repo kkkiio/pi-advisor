@@ -67,7 +67,7 @@ Watch Run 根据 Advice 的**意图**自动选择送达通道：
 | `/advisor:watch-off`        | 取消当前 Watch Run，保留 Advisor 实例和上下文 |
 | `/advisor:handoff [text]`   | 转交最近一次 Ask Advisor Second Opinion       |
 | `/advisor:new`              | 清空 Advisor Transcript，重置上下文           |
-| `/advisor:model [model]`    | 打开模型选择器，或直接设置 Advisor 使用的模型 |
+| `/advisor:model [model]`    | 打开可移动、可搜索的模型选择器，或直接设置模型  |
 | `/advisor:thinking [level]` | 打开 thinking 选择器，或直接设置 thinking     |
 
 ### 健壮性

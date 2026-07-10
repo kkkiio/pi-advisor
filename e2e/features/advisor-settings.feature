@@ -31,3 +31,13 @@ Feature: Advisor Settings
     Then Advisor should report that the selected model is unavailable
     When the user selects an unsupported Advisor thinking level
     Then Advisor should warn with "Use /advisor:thinking off|minimal|low|medium|high|xhigh."
+
+  @interactive
+  Scenario: User navigates and searches the Advisor model picker
+    Given Advisor has no configured model in the interactive terminal
+    When the user opens the Advisor model picker in the terminal
+    Then the user can move to another Advisor model
+    When the user searches the Advisor model picker for "faux-advisor"
+    Then the matching Advisor model should become selected
+    When the user confirms the filtered Advisor model
+    Then the Advisor model preference should be "advisor-e2e/faux-advisor"

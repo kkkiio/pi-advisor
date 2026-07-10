@@ -94,9 +94,13 @@ export class TuiPi {
 		this.stderrPath = join(root, "pi.stderr.log");
 	}
 
-	async submit(text: string): Promise<void> {
-		this.tmux(["send-keys", "-t", this.sessionName, "-l", text]);
-		this.tmux(["send-keys", "-t", this.sessionName, "Enter"]);
+	async submit(text: string, keys: string[] = ["Enter"]): Promise<void> {
+		if (text) {
+			this.tmux(["send-keys", "-t", this.sessionName, "-l", text]);
+		}
+		for (const key of keys) {
+			this.tmux(["send-keys", "-t", this.sessionName, key]);
+		}
 	}
 
 	capturePlainText(): string {

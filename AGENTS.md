@@ -17,6 +17,7 @@ When changing public APIs, persisted data, config files, CLI flags, plugin contr
 
 - Project at 0.x: zero stability guarantees.
 - Prefer direct migrations and simple current-state code over compatibility layers.
+- When changing Pi-dependent code or dependencies, keep all `@earendil-works/pi-*` packages aligned and upgrade them to the latest published version when available.
 - Document intentional breaking changes in the final response; update release notes only when the project adds a changelog.
 
 ### Testing Policy

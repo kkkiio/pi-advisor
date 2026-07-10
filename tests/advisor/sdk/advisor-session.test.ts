@@ -8,7 +8,7 @@ import {
 	type ExtensionAPI,
 	type ExtensionCommandContext,
 } from "@earendil-works/pi-coding-agent";
-import { fauxAssistantMessage, fauxToolCall, registerFauxProvider } from "@earendil-works/pi-ai";
+import { fauxAssistantMessage, fauxProvider, fauxToolCall } from "@earendil-works/pi-ai";
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -19,9 +19,20 @@ import type { AdvisorRuntimePort } from "../../../extensions/advisor/types";
 
 describe("Feature: Watch Run", () => {
 	it("Scenario: Advisor pulls transcript, then calls advise", async () => {
-		const provider = registerFauxProvider({ tokensPerSecond: 0 });
+		const provider = fauxProvider({ tokensPerSecond: 0 });
 		const agentDir = await mkdtemp(join(tmpdir(), "pi-advisor-sdk-"));
 		const calls: string[] = [];
+		const model = provider.getModel();
+		const authStorage = AuthStorage.inMemory();
+		authStorage.setRuntimeApiKey(model.provider, "test-faux-key");
+		const modelRegistry = ModelRegistry.inMemory(authStorage);
+		modelRegistry.registerProvider(model.provider, {
+			api: model.api,
+			baseUrl: model.baseUrl,
+			apiKey: "test-faux-key",
+			streamSimple: provider.provider.streamSimple,
+			models: provider.models,
+		});
 		const runtime: AdvisorRuntimePort = {
 			async pullTranscript() {
 				calls.push("pull_transcript");
@@ -59,9 +70,6 @@ describe("Feature: Watch Run", () => {
 		};
 
 		try {
-			const authStorage = AuthStorage.inMemory();
-			authStorage.setRuntimeApiKey(provider.getModel().provider, "test-faux-key");
-			const modelRegistry = ModelRegistry.inMemory(authStorage);
 			provider.setResponses([
 				fauxAssistantMessage(fauxToolCall("pull_transcript", { since_index: 0, timeout_ms: 0, count: 5 }), {
 					stopReason: "toolUse",
@@ -88,7 +96,7 @@ describe("Feature: Watch Run", () => {
 				authStorage,
 				modelRegistry,
 				sessionManager: SessionManager.inMemory(process.cwd()),
-				model: provider.getModel(),
+				model,
 				tools: ["pull_transcript", "advise"],
 				customTools: createAdvisorTools(runtime),
 				resourceLoader,
@@ -100,13 +108,13 @@ describe("Feature: Watch Run", () => {
 			expect(provider.getPendingResponseCount()).toBe(0);
 			session.dispose();
 		} finally {
-			provider.unregister();
+			modelRegistry.unregisterProvider(model.provider);
 			await rm(agentDir, { recursive: true, force: true });
 		}
 	});
 
 	it("Scenario: Advisor inherits Primary tools without write or edit", async () => {
-		const provider = registerFauxProvider({ tokensPerSecond: 0 });
+		const provider = fauxProvider({ tokensPerSecond: 0 });
 		const model = provider.getModel();
 		const authStorage = AuthStorage.inMemory();
 		authStorage.setRuntimeApiKey(model.provider, "test-faux-key");
@@ -115,6 +123,7 @@ describe("Feature: Watch Run", () => {
 			api: model.api,
 			baseUrl: model.baseUrl,
 			apiKey: "test-faux-key",
+			streamSimple: provider.provider.streamSimple,
 			models: [
 				{
 					id: model.id,
@@ -127,7 +136,6 @@ describe("Feature: Watch Run", () => {
 					cost: model.cost,
 					contextWindow: model.contextWindow,
 					maxTokens: model.maxTokens,
-					compat: model.compat,
 				},
 			],
 		});
@@ -160,7 +168,7 @@ describe("Feature: Watch Run", () => {
 			expect(activeTools).not.toContain("write");
 		} finally {
 			await runtime.dispose();
-			provider.unregister();
+			modelRegistry.unregisterProvider(model.provider);
 		}
 	});
 });
