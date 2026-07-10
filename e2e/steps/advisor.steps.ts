@@ -70,10 +70,13 @@ When("the Primary Agent starts working on {string}", async function (this: Advis
 	await this.rpcPi.prompt(message);
 });
 
-When("the user asks Advisor {string} while Advisor is busy", async function (this: AdvisorE2EWorld, message: string) {
-	this.lastEventIndex = this.rpcPi.eventCount();
-	await this.rpcPi.prompt(`/advisor ${message}`);
-});
+When(
+	"the user asks Advisor {string} while Advisor is running",
+	async function (this: AdvisorE2EWorld, message: string) {
+		this.lastEventIndex = this.rpcPi.eventCount();
+		await this.rpcPi.prompt(`/advisor ${message}`);
+	},
+);
 
 When("the Primary Agent response {string} becomes visible", async function (this: AdvisorE2EWorld, text: string) {
 	const started = Date.now();
@@ -456,31 +459,17 @@ Then("the repeated Ask should not include Ask Context", function (this: AdvisorE
 });
 
 Then(
-	"Advisor should reject the busy Ask and restore {string}",
-	async function (this: AdvisorE2EWorld, completeCommand: string) {
-		const notification = await this.rpcPi.waitForNotificationAfter(
-			/Advisor is busy\. Try again when the current run finishes\./i,
-			this.lastEventIndex,
-			10_000,
-		);
-		const editorEvent = this.rpcPi.events
-			.slice(this.lastEventIndex)
-			.find((event) => event.type === "extension_ui_request" && event.method === "set_editor_text");
-		const observations = (await readFile(this.rpcPi.advisorObservationsPath, "utf8"))
-			.split("\n")
-			.filter(Boolean)
-			.map((line) => JSON.parse(line));
-		const rejectedQuestion = completeCommand.replace(/^\/advisor\s+/, "");
+	"the running Advisor should receive {string} without another Ask Context",
+	async function (this: AdvisorE2EWorld, message: string) {
+		const initialObservation = this.lastAdvisorObservation;
+		if (!initialObservation || typeof initialObservation.askContextMessageCount !== "number") {
+			throw new Error("No initial Advisor Ask Context observation was captured.");
+		}
 
-		expect(notification.notifyType).toBe("warning");
-		expect(editorEvent?.text).toBe(completeCommand);
-		expect(
-			observations.some(
-				(observation) =>
-					typeof observation.latestQuestionText === "string" &&
-					observation.latestQuestionText.includes(rejectedQuestion),
-			),
-		).toBe(false);
+		const messageObservation = await this.rpcPi.waitForAdvisorObservation(message, 10_000);
+		expect(initialObservation.askContextMessageCount).toBeGreaterThan(0);
+		expect(messageObservation.latestQuestionText).toContain(message);
+		expect(messageObservation.askContextMessageCount).toBe(initialObservation.askContextMessageCount);
 	},
 );
 

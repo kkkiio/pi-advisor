@@ -53,7 +53,7 @@ export default function advisorExtension(pi: ExtensionAPI): void {
 	});
 
 	pi.registerCommand("advisor", {
-		description: "Ask Advisor for a Second Opinion with the current Primary position and Ask Context.",
+		description: "Ask an idle Advisor with context, or message a running Advisor directly.",
 		handler: async (args, ctx) => {
 			await runtime.ask(args, ctx);
 		},
