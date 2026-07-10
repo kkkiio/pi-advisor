@@ -1,8 +1,10 @@
 import { execFileSync } from "node:child_process";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join, relative } from "node:path";
+import { visibleWidth } from "@earendil-works/pi-tui";
 import { TuiPi, type TuiPiOptions } from "../../e2e/support/tui-pi";
 import { repoRoot } from "../../e2e/support/rpc-pi";
+import { GhosttyWebScreenshotRenderer } from "./ghostty-web-renderer";
 
 interface TuiVisualScenario {
 	id: string;
@@ -158,6 +160,9 @@ h1{font-size:22px;margin:0 0 16px}
 h2{font-size:16px;margin:24px 0 8px}
 p{max-width:760px}
 pre{margin:0;padding:16px;background:#101418;color:#f3f6f8;border:1px solid #d0d7de;overflow:auto;font:14px/1.2 "SFMono-Regular",Consolas,"Liberation Mono",monospace;white-space:pre}
+.terminal{display:block;max-width:100%;height:auto;background:#f8f8f8;border:1px solid #d0d7de}
+.scenario{margin:0 0 24px;padding:16px;border:1px solid #d0d7de;border-radius:8px;background:#fff}
+.scenario img{margin-top:8px}
 a{color:#0969da}
 li{margin:6px 0}
 </style>`;
@@ -165,79 +170,128 @@ const outputRoot = join(repoRoot, "test-results", "visual");
 await rm(outputRoot, { recursive: true, force: true });
 await mkdir(outputRoot, { recursive: true });
 const indexRows: string[] = [];
-for (const scenario of selected) {
-	const scenarioDir = join(outputRoot, scenario.id);
-	await mkdir(scenarioDir, { recursive: true });
-	const pi = await TuiPi.start(scenario.options);
-	try {
-		await scenario.run(pi);
-		const whole = pi.capturePlainText();
-		const overlay = scenario.captures.includes("overlay") ? pi.captureAdvisorOverlayPlainText() : undefined;
-		const manifest = {
-			id: scenario.id,
-			title: scenario.title,
-			description: scenario.description,
-			captures: scenario.captures,
-			terminal: {
-				width: scenario.options.width ?? 100,
-				height: scenario.options.height ?? 30,
-				tmux: execFileSync("tmux", ["-V"], { encoding: "utf8" }).trim(),
-			},
-			generatedAt: new Date().toISOString(),
-			checklist: scenario.checklist,
-		};
-		await writeFile(join(scenarioDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
-		await writeFile(
-			join(scenarioDir, "checklist.md"),
-			`# ${scenario.title}\n\n${scenario.checklist.map((item) => `- [ ] ${item}`).join("\n")}\n`,
-			"utf8",
-		);
-		if (scenario.captures.includes("whole")) {
-			await writeFile(join(scenarioDir, "whole.txt"), whole, "utf8");
-			const title = `${scenario.title} · Whole TUI`.replace(/[&<>"']/g, (char) => htmlEntities[char] ?? char);
-			const content = whole.replace(/[&<>"']/g, (char) => htmlEntities[char] ?? char);
+const renderer = await GhosttyWebScreenshotRenderer.start();
+try {
+	for (const scenario of selected) {
+		const scenarioDir = join(outputRoot, scenario.id);
+		await mkdir(scenarioDir, { recursive: true });
+		const pi = await TuiPi.start({ ...scenario.options, color: true });
+		try {
+			await scenario.run(pi);
+			const whole = pi.capturePlainText();
+			const wholeAnsi = pi.captureAnsiText();
+			const overlay = scenario.captures.includes("overlay") ? pi.captureAdvisorOverlayPlainText() : undefined;
+			const manifest = {
+				id: scenario.id,
+				title: scenario.title,
+				description: scenario.description,
+				captures: scenario.captures,
+				terminal: {
+					color: "ansi-sgr",
+					width: scenario.options.width ?? 100,
+					height: scenario.options.height ?? 30,
+					tmux: execFileSync("tmux", ["-V"], { encoding: "utf8" }).trim(),
+					renderer: renderer.metadata,
+				},
+				generatedAt: new Date().toISOString(),
+				artifacts: {
+					whole: scenario.captures.includes("whole")
+						? { text: "whole.txt", image: "whole.png", html: "whole.html" }
+						: undefined,
+					overlay:
+						overlay !== undefined ? { text: "overlay.txt", image: "overlay.png", html: "overlay.html" } : undefined,
+				},
+				checklist: scenario.checklist,
+			};
+			await writeFile(join(scenarioDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 			await writeFile(
-				join(scenarioDir, "whole.html"),
-				`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>${pageStyle}</head><body><main><h1>${title}</h1><pre>${content}</pre></main></body></html>`,
+				join(scenarioDir, "checklist.md"),
+				`# ${scenario.title}\n\n${scenario.checklist.map((item) => `- [ ] ${item}`).join("\n")}\n`,
 				"utf8",
 			);
-		}
-		if (overlay !== undefined) {
-			await writeFile(join(scenarioDir, "overlay.txt"), overlay, "utf8");
-			const title = `${scenario.title} · Advisor Overlay`.replace(/[&<>"']/g, (char) => htmlEntities[char] ?? char);
-			const content = overlay.replace(/[&<>"']/g, (char) => htmlEntities[char] ?? char);
+			if (scenario.captures.includes("whole")) {
+				await writeFile(join(scenarioDir, "whole.txt"), whole, "utf8");
+				const title = `${scenario.title} · Whole TUI`.replace(/[&<>"']/g, (char) => htmlEntities[char] ?? char);
+				const content = whole.replace(/[&<>"']/g, (char) => htmlEntities[char] ?? char);
+				await renderer.screenshot({
+					ansiText: wholeAnsi,
+					columns: scenario.options.width ?? 100,
+					rows: scenario.options.height ?? 30,
+					outputPath: join(scenarioDir, "whole.png"),
+				});
+				await writeFile(
+					join(scenarioDir, "whole.html"),
+					`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>${pageStyle}</head><body><main><h1>${title}</h1><img class="terminal" src="whole.png" alt="${title}"><h2>Text</h2><pre>${content}</pre></main></body></html>`,
+					"utf8",
+				);
+			}
+			if (overlay !== undefined) {
+				await writeFile(join(scenarioDir, "overlay.txt"), overlay, "utf8");
+				const title = `${scenario.title} · Advisor Overlay`.replace(/[&<>"']/g, (char) => htmlEntities[char] ?? char);
+				const content = overlay.replace(/[&<>"']/g, (char) => htmlEntities[char] ?? char);
+				const overlayColumns = Math.max(...overlay.split("\n").map((line) => visibleWidth(line)));
+				await renderer.screenshot({
+					ansiText: wholeAnsi,
+					columns: scenario.options.width ?? 100,
+					rows: scenario.options.height ?? 30,
+					outputPath: join(scenarioDir, "overlay.png"),
+					crop: {
+						startColumn: (scenario.options.width ?? 100) - overlayColumns,
+						columns: overlayColumns,
+					},
+				});
+				await writeFile(
+					join(scenarioDir, "overlay.html"),
+					`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>${pageStyle}</head><body><main><h1>${title}</h1><img class="terminal" src="overlay.png" alt="${title}"><h2>Text</h2><pre>${content}</pre></main></body></html>`,
+					"utf8",
+				);
+			}
+			const title = scenario.title.replace(/[&<>"']/g, (char) => htmlEntities[char] ?? char);
+			const description = scenario.description.replace(/[&<>"']/g, (char) => htmlEntities[char] ?? char);
+			const artifactLinks = [
+				scenario.captures.includes("whole")
+					? '<li><a href="whole.html">Whole TUI review</a> · <a href="whole.png">PNG</a> · <a href="whole.txt">text</a></li>'
+					: "",
+				overlay !== undefined
+					? '<li><a href="overlay.html">Advisor Overlay review</a> · <a href="overlay.png">PNG</a> · <a href="overlay.txt">text</a></li>'
+					: "",
+				'<li><a href="checklist.md">Checklist</a></li>',
+				'<li><a href="manifest.json">Manifest</a></li>',
+			]
+				.filter(Boolean)
+				.join("\n");
+			const checklist = scenario.checklist
+				.map((item) => `<li>${item.replace(/[&<>"']/g, (char) => htmlEntities[char] ?? char)}</li>`)
+				.join("\n");
+			const previews = [
+				scenario.captures.includes("whole")
+					? `<h2>Whole TUI</h2><a href="whole.png"><img class="terminal" src="whole.png" alt="${title} Whole TUI"></a>`
+					: "",
+				overlay !== undefined
+					? `<h2>Advisor Overlay</h2><a href="overlay.png"><img class="terminal" src="overlay.png" alt="${title} Advisor Overlay"></a>`
+					: "",
+			]
+				.filter(Boolean)
+				.join("\n");
 			await writeFile(
-				join(scenarioDir, "overlay.html"),
-				`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>${pageStyle}</head><body><main><h1>${title}</h1><pre>${content}</pre></main></body></html>`,
+				join(scenarioDir, "index.html"),
+				`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>${pageStyle}</head><body><main><h1>${title}</h1><p>${description}</p><h2>Artifacts</h2><ul>${artifactLinks}</ul>${previews}<h2>Checklist</h2><ul>${checklist}</ul></main></body></html>`,
 				"utf8",
 			);
+			const preview = overlay !== undefined ? "overlay.png" : "whole.png";
+			indexRows.push(
+				`<section class="scenario"><h2><a href="${scenario.id}/index.html">${title}</a></h2><p>${description}</p><a href="${scenario.id}/index.html"><img class="terminal" src="${scenario.id}/${preview}" alt="${title}"></a></section>`,
+			);
+		} finally {
+			await pi.dispose();
 		}
-		const title = scenario.title.replace(/[&<>"']/g, (char) => htmlEntities[char] ?? char);
-		const description = scenario.description.replace(/[&<>"']/g, (char) => htmlEntities[char] ?? char);
-		const artifactLinks = [
-			scenario.captures.includes("whole") ? '<li><a href="whole.html">Whole TUI</a></li>' : "",
-			overlay !== undefined ? '<li><a href="overlay.html">Advisor Overlay</a></li>' : "",
-			'<li><a href="checklist.md">Checklist</a></li>',
-			'<li><a href="manifest.json">Manifest</a></li>',
-		]
-			.filter(Boolean)
-			.join("\n");
-		const checklist = scenario.checklist
-			.map((item) => `<li>${item.replace(/[&<>"']/g, (char) => htmlEntities[char] ?? char)}</li>`)
-			.join("\n");
-		await writeFile(
-			join(scenarioDir, "index.html"),
-			`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>${pageStyle}</head><body><main><h1>${title}</h1><p>${description}</p><h2>Artifacts</h2><ul>${artifactLinks}</ul><h2>Checklist</h2><ul>${checklist}</ul></main></body></html>`,
-			"utf8",
-		);
-		indexRows.push(`<li><a href="${scenario.id}/index.html">${title}</a><p>${description}</p></li>`);
-	} finally {
-		await pi.dispose();
 	}
+	await writeFile(
+		join(outputRoot, "index.html"),
+		`<!doctype html><html><head><meta charset="utf-8"><title>Pi Advisor Visual Results</title>${pageStyle}</head><body><main><h1>Pi Advisor Visual Results</h1>${indexRows.join("\n")}</main></body></html>`,
+		"utf8",
+	);
+} finally {
+	await renderer.close();
 }
-await writeFile(
-	join(outputRoot, "index.html"),
-	`<!doctype html><html><head><meta charset="utf-8"><title>Pi Advisor Visual Results</title>${pageStyle}</head><body><main><h1>Pi Advisor Visual Results</h1><ul>${indexRows.join("\n")}</ul></main></body></html>`,
-	"utf8",
-);
 console.log(`Visual artifacts written to ${relative(process.cwd(), outputRoot)}`);

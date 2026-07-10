@@ -137,7 +137,6 @@ export function buildAdvisorOverlayTranscript(
 	const toolBadge = buildTranscriptBadge(theme, "Tool", "toolPendingBg", "warning");
 	const advisorBadge = buildTranscriptBadge(theme, "Advisor", "customMessageBg", "success");
 	const errorBadge = buildTranscriptBadge(theme, "Error", "customMessageBg", "error");
-	const blockIndent = "    ";
 
 	const pushBlankLine = () => {
 		if (lines.length > 0 && lines[lines.length - 1] !== "") {
@@ -159,17 +158,16 @@ export function buildAdvisorOverlayTranscript(
 		const firstLine = bodyLines.shift() ?? "";
 		lines.push(`${header}${firstLine ? ` ${style(firstLine)}` : ""}`);
 		for (const line of bodyLines) {
-			lines.push(`${blockIndent}${style(line)}`);
+			lines.push(style(line));
 		}
 	};
 
 	const pushStackedBlock = (
 		header: string,
 		text: string,
-		options: { blankBefore?: boolean; indent?: string; style?: (value: string) => string } = {},
+		options: { blankBefore?: boolean; style?: (value: string) => string } = {},
 	) => {
 		const bodyLines = text.split("\n");
-		const indent = options.indent ?? blockIndent;
 		const style = options.style ?? ((value: string) => value);
 		if (options.blankBefore !== false) {
 			pushBlankLine();
@@ -177,7 +175,7 @@ export function buildAdvisorOverlayTranscript(
 
 		lines.push(header);
 		for (const line of bodyLines) {
-			lines.push(`${indent}${style(line)}`);
+			lines.push(style(line));
 		}
 	};
 
@@ -200,7 +198,7 @@ export function buildAdvisorOverlayTranscript(
 					contextLines.push(...text.split("\n"));
 				}
 			}
-			pushStackedBlock(contextBadge, contextLines.join("\n"), { indent: "" });
+			pushStackedBlock(contextBadge, contextLines.join("\n"));
 			continue;
 		}
 		if (entry.type === "assistant-text") {
@@ -216,7 +214,7 @@ export function buildAdvisorOverlayTranscript(
 				const separator = summary.call.indexOf(" ");
 				const label = separator >= 0 ? summary.call.slice(0, separator) : summary.call;
 				const text = separator >= 0 ? summary.call.slice(separator + 1) : "";
-				const prefix = theme.fg(summary.isError ? "error" : "warning", theme.bold(` ${label}`));
+				const prefix = theme.fg(summary.isError ? "error" : "warning", theme.bold(label));
 				pushInlineBlock(prefix, text, {
 					style: (line) => theme.fg(summary.isError ? "error" : "dim", line),
 				});
@@ -527,7 +525,7 @@ function buildTranscriptBadge(
 	background: "userMessageBg" | "toolPendingBg" | "customMessageBg",
 	foreground: "accent" | "warning" | "success" | "error",
 ): string {
-	return theme.bg(background, theme.fg(foreground, theme.bold(` ${label} `)));
+	return theme.bg(background, theme.fg(foreground, theme.bold(label)));
 }
 
 function oneLine(text: string, max: number): string {

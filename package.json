@@ -48,6 +48,8 @@
   },
   "devDependencies": {
     "@cucumber/cucumber": "^11.3.0",
+    "ghostty-web": "0.4.0",
+    "playwright-core": "1.60.0",
     "prettier": "^3.9.4",
     "tsx": "^4.23.0",
     "typebox": "^1.1.38",
