@@ -2,6 +2,24 @@
 
 Advisor 是一个依附 Primary Agent 的会话内持久化第二 agent，用于异步审查 Primary Agent 的工作，向用户提供 Second Opinion，并在用户确认或 Watch Run 期间把有效观点送达 Primary Agent。
 
+## 安装
+
+```bash
+# npm 安装
+pi install npm:@kkkiio/pi-advisor
+
+# 或本地路径安装
+pi install ./path/to/pi-advisor
+```
+
+安装后需设置 Advisor model（否则不会启动）：
+
+```
+/advisor:model openai/gpt-5.5
+```
+
+详见[配置](#配置)。
+
 ## 目标
 
 ### Advisor 目标
