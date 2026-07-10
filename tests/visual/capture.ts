@@ -33,13 +33,16 @@ const scenarios: TuiVisualScenario[] = [
 	{
 		id: "ask-advisor-overlay",
 		title: "Ask Advisor Overlay",
-		description: "Ask Advisor opens the right-side overlay with prompt, actual context, Pull, and advisor output.",
+		description:
+			"Ask Advisor opens the right-side overlay with the user message, actual context, Pull, and advisor output.",
 		options: { advisorModelConfigured: true, width: 100, height: 30 },
 		captures: ["whole", "overlay"],
 		checklist: [
 			"Whole TUI shows the overlay anchored to the right side.",
 			"Overlay does not cover the primary input/status area in a way that makes it unreadable.",
-			"Overlay panel includes Prompt, actual Context text, one-line Pull, and Advisor sections.",
+			"User message uses the Primary transcript's foreground and a background that reaches both panel edges.",
+			"Overlay panel includes the user message, actual Context text, one-line Pull, and advisor output in order.",
+			"Prompt, Tool, and Advisor badges are absent while Context remains labeled.",
 			"Pull shows its returned range without arguments or a separate result line.",
 			"Advisor completion text is visible without breaking panel borders.",
 		],

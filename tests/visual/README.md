@@ -15,6 +15,7 @@ These checks render the Advisor Overlay directly from deterministic transcript s
 - panel borders are closed;
 - rendered lines stay inside the configured width;
 - required user-visible sections are present;
+- semantic background rows use the expected theme color and span the full panel width, including wrapped rows;
 - stable overlay layouts match Vitest snapshots.
 
 ## Review Artifacts
