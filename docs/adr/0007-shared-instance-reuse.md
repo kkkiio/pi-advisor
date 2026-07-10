@@ -12,7 +12,7 @@ Ask Advisor（`/advisor <消息>`）和 Watch Run（`/advisor:watch`）是两种
 
 **共享同一个 Advisor 实例**。Advisor 只有一个稳定的 system prompt。两种触发方式的区别体现在唤醒方式、任务消息和 runtime 状态：
 
-- Ask Advisor：由用户的 `/advisor <消息>` prompt 驱动，附带最近 Primary Transcript View 作为上下文。初始上下文至少包含最近 10 条 text message，并确保至少包含 1 条 user text message
+- Ask Advisor：由用户的 `/advisor <消息>` prompt 驱动，按 ADR-0010 附带 Ask Context 和 Primary Transcript 当前位置
 - Watch Run：extension 向同一个 Advisor 发送 Watch Run 任务消息，并记录 Watch Run active 状态。Advisor 通过 `pull_transcript` 返回的 `primary_agent_loop_state` 和 transcript 内容自行判断 Primary Agent 当前任务是否完成
 
 切换入口时，Advisor Transcript 和上下文保持连续；system prompt 不随入口变化。

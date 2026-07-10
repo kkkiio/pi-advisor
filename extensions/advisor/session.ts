@@ -12,7 +12,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage, Model } from "@earendil-works/pi-ai";
-import { ADVISOR_ADVICE_CUSTOM_TYPE } from "./types";
+import { ADVISOR_ADVICE_CUSTOM_TYPE, ADVISOR_ASK_CONTEXT_CUSTOM_TYPE } from "./types";
 import type {
 	AdviceDeliveryRequest,
 	AdviceDeliveryResult,
@@ -30,6 +30,7 @@ import {
 	hasNewTranscriptEntries,
 	messageContentToText,
 	renderPrimaryTranscriptSlice,
+	selectAskContext,
 } from "./primary-transcript";
 import {
 	ADVISOR_DEFAULT_THINKING,
@@ -41,12 +42,7 @@ import {
 	resolveAdvisorSettings,
 } from "./settings";
 import { createAdvisorTools } from "./tools";
-import {
-	ADVISOR_DISABLED_PRIMARY_TOOL_NAMES,
-	ADVISOR_SYSTEM_PROMPT,
-	ASK_RECENT_COUNT,
-	PULL_TIMEOUT_MAX_MS,
-} from "./constants";
+import { ADVISOR_DISABLED_PRIMARY_TOOL_NAMES, ADVISOR_SYSTEM_PROMPT, PULL_TIMEOUT_MAX_MS } from "./constants";
 
 interface PrimaryWaiter {
 	baselineVersion: number;
@@ -75,6 +71,8 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 	private autoResumeSuppressed = false;
 	private latestSecondOpinion: LatestSecondOpinion | undefined;
 	private askCompletion: Promise<void> | undefined;
+	private lastInjectedPrimaryUserIndex: number | undefined;
+	private primaryStreamingAssistant: AgentMessage | undefined;
 
 	constructor(pi: ExtensionAPI, settingsStore = new AdvisorSettingsStore(), overlay?: AdvisorOverlayController) {
 		this.pi = pi;
@@ -92,9 +90,13 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 		this.primaryCtx = ctx;
 	}
 
-	handlePrimaryEvent(event: { type: string; messages?: AgentMessage[] }, ctx: ExtensionContext): void {
+	handlePrimaryEvent(
+		event: { type: string; message?: AgentMessage; messages?: AgentMessage[] },
+		ctx: ExtensionContext,
+	): void {
 		this.bindPrimaryContext(ctx);
 		if (event.type === "before_agent_start") {
+			this.primaryStreamingAssistant = undefined;
 			this.autoResumeSuppressed = false;
 			this.bumpPrimary("state_changed");
 			return;
@@ -105,12 +107,23 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 			return;
 		}
 		if (event.type === "agent_end") {
+			this.primaryStreamingAssistant = undefined;
 			const lastAssistant = [...(event.messages ?? [])].reverse().find((message) => message.role === "assistant");
 			this.primaryLoopState =
 				lastAssistant?.role === "assistant" && lastAssistant.stopReason === "aborted" ? "aborted" : "idle";
 			this.autoResumeSuppressed = this.primaryLoopState === "aborted";
 			this.bumpPrimary("state_changed");
 			return;
+		}
+		if (event.type === "message_update" && event.message?.role === "assistant") {
+			this.primaryStreamingAssistant = structuredClone(event.message);
+			return;
+		}
+		if (event.type === "message_end" && event.message?.role === "assistant") {
+			this.primaryStreamingAssistant = undefined;
+		}
+		if (event.type === "turn_end" || event.type === "session_compact" || event.type === "session_tree") {
+			this.primaryStreamingAssistant = undefined;
 		}
 		if (
 			event.type === "message_end" ||
@@ -129,33 +142,58 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 			ctx.ui.notify("Usage: /advisor <message>", "warning");
 			return;
 		}
+		if (
+			this.askCompletion ||
+			(this.watchAbortController && !this.watchAbortController.signal.aborted) ||
+			this.session?.isStreaming
+		) {
+			ctx.ui.notify("Advisor is busy. Try again when the current run finishes.", "warning");
+			ctx.ui.setEditorText(`/advisor ${question}`);
+			return;
+		}
 		const session = await this.ensureSession(ctx);
 		if (!session) {
+			return;
+		}
+		if (
+			this.askCompletion ||
+			(this.watchAbortController && !this.watchAbortController.signal.aborted) ||
+			session.isStreaming
+		) {
+			ctx.ui.notify("Advisor is busy. Try again when the current run finishes.", "warning");
+			ctx.ui.setEditorText(`/advisor ${question}`);
 			return;
 		}
 		this.overlay.open(ctx);
 		this.overlay.refresh();
 		this.overlay.state.recordUserMessage(question);
-		const view = buildPrimaryTranscriptView(ctx);
-		const recent = renderPrimaryTranscriptSlice(
-			{ ...view, messages: view.messages.slice(-ASK_RECENT_COUNT) },
-			{ sinceIndex: 0, count: ASK_RECENT_COUNT },
-			this.primaryLoopState,
-			"new_messages",
-			0,
-		);
-		this.overlay.state.recordContext(recent.details);
-		this.overlay.state.setStatus("ask started");
-		this.overlay.refresh();
+		const view = buildPrimaryTranscriptView(ctx, this.primaryStreamingAssistant);
+		const askContext = selectAskContext(view, this.lastInjectedPrimaryUserIndex);
+		const askContextSection = askContext
+			? `\n\nAsk Context:\n\n**user**:\n${askContext.userText}${
+					askContext.assistantTexts.length > 0 ? `\n\n**primary**:\n${askContext.assistantTexts.join("\n\n")}` : ""
+				}`
+			: "";
 		const messageStartIndex = session.state.messages.length;
-		const askCompletion = session
-			.prompt(
-				`Ask Advisor request:\n\n${question}\n\nRecent Primary Transcript View:\n\n${recent.text}\n\nGive the user a Second Opinion directly.`,
-				{
-					expandPromptTemplates: false,
-					streamingBehavior: session.isStreaming ? "followUp" : undefined,
+		const askCompletion = (async () => {
+			await session.sendCustomMessage({
+				customType: ADVISOR_ASK_CONTEXT_CUSTOM_TYPE,
+				content: `Primary Transcript position:\nprimary_transcript_end_index=${view.messages.length}\nprimary_agent_loop_state=${this.primaryLoopState}${askContextSection}`,
+				display: false,
+				details: {
+					primaryTranscriptEndIndex: view.messages.length,
+					primaryAgentLoopState: this.primaryLoopState,
+					primaryUserMessageIndex: askContext?.primaryUserMessageIndex,
 				},
-			)
+			});
+			if (askContext) {
+				this.lastInjectedPrimaryUserIndex = askContext.primaryUserMessageIndex;
+				this.overlay.state.recordContext(askContext);
+			}
+			this.overlay.state.setStatus("ask started");
+			this.overlay.refresh();
+			await session.prompt(question, { expandPromptTemplates: false });
+		})()
 			.then(() => {
 				const messages = session.state.messages.slice(messageStartIndex);
 				for (let index = messages.length - 1; index >= 0; index--) {
@@ -436,14 +474,14 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 				details,
 			};
 		}
-		let view = buildPrimaryTranscriptView(ctx);
+		let view = buildPrimaryTranscriptView(ctx, this.primaryStreamingAssistant);
 		let waitResult: PullWaitResult = hasNewTranscriptEntries(view, request) ? "new_messages" : "timeout";
 		const timeoutMs = normalizePullTimeout(request.timeoutMs);
 		if (waitResult !== "new_messages" && timeoutMs > 0) {
 			const baselineVersion = this.primaryVersion;
 			const baselineState = this.primaryLoopState;
 			waitResult = await this.waitForPrimaryChange(timeoutMs, baselineVersion, baselineState, signal);
-			view = buildPrimaryTranscriptView(ctx);
+			view = buildPrimaryTranscriptView(ctx, this.primaryStreamingAssistant);
 		}
 		return renderPrimaryTranscriptSlice(view, request, this.primaryLoopState, waitResult, Date.now() - started);
 	}
@@ -531,13 +569,13 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 	}
 
 	private handleAdvisorEvent(event: AgentSessionEvent): void {
-		this.overlay.state.applyAgentEvent(event);
-		this.overlay.refresh();
+		this.overlay.applyAgentEvent(event);
 	}
 
 	private async disposeSession(): Promise<void> {
 		const session = this.session;
 		this.session = undefined;
+		this.lastInjectedPrimaryUserIndex = undefined;
 		this.sessionUnsubscribe?.();
 		this.sessionUnsubscribe = undefined;
 		if (!session) {

@@ -8,6 +8,7 @@ export interface OverlayVisualScenario {
 	width: number;
 	height: number;
 	requiredText: string[];
+	forbiddenText?: string[];
 	checklist: string[];
 	state: AdvisorOverlayState;
 }
@@ -26,14 +27,9 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 	askAdvisor.setContextUsage({ tokens: 2_688, contextWindow: 128_000, percent: 2.1 });
 	askAdvisor.recordUserMessage("Review the primary transcript.");
 	askAdvisor.recordContext({
-		start: 0,
-		end: 12,
-		total: 12,
-		primaryAgentLoopState: "idle",
-		waitResult: "new_messages",
-		waitedMs: 0,
-		sinceIndexOutOfBounds: false,
-		omittedAdvisorAdviceCount: 0,
+		primaryUserMessageIndex: 8,
+		userText: "Review the cache design.",
+		assistantTexts: ["The cache now owns request deduplication."],
 	});
 	askAdvisor.applyAgentEvent({
 		type: "tool_execution_start",
@@ -45,7 +41,7 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 		type: "tool_execution_end",
 		toolCallId: "pull-1",
 		toolName: "pull_transcript",
-		result: "[0, 12) primary_agent_loop_state=idle wait_result=new_messages waited_ms=0 total=12",
+		result: "[0, 12) primary_agent_loop_state=idle wait_result=new_messages waited_ms=4200 total=12",
 		isError: false,
 	} as AgentSessionEvent);
 	askAdvisor.applyAgentEvent({
@@ -64,14 +60,10 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 		"Check whether this very long prompt wraps without breaking the panel border or hiding the input area.",
 	);
 	longContent.recordContext({
-		start: 24,
-		end: 42,
-		total: 42,
-		primaryAgentLoopState: "running",
-		waitResult: "state_changed",
-		waitedMs: 312,
-		sinceIndexOutOfBounds: false,
-		omittedAdvisorAdviceCount: 2,
+		primaryUserMessageIndex: 24,
+		userText:
+			"Inspect the super-long-token-without-natural-breaks-abcdefghijklmnopqrstuvwxyz-0123456789 in the cache design.",
+		assistantTexts: ["The Primary response remains visible while wrapping inside the narrow Context block."],
 	});
 	longContent.applyAgentEvent({
 		type: "message_end",
@@ -80,13 +72,26 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 			content: [
 				{
 					type: "text",
-					text: "The main risk is a super-long-token-without-natural-breaks-abcdefghijklmnopqrstuvwxyz-0123456789 continuing inside a narrow overlay. The panel should wrap or truncate without widening.",
+					text: "The narrow overlay wraps the Primary context safely without widening.",
 				},
 			],
 			stopReason: "stop",
 		},
 	} as AgentSessionEvent);
 	longContent.setStatus("idle");
+
+	const repeatedAsk = new AdvisorOverlayState();
+	repeatedAsk.setContextUsage({ tokens: 3_200, contextWindow: 128_000, percent: 2.5 });
+	repeatedAsk.recordUserMessage("Explain the same Primary response from another angle.");
+	repeatedAsk.applyAgentEvent({
+		type: "message_end",
+		message: {
+			role: "assistant",
+			content: [{ type: "text", text: "The repeated Ask reuses the existing Advisor Transcript." }],
+			stopReason: "stop",
+		},
+	} as AgentSessionEvent);
+	repeatedAsk.setStatus("idle");
 
 	const reset = new AdvisorOverlayState();
 	reset.setStatus("reset");
@@ -111,11 +116,12 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 			title: "Ask Advisor Overlay Transcript",
 			width: 50,
 			height: 30,
-			requiredText: ["Prompt", "Context", "Tool", "pull_transcript", "Advisor", "E2E_SECOND_OPINION"],
+			requiredText: ["Prompt", "Context", "Pull", "[0,12) · 4.2s", "Advisor", "E2E_SECOND_OPINION"],
+			forbiddenText: ["pull_transcript", "result", "total=12"],
 			checklist: [
-				"Prompt, Context, Tool, and Advisor sections are visible in that order.",
-				"Tool call summaries stay compact and do not expose full transcript text.",
-				"Second Opinion text is visible without exposing raw Primary Transcript details.",
+				"Prompt, actual Context text, one-line Pull, and Advisor sections are visible in that order.",
+				"Completed Pull shows only its range and the duration because it exceeded three seconds.",
+				"Second Opinion text is visible without exposing Pull arguments or result details.",
 			],
 			state: askAdvisor,
 		},
@@ -123,14 +129,28 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 			id: "overlay-long-content-small-terminal",
 			title: "Long Content In A Small Overlay",
 			width: 44,
-			height: 18,
+			height: 20,
 			requiredText: ["Advisor · idle", "Context", "Advisor", "super-long-token"],
 			checklist: [
-				"Long prompt text wraps inside the panel.",
-				"Long advisor output cannot widen the overlay beyond the terminal region.",
+				"Long Prompt and Context text wrap inside the panel.",
+				"The Advisor output remains visible after the expanded Context block.",
 				"Scroll indicators are acceptable when content exceeds the viewport.",
 			],
 			state: longContent,
+		},
+		{
+			id: "overlay-repeated-ask",
+			title: "Repeated Ask Without New Context",
+			width: 50,
+			height: 16,
+			requiredText: ["Prompt", "Explain the same Primary", "Advisor", "reuses the existing"],
+			forbiddenText: ["Context", "User → Primary"],
+			checklist: [
+				"The repeated Ask remains visible as a Prompt.",
+				"No empty Context block or unchanged-context notice consumes panel space.",
+				"The Advisor answer follows the prompt directly.",
+			],
+			state: repeatedAsk,
 		},
 		{
 			id: "overlay-reset",

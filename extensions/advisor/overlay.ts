@@ -1,9 +1,9 @@
 import type { AgentSessionEvent, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { Component, OverlayHandle, TUI } from "@earendil-works/pi-tui";
 import { Key, matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
-import type { AdviceDeliveryResult, AdvisorContextUsage, PullTranscriptDetails, WatchRunState } from "./types";
+import type { AdviceDeliveryResult, AdvisorContextUsage, AskContext, WatchRunState } from "./types";
 import {
-	appendPrimaryContextSummary,
+	appendAskContext,
 	appendTranscriptNotice,
 	applyTranscriptEvent,
 	buildAdvisorOverlayTranscript,
@@ -57,8 +57,8 @@ export class AdvisorOverlayState {
 		});
 	}
 
-	recordContext(details: PullTranscriptDetails): void {
-		appendPrimaryContextSummary(this.transcriptState, details);
+	recordContext(context: AskContext): void {
+		appendAskContext(this.transcriptState, context);
 	}
 
 	recordAdvice(result: AdviceDeliveryResult): void {
@@ -75,7 +75,7 @@ export class AdvisorOverlayState {
 
 	applyAgentEvent(event: AgentSessionEvent): void {
 		if (event.type === "tool_execution_start") {
-			this.status = `running ${event.toolName}`;
+			this.status = event.toolName === "pull_transcript" ? "pulling" : `running ${event.toolName}`;
 		} else if (event.type === "turn_start") {
 			this.status = "thinking";
 		} else if (event.type === "turn_end") {
@@ -115,6 +115,24 @@ export class AdvisorOverlayState {
 		this.status = "idle";
 		this.watchRunState = "idle";
 		this.contextUsage = undefined;
+	}
+
+	isPulling(): boolean {
+		if (this.status !== "pulling") {
+			return false;
+		}
+		for (const entry of this.transcriptState.entries) {
+			if (entry.type !== "tool-call" || entry.toolName !== "pull_transcript") {
+				continue;
+			}
+			const result = this.transcriptState.entries.find(
+				(candidate) => candidate.type === "tool-result" && candidate.toolCallId === entry.toolCallId,
+			);
+			if (!result || (result.type === "tool-result" && result.streaming)) {
+				return true;
+			}
+		}
+		return false;
 	}
 }
 
@@ -229,7 +247,16 @@ export class AdvisorOverlayComponent implements Component {
 				wrapped.push("");
 				continue;
 			}
-			wrapped.push(...wrapTextWithAnsi(line, Math.max(1, innerWidth)));
+			const indent = line.match(/^\s+/)?.[0] ?? "";
+			if (!indent) {
+				wrapped.push(...wrapTextWithAnsi(line, Math.max(1, innerWidth)));
+				continue;
+			}
+			const availableWidth = Math.max(1, innerWidth - visibleWidth(indent));
+			const bodyLines = wrapTextWithAnsi(line.slice(indent.length), availableWidth);
+			for (const bodyLine of bodyLines) {
+				wrapped.push(`${indent}${bodyLine}`);
+			}
 		}
 		return wrapped;
 	}
@@ -255,6 +282,7 @@ export class AdvisorOverlayComponent implements Component {
 export class AdvisorOverlayController {
 	private component: AdvisorOverlayComponent | undefined;
 	private handle: OverlayHandle | undefined;
+	private pullElapsedTimer: ReturnType<typeof setInterval> | undefined;
 	readonly state = new AdvisorOverlayState();
 
 	constructor(private readonly readContextUsage: () => AdvisorContextUsage | undefined = () => undefined) {}
@@ -291,6 +319,7 @@ export class AdvisorOverlayController {
 						if (handle.isFocused()) {
 							handle.unfocus();
 						}
+						this.refresh();
 					},
 				},
 			)
@@ -304,6 +333,19 @@ export class AdvisorOverlayController {
 	refresh(): void {
 		this.state.setContextUsage(this.readContextUsage());
 		this.component?.refresh();
+		if (this.component && this.state.isPulling() && !this.pullElapsedTimer) {
+			this.pullElapsedTimer = setInterval(() => this.component?.refresh(), 1_000);
+			return;
+		}
+		if (!this.state.isPulling() && this.pullElapsedTimer) {
+			clearInterval(this.pullElapsedTimer);
+			this.pullElapsedTimer = undefined;
+		}
+	}
+
+	applyAgentEvent(event: AgentSessionEvent): void {
+		this.state.applyAgentEvent(event);
+		this.refresh();
 	}
 
 	hide(): void {
@@ -311,6 +353,10 @@ export class AdvisorOverlayController {
 	}
 
 	close(): void {
+		if (this.pullElapsedTimer) {
+			clearInterval(this.pullElapsedTimer);
+			this.pullElapsedTimer = undefined;
+		}
 		this.handle?.hide();
 		this.handle = undefined;
 		this.component = undefined;

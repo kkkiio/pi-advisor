@@ -4,6 +4,7 @@ import type { ExtensionContext, SessionEntry } from "@earendil-works/pi-coding-a
 import { ADVISOR_ADVICE_CUSTOM_TYPE, ADVISOR_OMITTED_CUSTOM_TYPE } from "./types";
 import type {
 	AdvisorAdviceDetails,
+	AskContext,
 	PrimaryAgentLoopState,
 	PrimaryTranscriptView,
 	PullTranscriptDetails,
@@ -38,12 +39,30 @@ export function isAdvisorCommandMessage(message: AgentMessage): boolean {
 	return /^\/advisor(?::[a-z-]+)?(?:\s|$)/.test(text);
 }
 
-export function buildPrimaryTranscriptView(ctx: Pick<ExtensionContext, "sessionManager">): PrimaryTranscriptView {
+export function buildPrimaryTranscriptView(
+	ctx: Pick<ExtensionContext, "sessionManager">,
+	liveAssistant?: AgentMessage,
+): PrimaryTranscriptView {
 	const branch = ctx.sessionManager.getBranch();
 	const rawMessages = branch.flatMap((entry) => {
 		const message = sessionEntryToMessage(entry);
 		return message ? [message] : [];
 	});
+	if (liveAssistant?.role === "assistant") {
+		let existingLiveIndex = -1;
+		for (let index = rawMessages.length - 1; index >= 0; index--) {
+			const candidate = rawMessages[index];
+			if (candidate.role === "assistant" && candidate.timestamp === liveAssistant.timestamp) {
+				existingLiveIndex = index;
+				break;
+			}
+		}
+		if (existingLiveIndex >= 0) {
+			rawMessages[existingLiveIndex] = liveAssistant;
+		} else {
+			rawMessages.push(liveAssistant);
+		}
+	}
 	const messages: AgentMessage[] = [];
 	let omittedAdvisorAdviceCount = 0;
 	for (const message of rawMessages) {
@@ -68,6 +87,53 @@ export function buildPrimaryTranscriptView(ctx: Pick<ExtensionContext, "sessionM
 		rawMessageCount: rawMessages.length,
 		viewMessageCount: messages.length,
 		omittedAdvisorAdviceCount,
+	};
+}
+
+export function selectAskContext(
+	view: PrimaryTranscriptView,
+	lastInjectedPrimaryUserIndex: number | undefined,
+): AskContext | undefined {
+	let primaryUserMessageIndex = -1;
+	let userText = "";
+	for (let index = view.messages.length - 1; index >= 0; index--) {
+		const message = view.messages[index];
+		if (message.role !== "user") {
+			continue;
+		}
+		const text =
+			typeof message.content === "string"
+				? message.content
+				: message.content
+						.filter((part) => part.type === "text" && part.text.trim())
+						.map((part) => (part.type === "text" ? part.text : ""))
+						.join("\n");
+		if (text.trim()) {
+			primaryUserMessageIndex = index;
+			userText = text;
+			break;
+		}
+	}
+	if (primaryUserMessageIndex < 0 || primaryUserMessageIndex === lastInjectedPrimaryUserIndex) {
+		return undefined;
+	}
+	const assistantTexts: string[] = [];
+	for (const message of view.messages.slice(primaryUserMessageIndex + 1)) {
+		if (message.role !== "assistant") {
+			continue;
+		}
+		const text = message.content
+			.filter((part) => part.type === "text" && part.text.trim())
+			.map((part) => (part.type === "text" ? part.text : ""))
+			.join("\n\n");
+		if (text.trim()) {
+			assistantTexts.push(text);
+		}
+	}
+	return {
+		primaryUserMessageIndex,
+		userText,
+		assistantTexts,
 	};
 }
 

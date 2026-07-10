@@ -64,7 +64,8 @@ pull_transcript(since_index?, timeout_ms?, count?)
 **索引管理：**
 
 - `since_index`：从上次拉取的最后一条 view 索引继续。支持负数（参考 Python `list[-N:]`），`since_index=-N` 表示从倒数第 N 条开始
-- 首次调用不传 `since_index`，默认返回 `[0, count)` 范围的消息
+- Ask Context 不足时，Advisor 优先用 `since_index=-1` 检查最新一条 view 记录。返回 header 中的 `[start, end)` 使用绝对 index，`end` 可直接作为后续增量 Pull 的 cursor
+- Watch Run 没有 cursor 时，首次调用不传 `since_index`，默认返回 `[0, count)` 范围的消息
 - `count`：最大返回条数，默认 100
 - 返回格式在开头注明本次返回的 index 范围、primary 运行状态和等待结果，使用 **[start, end) 左闭右开**区间。`end` 直接作为下次调用的 `since_index`
 

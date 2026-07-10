@@ -31,17 +31,23 @@ const scenarios: TuiVisualScenario[] = [
 	{
 		id: "ask-advisor-overlay",
 		title: "Ask Advisor Overlay",
-		description: "Ask Advisor opens the right-side overlay with prompt, context, tool, and advisor output.",
+		description: "Ask Advisor opens the right-side overlay with prompt, actual context, Pull, and advisor output.",
 		options: { advisorModelConfigured: true, width: 100, height: 30 },
 		captures: ["whole", "overlay"],
 		checklist: [
 			"Whole TUI shows the overlay anchored to the right side.",
 			"Overlay does not cover the primary input/status area in a way that makes it unreadable.",
-			"Overlay panel includes Prompt, Context, Tool, and Advisor sections.",
-			"Tool summaries are compact and do not expand full Primary Transcript text.",
+			"Overlay panel includes Prompt, actual Context text, one-line Pull, and Advisor sections.",
+			"Pull shows its returned range without arguments or a separate result line.",
 			"Advisor completion text is visible without breaking panel borders.",
 		],
 		async run(pi) {
+			await pi.submit("E2E_PRIMARY_SENTINEL: review the current Advisor scenario.");
+			await pi.waitForScreen(
+				(screen) => screen.includes("E2E_PRIMARY_RESPONSE"),
+				10_000,
+				"Primary work before Ask Advisor",
+			);
 			await pi.submit("/advisor Review the primary transcript.");
 			await pi.waitForScreen(
 				(screen) => screen.includes("Advisor · idle") && screen.includes("E2E_SECOND_OPINION"),
@@ -62,6 +68,12 @@ const scenarios: TuiVisualScenario[] = [
 			"Restored overlay still contains the previous Advisor output.",
 		],
 		async run(pi) {
+			await pi.submit("E2E_PRIMARY_SENTINEL: preserve this context while hiding the overlay.");
+			await pi.waitForScreen(
+				(screen) => screen.includes("E2E_PRIMARY_RESPONSE"),
+				10_000,
+				"Primary work before hide and show",
+			);
 			await pi.submit("/advisor Review the primary transcript.");
 			await pi.waitForScreen(
 				(screen) => screen.includes("Advisor · idle") && screen.includes("E2E_SECOND_OPINION"),
@@ -87,15 +99,37 @@ const scenarios: TuiVisualScenario[] = [
 		checklist: [
 			"Overlay remains a right-side panel instead of a central modal.",
 			"Panel border stays closed at the smaller terminal size.",
-			"Long tool and advice summaries wrap or truncate without corrupting adjacent lines.",
+			"Context and Advisor text wrap without corrupting adjacent lines.",
 		],
 		async run(pi) {
+			await pi.submit("E2E_PRIMARY_SENTINEL: verify the narrow Context block.");
+			await pi.waitForScreen(
+				(screen) => screen.includes("E2E_PRIMARY_RESPONSE"),
+				10_000,
+				"Primary work before small-terminal Ask",
+			);
 			await pi.submit("/advisor Review the primary transcript.");
 			await pi.waitForScreen(
 				(screen) => screen.includes("Advisor · idle") && screen.includes("E2E_SECOND_OPINION"),
 				20_000,
 				"Small terminal Advisor overlay completion",
 			);
+		},
+	},
+	{
+		id: "long-pull-progress",
+		title: "Long Pull Progress",
+		description: "A Pull that waits longer than three seconds shows a live elapsed time on one line.",
+		options: { advisorModelConfigured: true, script: "watch-wait", width: 100, height: 24 },
+		captures: ["overlay"],
+		checklist: [
+			"The in-progress Pull remains a single compact line.",
+			"Elapsed time appears only after the three-second threshold.",
+			"The running Watch Run keeps the overlay border and Primary input area intact.",
+		],
+		async run(pi) {
+			await pi.submit("/advisor:watch");
+			await pi.waitForScreen((screen) => screen.includes("Pulling… 4s"), 10_000, "long Pull elapsed time");
 		},
 	},
 ];
