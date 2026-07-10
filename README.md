@@ -17,13 +17,23 @@ Advisor 是一个依附 Primary Agent 的会话内持久化第二 agent，用于
 
 ### 入口与转交
 
-| 命令                              | 说明                                                                                     |
-| --------------------------------- | ---------------------------------------------------------------------------------------- |
-| `/advisor <消息>`                 | Ask Advisor：向 Advisor 索取 Second Opinion，附带最近 Primary Transcript View 作为上下文 |
-| `/advisor:handoff [instructions]` | 把最近一次完成的 Ask Advisor Second Opinion 作为用户消息转交给 Primary Agent             |
-| `/advisor:watch`                  | 启动一次 Watch Run，由 Advisor 根据 Primary Agent 的工作进展自行判断何时结束             |
+| 命令                              | 说明                                                                                             |
+| --------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `/advisor <消息>`                 | Ask Advisor：向 Advisor 索取 Second Opinion，并在 Primary Agent 进入新对话轮次后附带 Ask Context |
+| `/advisor:handoff [instructions]` | 把最近一次完成的 Ask Advisor Second Opinion 作为用户消息转交给 Primary Agent                     |
+| `/advisor:watch`                  | 启动一次 Watch Run，由 Advisor 根据 Primary Agent 的工作进展自行判断何时结束                     |
 
 Ask Advisor 和 Watch Run 复用同一个 Advisor，Advisor Transcript 保持连续。Second Opinion 是 Advisor 面向用户的第二视角；Advice 是 Watch Run 期间 Advisor 送达 Primary Agent 的 Hint 或 Concern。Watch Run 外，Advisor 不会自行向 Primary Agent 发送 Advice；用户认可某个 Second Opinion 时，用 `/advisor:handoff` 显式转交。
+
+### Ask Context
+
+当用户在 Primary Agent 进入新的用户对话轮次后首次使用 `/advisor`，Ask Advisor 会自动附带该 Primary 用户消息，以及它之后当前可见的 Primary Agent 文本回复。当前可见的 streaming 文本也可以进入这段 Ask Context。
+
+同一个 Primary 用户对话轮次中的后续 Ask 不会重复附带 Ask Context。每次 Ask 都会让 Advisor 知道 Primary Transcript 当前到了哪里；当用户的问题需要更多历史、工具过程或更新的进展时，Advisor 可以自行 Pull Primary Transcript View。
+
+Ask Context 只包含 Primary user text 和 assistant text。它实际发送的内容会显示在 Advisor Overlay 的 `Context` block 中；这次 Ask 没有附带 Ask Context 时，Overlay 不显示空 `Context` block。
+
+`/advisor` 只在 Advisor 空闲时接受。如果 Advisor 正在处理上一次 Ask 或 Watch Run，这次请求会立即被拒绝，完整的 `/advisor <消息>` 会恢复到主输入框。等 Advisor 完成当前工作后，用户可以直接再次提交。
 
 handoff 会把最近一次完成的 Ask Advisor 回答格式化为普通用户消息。Primary Agent 空闲时立即收到；Primary Agent 正忙时，这条消息会排为 follow-up。
 
@@ -58,17 +68,17 @@ Watch Run 根据 Advice 的**意图**自动选择送达通道：
 
 ### 可视化
 
-- Advisor 的思考过程通过 Advisor Overlay 实时展示，用户可随时查看其输入输出
+- Advisor 的思考过程通过 Advisor Overlay 实时展示，用户可随时查看其输入输出和实际附带的 Ask Context
 
 ### 生命周期控制
 
-| 命令                        | 说明                                          |
-| --------------------------- | --------------------------------------------- |
-| `/advisor:watch-off`        | 取消当前 Watch Run，保留 Advisor 实例和上下文 |
-| `/advisor:handoff [text]`   | 转交最近一次 Ask Advisor Second Opinion       |
-| `/advisor:new`              | 清空 Advisor Transcript，重置上下文           |
-| `/advisor:model [model]`    | 打开模型选择器，或直接设置 Advisor 使用的模型 |
-| `/advisor:thinking [level]` | 打开 thinking 选择器，或直接设置 thinking     |
+| 命令                        | 说明                                            |
+| --------------------------- | ----------------------------------------------- |
+| `/advisor:watch-off`        | 取消当前 Watch Run，保留 Advisor 实例和上下文   |
+| `/advisor:handoff [text]`   | 转交最近一次 Ask Advisor Second Opinion         |
+| `/advisor:new`              | 清空 Advisor Transcript 和 Ask Context 注入记录 |
+| `/advisor:model [model]`    | 打开可移动、可搜索的模型选择器，或直接设置模型  |
+| `/advisor:thinking [level]` | 打开 thinking 选择器，或直接设置 thinking       |
 
 ### 健壮性
 

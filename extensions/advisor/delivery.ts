@@ -1,11 +1,10 @@
-import { randomUUID } from "node:crypto";
 import type { AdviceDeliveryRequest, AdviceDeliveryResult, AdvisorAdviceDetails, DeliveryChannel } from "./types";
 
 export function deliveryChannelForKind(kind: AdviceDeliveryRequest["kind"]): DeliveryChannel {
 	return kind === "hint" ? "steer" : "followUp";
 }
 
-export function formatAdviceForPrimary(id: string, request: AdviceDeliveryRequest): string {
+export function formatAdviceForPrimary(request: AdviceDeliveryRequest): string {
 	const escaped = request.advice.replace(/[<>&'"]/g, (char) => {
 		switch (char) {
 			case "<":
@@ -22,7 +21,7 @@ export function formatAdviceForPrimary(id: string, request: AdviceDeliveryReques
 				return char;
 		}
 	});
-	return `<advisor-advice id="${id}" kind="${request.kind}">\n${escaped}\n</advisor-advice>`;
+	return `<advisor-advice kind="${request.kind}">\n${escaped}\n</advisor-advice>`;
 }
 
 export function createAdviceDelivery(
@@ -30,20 +29,17 @@ export function createAdviceDelivery(
 	autoResumeSuppressed: boolean,
 	now = Date.now(),
 ): AdviceDeliveryResult {
-	const id = `adv_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
 	const deliverAs = deliveryChannelForKind(request.kind);
 	const details: AdvisorAdviceDetails = {
 		origin: "advisor",
-		advisorAdviceId: id,
 		advisorAdviceKind: request.kind,
 		deliverAs,
 		createdAt: now,
 	};
 	return {
-		id,
 		kind: request.kind,
 		deliverAs,
-		content: formatAdviceForPrimary(id, request),
+		content: formatAdviceForPrimary(request),
 		details,
 		autoResumeSuppressed,
 	};

@@ -1,14 +1,23 @@
 import type { AgentSessionEvent, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { AssistantMessage, UserMessage } from "@earendil-works/pi-ai";
-import type { PullTranscriptDetails } from "./types";
+import { PULL_ELAPSED_VISIBLE_MS } from "./constants";
+import type { AskContext } from "./types";
 
 export type AdvisorTranscriptEntry =
 	| { id: number; turnId: number; type: "turn-boundary"; phase: "start" | "end" }
 	| { id: number; turnId: number; type: "user-message"; text: string }
-	| { id: number; turnId: number; type: "context-summary"; text: string }
+	| { id: number; turnId: number; type: "ask-context"; userText: string; assistantTexts: string[] }
 	| { id: number; turnId: number; type: "thinking"; text: string; streaming: boolean }
 	| { id: number; turnId: number; type: "assistant-text"; text: string; streaming: boolean }
-	| { id: number; turnId: number; type: "tool-call"; toolCallId: string; toolName: string; args: string }
+	| {
+			id: number;
+			turnId: number;
+			type: "tool-call";
+			toolCallId: string;
+			toolName: string;
+			args: string;
+			startedAt: number;
+	  }
 	| {
 			id: number;
 			turnId: number;
@@ -58,14 +67,13 @@ export function appendTranscriptNotice(
 	appendTranscriptEntry(state, { turnId, type: "notice", level, text });
 }
 
-export function appendPrimaryContextSummary(state: AdvisorTranscriptState, details: PullTranscriptDetails): void {
+export function appendAskContext(state: AdvisorTranscriptState, context: AskContext): void {
 	const turnId = ensureTranscriptTurn(state);
 	appendTranscriptEntry(state, {
 		turnId,
-		type: "context-summary",
-		text: `primary transcript [${details.start}, ${details.end}) total=${details.total} state=${details.primaryAgentLoopState} wait=${details.waitResult}${
-			details.omittedAdvisorAdviceCount > 0 ? ` omitted_advice=${details.omittedAdvisorAdviceCount}` : ""
-		}${details.sinceIndexOutOfBounds ? " since_out_of_bounds=true" : ""}`,
+		type: "ask-context",
+		userText: context.userText,
+		assistantTexts: [...context.assistantTexts],
 	});
 }
 
@@ -129,7 +137,6 @@ export function buildAdvisorOverlayTranscript(
 	const toolBadge = buildTranscriptBadge(theme, "Tool", "toolPendingBg", "warning");
 	const advisorBadge = buildTranscriptBadge(theme, "Advisor", "customMessageBg", "success");
 	const errorBadge = buildTranscriptBadge(theme, "Error", "customMessageBg", "error");
-	const blockIndent = "    ";
 
 	const pushBlankLine = () => {
 		if (lines.length > 0 && lines[lines.length - 1] !== "") {
@@ -151,7 +158,7 @@ export function buildAdvisorOverlayTranscript(
 		const firstLine = bodyLines.shift() ?? "";
 		lines.push(`${header}${firstLine ? ` ${style(firstLine)}` : ""}`);
 		for (const line of bodyLines) {
-			lines.push(`${blockIndent}${style(line)}`);
+			lines.push(style(line));
 		}
 	};
 
@@ -168,7 +175,7 @@ export function buildAdvisorOverlayTranscript(
 
 		lines.push(header);
 		for (const line of bodyLines) {
-			lines.push(`${blockIndent}${style(line)}`);
+			lines.push(style(line));
 		}
 	};
 
@@ -180,8 +187,18 @@ export function buildAdvisorOverlayTranscript(
 			pushInlineBlock(promptBadge, entry.text, { blankBefore: false });
 			continue;
 		}
-		if (entry.type === "context-summary") {
-			pushInlineBlock(contextBadge, entry.text, { style: (line) => theme.fg("dim", line) });
+		if (entry.type === "ask-context") {
+			const contextLines = ["User → Primary", ...entry.userText.split("\n")];
+			if (entry.assistantTexts.length > 0) {
+				contextLines.push("", "Primary");
+				for (const [index, text] of entry.assistantTexts.entries()) {
+					if (index > 0) {
+						contextLines.push("");
+					}
+					contextLines.push(...text.split("\n"));
+				}
+			}
+			pushStackedBlock(contextBadge, contextLines.join("\n"));
 			continue;
 		}
 		if (entry.type === "assistant-text") {
@@ -193,6 +210,16 @@ export function buildAdvisorOverlayTranscript(
 				(candidate) => candidate.type === "tool-result" && candidate.toolCallId === entry.toolCallId,
 			);
 			const summary = formatToolSummary(entry, result);
+			if (entry.toolName === "pull_transcript") {
+				const separator = summary.call.indexOf(" ");
+				const label = separator >= 0 ? summary.call.slice(0, separator) : summary.call;
+				const text = separator >= 0 ? summary.call.slice(separator + 1) : "";
+				const prefix = theme.fg(summary.isError ? "error" : "warning", theme.bold(label));
+				pushInlineBlock(prefix, text, {
+					style: (line) => theme.fg(summary.isError ? "error" : "dim", line),
+				});
+				continue;
+			}
 			pushInlineBlock(toolBadge, theme.fg("warning", theme.bold(summary.call)));
 			if (summary.result) {
 				const arrow = summary.isError ? theme.fg("error", "↳ error") : theme.fg("dim", "↳");
@@ -320,6 +347,7 @@ function ensureToolCallEntry(state: AdvisorTranscriptState, toolCallId: string, 
 		toolCallId,
 		toolName,
 		args: formatToolPreview(args),
+		startedAt: Date.now(),
 	});
 	state.toolCalls.set(toolCallId, { turnId, callEntryId: entry.id });
 }
@@ -435,33 +463,26 @@ function formatToolSummary(
 	result: AdvisorTranscriptEntry | undefined,
 ): { call: string; result?: string; isError: boolean } {
 	if (call.toolName === "pull_transcript") {
-		let since = "";
-		let count = "";
-		let timeout = "";
-		let pulled =
-			result?.type === "tool-result" ? (result.streaming ? "running" : result.isError ? "error" : "ok") : "running";
-		try {
-			const args = JSON.parse(call.args) as { since_index?: unknown; count?: unknown; timeout_ms?: unknown };
-			if (typeof args.since_index === "number") {
-				since = ` since=${args.since_index}`;
-			}
-			if (typeof args.count === "number") {
-				count = ` count=${args.count}`;
-			}
-			if (typeof args.timeout_ms === "number") {
-				timeout = ` wait=${args.timeout_ms}ms`;
-			}
-		} catch {
-			// Keep the summary readable even when Pi changes argument formatting.
+		const completed = result?.type === "tool-result" && !result.streaming;
+		if (!completed) {
+			const elapsedMs = Math.max(0, Date.now() - call.startedAt);
+			return {
+				call: elapsedMs >= PULL_ELAPSED_VISIBLE_MS ? `Pulling… ${Math.floor(elapsedMs / 1_000)}s` : "Pulling…",
+				isError: false,
+			};
 		}
-		if (result?.type === "tool-result") {
-			const match = result.content.match(/\[(\d+),\s*(\d+)\).*?wait_result=([a-z_]+).*?waited_ms=(\d+).*?total=(\d+)/);
-			pulled = match ? `[${match[1]}, ${match[2]}) total=${match[5]} ${match[3]}` : pulled;
+		if (result.isError) {
+			return { call: "Pull error", isError: true };
 		}
+		const match = result.content.match(/\[(\d+),\s*(\d+)\).*?waited_ms=(\d+)/);
+		if (!match) {
+			return { call: "Pull complete", isError: false };
+		}
+		const waitedMs = Number(match[3]);
+		const duration = waitedMs >= PULL_ELAPSED_VISIBLE_MS ? ` · ${(waitedMs / 1_000).toFixed(1)}s` : "";
 		return {
-			call: `pull_transcript${since || " since=0"}${count}${timeout}`,
-			result: pulled,
-			isError: result?.type === "tool-result" ? result.isError : false,
+			call: `Pull [${match[1]},${match[2]})${duration}`,
+			isError: false,
 		};
 	}
 	if (call.toolName === "advise") {
@@ -504,7 +525,7 @@ function buildTranscriptBadge(
 	background: "userMessageBg" | "toolPendingBg" | "customMessageBg",
 	foreground: "accent" | "warning" | "success" | "error",
 ): string {
-	return theme.bg(background, theme.fg(foreground, theme.bold(` ${label} `)));
+	return theme.bg(background, theme.fg(foreground, theme.bold(label)));
 }
 
 function oneLine(text: string, max: number): string {

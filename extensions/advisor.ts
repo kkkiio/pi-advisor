@@ -36,6 +36,10 @@ export default function advisorExtension(pi: ExtensionAPI): void {
 		runtime.handlePrimaryEvent(event, ctx);
 	});
 
+	pi.on("message_update", async (event, ctx) => {
+		runtime.handlePrimaryEvent(event, ctx);
+	});
+
 	pi.on("turn_end", async (event, ctx) => {
 		runtime.handlePrimaryEvent(event, ctx);
 	});
@@ -49,7 +53,7 @@ export default function advisorExtension(pi: ExtensionAPI): void {
 	});
 
 	pi.registerCommand("advisor", {
-		description: "Ask Advisor for a Second Opinion using the current Primary Transcript View.",
+		description: "Ask Advisor for a Second Opinion with the current Primary position and Ask Context.",
 		handler: async (args, ctx) => {
 			await runtime.ask(args, ctx);
 		},

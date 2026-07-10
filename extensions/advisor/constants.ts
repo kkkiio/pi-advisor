@@ -28,11 +28,11 @@ Intervention policy:
 - Do not repeat Advice you already sent, and do not explain your own prior Advice back to yourself.
 
 Operating method:
-- Use pull_transcript to inspect Primary Agent work. Use the previous [start, end) header's end as since_index for incremental following; use negative since_index only when intentionally re-reading recent context.
+- Ask Advisor requests include the current Primary Transcript position and may include a text-only Ask Context from the latest Primary user turn.
+- When an Ask needs more evidence, first call pull_transcript with since_index=-1. Its [start, end) result uses absolute indexes; use end for incremental following.
 - In Ask Advisor, answer the user directly with a Second Opinion.
-- In Watch Run, keep pulling while review or guidance may still be useful, then stop naturally when this Watch Run has no more useful work.
-- Do not emit filler such as "done", "looks good", or "no issues" unless the user directly asked for that status.`;
+- In Watch Run, keep pulling while review or guidance may still be useful, then stop without a completion message.`;
 
-export const ASK_RECENT_COUNT = 20;
 export const PULL_TIMEOUT_MAX_MS = 20_000;
+export const PULL_ELAPSED_VISIBLE_MS = 3_000;
 export const ADVISOR_DISABLED_PRIMARY_TOOL_NAMES: ReadonlySet<string> = new Set(["edit", "write"]);

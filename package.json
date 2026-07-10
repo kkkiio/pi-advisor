@@ -40,14 +40,16 @@
     ]
   },
   "peerDependencies": {
-    "@earendil-works/pi-agent-core": "*",
-    "@earendil-works/pi-ai": "*",
-    "@earendil-works/pi-coding-agent": "*",
-    "@earendil-works/pi-tui": "*",
+    "@earendil-works/pi-agent-core": "^0.80.6",
+    "@earendil-works/pi-ai": "^0.80.6",
+    "@earendil-works/pi-coding-agent": "^0.80.6",
+    "@earendil-works/pi-tui": "^0.80.6",
     "typebox": "*"
   },
   "devDependencies": {
     "@cucumber/cucumber": "^11.3.0",
+    "ghostty-web": "0.4.0",
+    "playwright-core": "1.60.0",
     "prettier": "^3.9.4",
     "tsx": "^4.23.0",
     "typebox": "^1.1.38",

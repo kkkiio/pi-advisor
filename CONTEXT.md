@@ -59,6 +59,9 @@ Advisor 自己的对话历史。它记录 Ask Advisor 和 Watch Run 中属于 Ad
 **Primary Transcript View**:
 Advisor 用来理解 Primary Agent 工作进展的 transcript 视图。它只呈现 Advisor 审查 Primary Agent 所需要的内容。
 
+**Ask Context**:
+Ask Advisor 请求自动附带的 Primary 对话文本片段。Ask Context 是 Primary Transcript View 的精简选择，让用户无需手动复制近期对话。
+
 ### UI
 
 **Advisor Overlay**:

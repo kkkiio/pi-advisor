@@ -2,19 +2,19 @@
 
 exports[`Advisor overlay visual snapshots > overlay-ask-advisor renders a stable bounded overlay 1`] = `
 "╭ Advisor · idle · ctx 2.1%/128k ────────────────╮
-│ Prompt  Review the primary transcript.         │
+│Prompt Review the primary transcript.           │
 │                                                │
-│ Context  primary transcript [0, 12) total=12   │
-│state=idle wait=new_messages                    │
+│Context                                         │
+│User → Primary                                  │
+│Review the cache design.                        │
 │                                                │
-│ Tool  pull_transcript since=0 count=20 wait=0ms│
-│↳ [0, 12) total=12 new_messages                 │
+│Primary                                         │
+│The cache now owns request deduplication.       │
 │                                                │
-│ Advisor                                        │
-│    E2E_SECOND_OPINION: primary_transcript=seen │
+│Pull [0,12) · 4.2s                              │
 │                                                │
-│                                                │
-│                                                │
+│Advisor                                         │
+│E2E_SECOND_OPINION: primary_transcript=seen     │
 │                                                │
 │                                                │
 │                                                │
@@ -54,23 +54,44 @@ exports[`Advisor overlay visual snapshots > overlay-empty renders a stable bound
 
 exports[`Advisor overlay visual snapshots > overlay-long-content-small-terminal renders a stable bounded overlay 1`] = `
 "╭ Advisor · idle · ctx 13.3%/128k ─────────╮
-│ Prompt  Check whether this very long     │
-│prompt wraps without breaking the panel   │
-│border or hiding the input area.          │
+│Prompt Check whether this very long prompt│
+│wraps without breaking the panel border or│
+│hiding the input area.                    │
 │                                          │
-│ Context  primary transcript [24, 42)     │
-│total=42 state=running wait=state_changed │
-│omitted_advice=2                          │
-│                                          │
-│ Advisor                                  │
-│    The main risk is a                    │
+│Context                                   │
+│User → Primary                            │
+│Inspect the                               │
 │super-long-token-without-natural-breaks-ab│
-│cdefghijklmnopqrstuvwxyz-0123456789       │
-│continuing inside a narrow overlay. The   │
-│panel should wrap or truncate without     │
-│widening.                                 │
+│cdefghijklmnopqrstuvwxyz-0123456789 in the│
+│cache design.                             │
 │                                          │
+│Primary                                   │
+│The Primary response remains visible while│
+│wrapping inside the narrow Context block. │
+│                                          │
+│Advisor                                   │
+│The narrow overlay wraps the Primary      │
+│context safely without widening.          │
 ╰──────────────────────────────────────────╯"
+`;
+
+exports[`Advisor overlay visual snapshots > overlay-repeated-ask renders a stable bounded overlay 1`] = `
+"╭ Advisor · idle · ctx 2.5%/128k ────────────────╮
+│Prompt Explain the same Primary response from   │
+│another angle.                                  │
+│                                                │
+│Advisor                                         │
+│The repeated Ask reuses the existing Advisor    │
+│Transcript.                                     │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+╰────────────────────────────────────────────────╯"
 `;
 
 exports[`Advisor overlay visual snapshots > overlay-reset renders a stable bounded overlay 1`] = `

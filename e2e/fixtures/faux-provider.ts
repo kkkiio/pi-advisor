@@ -1,10 +1,10 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { appendFileSync } from "node:fs";
 import {
 	fauxAssistantMessage,
 	fauxText,
 	fauxToolCall,
-	getApiProvider,
-	registerFauxProvider,
+	fauxProvider,
 	type Context,
 	type Model,
 	type StreamOptions,
@@ -15,25 +15,23 @@ const primaryModelId = "faux-primary";
 const advisorModelId = "faux-advisor";
 
 export default function advisorE2EFauxProvider(pi: ExtensionAPI): void {
-	const registration = registerFauxProvider({
+	const script = process.env.PI_ADVISOR_TEST_SCRIPT ?? "default";
+	const registration = fauxProvider({
 		provider: providerName,
-		tokensPerSecond: 0,
+		tokensPerSecond: script === "ask-context-streaming" ? 2 : 0,
+		tokenSize: { min: 3, max: 3 },
 		models: [
 			{ id: primaryModelId, name: "Advisor E2E Primary Faux", reasoning: false },
 			{ id: advisorModelId, name: "Advisor E2E Advisor Faux", reasoning: true },
 		],
 	});
 	registration.setResponses(Array.from({ length: 200 }, () => scriptedResponse));
-	const apiProvider = getApiProvider(registration.api);
-	if (!apiProvider) {
-		throw new Error(`Faux provider API was not registered: ${registration.api}`);
-	}
 	pi.registerProvider(providerName, {
 		name: "Advisor E2E Faux",
 		baseUrl: "http://localhost:0",
 		apiKey: "PI_ADVISOR_TEST_FAUX_API_KEY",
 		api: registration.api as any,
-		streamSimple: apiProvider.streamSimple as any,
+		streamSimple: registration.provider.streamSimple as any,
 		models: registration.models.map((model) => ({
 			id: model.id,
 			name: model.name,
@@ -54,7 +52,49 @@ function scriptedResponse(
 	_state: unknown,
 	model: Model<string>,
 ) {
+	const script = process.env.PI_ADVISOR_TEST_SCRIPT ?? "default";
+	const latestUserMessage = [...context.messages].reverse().find((message) => message.role === "user");
+	const latestContextMessage = [...context.messages]
+		.reverse()
+		.find(
+			(message) => message.role === "user" && contentText(message.content).includes("Primary Transcript position:"),
+		);
+	if (model.id === advisorModelId && process.env.PI_ADVISOR_TEST_OBSERVATIONS_PATH) {
+		const latestQuestionText = latestUserMessage ? contentText(latestUserMessage.content) : "";
+		const latestContextText = latestContextMessage ? contentText(latestContextMessage.content) : "";
+		appendFileSync(
+			process.env.PI_ADVISOR_TEST_OBSERVATIONS_PATH,
+			`${JSON.stringify({
+				latestQuestionText,
+				latestRequestText: [latestContextText, latestQuestionText].filter(Boolean).join("\n\n"),
+				messageCount: context.messages.length,
+				toolNames: context.tools?.map((tool) => tool.name) ?? [],
+			})}\n`,
+			"utf8",
+		);
+	}
 	if (model.id === primaryModelId) {
+		if (script === "ask-context" && !hasToolResult(context, "read")) {
+			return fauxAssistantMessage(
+				[fauxText("The cache now owns request deduplication."), fauxToolCall("read", { path: "SECRET_TOOL_PATH" })],
+				{ stopReason: "toolUse" },
+			);
+		}
+		if (script === "ask-context") {
+			return fauxAssistantMessage("The cache review is complete.");
+		}
+		if (script === "ask-context-streaming" && !hasToolResult(context, "read")) {
+			return fauxAssistantMessage(
+				[
+					fauxText("The streaming response is already visible."),
+					fauxToolCall("read", { path: "SECRET_STREAMING_TOOL" }),
+				],
+				{ stopReason: "toolUse" },
+			);
+		}
+		if (script === "ask-context-streaming") {
+			return fauxAssistantMessage("The streaming review is complete.");
+		}
 		return fauxAssistantMessage(fauxText("E2E_PRIMARY_RESPONSE: primary agent completed a deterministic faux turn."));
 	}
 	const isWatchRun = context.messages.some(
@@ -62,17 +102,20 @@ function scriptedResponse(
 			message.role === "user" &&
 			contentText(message.content).includes("Start a Watch Run for the current Primary Agent task."),
 	);
+	if (script === "ask-context" || script === "ask-context-streaming") {
+		return fauxAssistantMessage("E2E_ASK_CONTEXT_RECORDED");
+	}
 	if (!hasToolResult(context, "pull_transcript")) {
 		return fauxAssistantMessage(
 			fauxToolCall("pull_transcript", {
 				since_index: 0,
-				timeout_ms: process.env.PI_ADVISOR_TEST_SCRIPT === "watch-wait" ? 15_000 : 0,
+				timeout_ms: script === "advisor-busy" ? 20_000 : script === "watch-wait" ? 15_000 : 0,
 				count: 20,
 			}),
 			{ stopReason: "toolUse" },
 		);
 	}
-	if (process.env.PI_ADVISOR_TEST_SCRIPT === "watch-wait") {
+	if (script === "watch-wait") {
 		return fauxAssistantMessage("E2E_WATCH_WAIT_DONE");
 	}
 	if (!isWatchRun) {
@@ -85,10 +128,11 @@ function scriptedResponse(
 		const primaryTranscriptState = toolResultText(context, "pull_transcript").includes("E2E_PRIMARY_SENTINEL")
 			? "seen"
 			: "missing";
+		const adviceKind = script === "watch-hint" ? "hint" : "concern";
 		return fauxAssistantMessage(
 			fauxToolCall("advise", {
-				kind: "concern",
-				advice: `E2E_WATCH_CONCERN: primary_transcript=${primaryTranscriptState}`,
+				kind: adviceKind,
+				advice: `E2E_WATCH_${adviceKind.toUpperCase()}: primary_transcript=${primaryTranscriptState}`,
 			}),
 			{ stopReason: "toolUse" },
 		);

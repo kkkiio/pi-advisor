@@ -1,6 +1,6 @@
 import { execFileSync, spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { StringDecoder } from "node:string_decoder";
@@ -20,7 +20,7 @@ export const e2eTestTimeoutMs = 60_000;
 
 export interface RpcPiOptions {
 	advisorModelConfigured?: boolean;
-	script?: "default" | "watch-wait";
+	script?: "advisor-busy" | "ask-context" | "ask-context-streaming" | "default" | "watch-hint" | "watch-wait";
 }
 
 export async function withRpcPi(options: RpcPiOptions, run: (pi: RpcPi) => Promise<void>): Promise<void> {
@@ -37,6 +37,7 @@ export class RpcPi {
 	readonly cwd: string;
 	readonly home: string;
 	readonly advisorSettingsPath: string;
+	readonly advisorObservationsPath: string;
 	private readonly proc: ChildProcessWithoutNullStreams;
 	readonly events: RpcJson[] = [];
 	private readonly pending = new Map<
@@ -52,8 +53,10 @@ export class RpcPi {
 		const cwd = join(root, "project");
 		const home = join(root, "home");
 		const agentDir = join(home, ".pi", "agent");
+		const advisorObservationsPath = join(root, "advisor-observations.jsonl");
 		await mkdir(cwd, { recursive: true });
 		await mkdir(agentDir, { recursive: true });
+		await writeFile(advisorObservationsPath, "", "utf8");
 		await writeFile(join(cwd, "README.md"), "# Advisor E2E\n\nE2E_PRIMARY_SENTINEL lives here.\n", "utf8");
 		await writeFile(
 			join(cwd, "package.json"),
@@ -80,6 +83,7 @@ export class RpcPi {
 			...process.env,
 			HOME: home,
 			PI_ADVISOR_TEST_FAUX_API_KEY: "test-faux-key",
+			PI_ADVISOR_TEST_OBSERVATIONS_PATH: advisorObservationsPath,
 			PI_ADVISOR_TEST_SCRIPT: options.script ?? "default",
 			NO_COLOR: "1",
 			CI: "1",
@@ -93,6 +97,8 @@ export class RpcPi {
 				advisorExtensionPath,
 				"--extension",
 				fauxProviderExtensionPath,
+				"--tools",
+				"read,bash,grep,edit,write",
 				"--session-dir",
 				join(root, ".sessions"),
 			],
@@ -111,6 +117,7 @@ export class RpcPi {
 		this.home = home;
 		this.proc = proc;
 		this.advisorSettingsPath = join(home, ".pi", "agent", "advisor.json");
+		this.advisorObservationsPath = join(root, "advisor-observations.jsonl");
 	}
 
 	async prompt(message: string, response?: { select?: string }): Promise<RpcJson> {
@@ -178,6 +185,32 @@ export class RpcPi {
 			await this.sleep(150);
 		}
 		throw new Error(`timeout waiting for ${label}\nStderr:\n${this.stderr}`);
+	}
+
+	async waitForAdvisorObservation(question: string, timeoutMs: number): Promise<RpcJson> {
+		const started = Date.now();
+		let observationsText = "";
+		while (Date.now() - started < timeoutMs) {
+			observationsText = await readFile(this.advisorObservationsPath, "utf8");
+			const observations = observationsText
+				.split("\n")
+				.filter(Boolean)
+				.map((line) => JSON.parse(line) as RpcJson);
+			const observation = [...observations]
+				.reverse()
+				.find(
+					(candidate) =>
+						typeof candidate.latestQuestionText === "string" && candidate.latestQuestionText.includes(question),
+				);
+			if (observation) {
+				await this.sleep(100);
+				return observation;
+			}
+			await this.sleep(100);
+		}
+		throw new Error(
+			`timeout waiting for Advisor provider observation containing ${JSON.stringify(question)}\nObservations:\n${observationsText}\nStderr:\n${this.stderr}`,
+		);
 	}
 
 	async sleep(ms: number): Promise<void> {

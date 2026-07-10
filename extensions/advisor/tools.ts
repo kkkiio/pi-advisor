@@ -69,7 +69,7 @@ export function createAdvisorTools(runtime: AdvisorRuntimePort): ToolDefinition[
 				content: [
 					{
 						type: "text",
-						text: `delivered ${result.kind} as ${result.deliverAs} id=${result.id}${
+						text: `delivered ${result.kind} as ${result.deliverAs}${
 							result.autoResumeSuppressed ? " auto_resume_suppressed=true" : ""
 						}`,
 					},

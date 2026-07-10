@@ -2,6 +2,7 @@ import type { AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core"
 import type { Model } from "@earendil-works/pi-ai";
 
 export const ADVISOR_ADVICE_CUSTOM_TYPE = "advisor:advice";
+export const ADVISOR_ASK_CONTEXT_CUSTOM_TYPE = "advisor:ask-context";
 export const ADVISOR_OMITTED_CUSTOM_TYPE = "advisor:omitted";
 
 export type AdviceKind = "hint" | "concern";
@@ -28,7 +29,6 @@ export interface AdvisorModelRef {
 
 export interface AdvisorAdviceDetails {
 	origin: "advisor";
-	advisorAdviceId: string;
 	advisorAdviceKind: AdviceKind;
 	deliverAs: DeliveryChannel;
 	createdAt: number;
@@ -40,7 +40,6 @@ export interface AdviceDeliveryRequest {
 }
 
 export interface AdviceDeliveryResult {
-	id: string;
 	kind: AdviceKind;
 	deliverAs: DeliveryChannel;
 	content: string;
@@ -53,6 +52,12 @@ export interface PrimaryTranscriptView {
 	rawMessageCount: number;
 	viewMessageCount: number;
 	omittedAdvisorAdviceCount: number;
+}
+
+export interface AskContext {
+	primaryUserMessageIndex: number;
+	userText: string;
+	assistantTexts: string[];
 }
 
 export interface PullTranscriptRequest {

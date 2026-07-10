@@ -20,6 +20,8 @@ Advisor 通过 `pull_transcript` 阅读 Primary Agent 的工作进展。primary 
 
 `pull_transcript` 读取的是 **Primary Transcript View**：一个专门给 Advisor 审查使用的、带来源过滤的 primary session 视图。索引、`since_index`、`count`、compaction 越界判断和 markdown 渲染都基于这个 view；raw session entries 不直接作为 Advisor 的读取对象。
 
+Ask Context 也从 Primary Transcript View 中选择，因此共享相同的来源过滤和 redaction 边界。Ask Context 的自动注入规则由 ADR-0010 定义。
+
 ### View 构造规则
 
 包含以下内容：
@@ -44,7 +46,6 @@ Advisor 通过 `pull_transcript` 阅读 Primary Agent 的工作进展。primary 
 ```ts
 {
   origin: "advisor",
-  advisorAdviceId: "...",
   advisorAdviceKind: "hint" | "concern",
   deliverAs: "steer" | "followUp"
 }
@@ -57,7 +58,7 @@ Advisor 通过 `pull_transcript` 阅读 Primary Agent 的工作进展。primary 
 为了保留时间线可解释性，view 可以用短 marker 替代被过滤的 Advisor Advice 原文：
 
 ```text
-[advisor hint omitted: id=adv_123 deliverAs=steer]
+[advisor hint omitted: deliverAs=steer]
 ```
 
 marker 不包含 Advice 原文。Advisor 已经在自己的 transcript 中知道 Advice 内容；marker 只说明 Primary Agent 后续行为可能受 Advisor Advice 影响。

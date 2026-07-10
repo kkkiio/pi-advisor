@@ -6,6 +6,7 @@ import { advisorExtensionPath, fauxProviderExtensionPath, resolvePiBin } from ".
 
 export interface TuiPiOptions {
 	advisorModelConfigured?: boolean;
+	color?: boolean;
 	script?: "default" | "watch-wait";
 	width?: number;
 	height?: number;
@@ -94,13 +95,21 @@ export class TuiPi {
 		this.stderrPath = join(root, "pi.stderr.log");
 	}
 
-	async submit(text: string): Promise<void> {
-		this.tmux(["send-keys", "-t", this.sessionName, "-l", text]);
-		this.tmux(["send-keys", "-t", this.sessionName, "Enter"]);
+	async submit(text: string, keys: string[] = ["Enter"]): Promise<void> {
+		if (text) {
+			this.tmux(["send-keys", "-t", this.sessionName, "-l", text]);
+		}
+		for (const key of keys) {
+			this.tmux(["send-keys", "-t", this.sessionName, key]);
+		}
 	}
 
 	capturePlainText(): string {
 		return this.tmux(["capture-pane", "-t", this.sessionName, "-p"]);
+	}
+
+	captureAnsiText(): string {
+		return this.tmux(["capture-pane", "-t", this.sessionName, "-p", "-e"]);
 	}
 
 	captureAdvisorOverlayPlainText(): string {
@@ -161,6 +170,7 @@ export class TuiPi {
 	private startPiProcess(options: TuiPiOptions): void {
 		const width = String(options.width ?? 100);
 		const height = String(options.height ?? 30);
+		const colorEnvironment = options.color ? ["COLORTERM=truecolor", "FORCE_COLOR=3"] : ["NO_COLOR=1"];
 		const command = [
 			"env",
 			"-i",
@@ -175,7 +185,7 @@ export class TuiPi {
 			`PI_CODING_AGENT_DIR=${shellQuote(join(this.home, ".pi", "agent"))}`,
 			"PI_ADVISOR_TEST_FAUX_API_KEY=test-faux-key",
 			`PI_ADVISOR_TEST_SCRIPT=${options.script ?? "default"}`,
-			"NO_COLOR=1",
+			...colorEnvironment,
 			"CI=1",
 			"PI_OFFLINE=1",
 			shellQuote(resolvePiBin()),

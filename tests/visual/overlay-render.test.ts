@@ -35,6 +35,11 @@ describe("Advisor overlay visual snapshots", () => {
 					failures.push(`missing required text: ${text}`);
 				}
 			}
+			for (const text of scenario.forbiddenText ?? []) {
+				if (rendered.includes(text)) {
+					failures.push(`unexpected text: ${text}`);
+				}
+			}
 
 			expect(failures).toEqual([]);
 			expect(rendered).toMatchSnapshot();
