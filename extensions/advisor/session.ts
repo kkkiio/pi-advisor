@@ -39,7 +39,12 @@ import {
 	resolveAdvisorSettings,
 } from "./settings";
 import { createAdvisorTools } from "./tools";
-import { ADVISOR_SYSTEM_PROMPT, ASK_RECENT_COUNT, PULL_TIMEOUT_MAX_MS } from "./constants";
+import {
+	ADVISOR_DISABLED_PRIMARY_TOOL_NAMES,
+	ADVISOR_SYSTEM_PROMPT,
+	ASK_RECENT_COUNT,
+	PULL_TIMEOUT_MAX_MS,
+} from "./constants";
 
 interface PrimaryWaiter {
 	baselineVersion: number;
@@ -473,7 +478,10 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 			this.overlay.refresh();
 			return undefined;
 		}
-		const tools = Array.from(new Set([...this.pi.getActiveTools(), "pull_transcript", "advise"]));
+		const primaryTools = this.pi
+			.getActiveTools()
+			.filter((toolName) => !ADVISOR_DISABLED_PRIMARY_TOOL_NAMES.has(toolName));
+		const tools = Array.from(new Set([...primaryTools, "pull_transcript", "advise"]));
 		const resourceLoader = new DefaultResourceLoader({
 			cwd: ctx.cwd,
 			agentDir: getAdvisorAgentDir(),

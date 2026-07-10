@@ -204,6 +204,7 @@ Advisor 只在有实际 Advice 时打扰 Primary Agent。
 - Advisor 不应重复消费自己刚送达的 Advice。
 - Advisor 不应因为自己的 Advice 形成反馈循环。
 - Advisor 应只读取审查 Primary Agent 当前工作所需的 transcript 视图。
+- Advisor 不获得 `write` 和 `edit` 文件写入工具；需要修改时，通过 Advice、Second Opinion 或 handoff 交给 Primary Agent 处理。
 
 ## 非目标
 

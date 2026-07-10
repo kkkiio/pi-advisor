@@ -5,11 +5,15 @@ import {
 	ModelRegistry,
 	SessionManager,
 	createAgentSession,
+	type ExtensionAPI,
+	type ExtensionCommandContext,
 } from "@earendil-works/pi-coding-agent";
 import { fauxAssistantMessage, fauxToolCall, registerFauxProvider } from "@earendil-works/pi-ai";
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { AdvisorRuntime } from "../../../extensions/advisor/session";
+import type { AdvisorSettingsStore } from "../../../extensions/advisor/settings";
 import { createAdvisorTools } from "../../../extensions/advisor/tools";
 import type { AdvisorRuntimePort } from "../../../extensions/advisor/types";
 
@@ -98,6 +102,65 @@ describe("Feature: Watch Run", () => {
 		} finally {
 			provider.unregister();
 			await rm(agentDir, { recursive: true, force: true });
+		}
+	});
+
+	it("Scenario: Advisor inherits Primary tools without write or edit", async () => {
+		const provider = registerFauxProvider({ tokensPerSecond: 0 });
+		const model = provider.getModel();
+		const authStorage = AuthStorage.inMemory();
+		authStorage.setRuntimeApiKey(model.provider, "test-faux-key");
+		const modelRegistry = ModelRegistry.inMemory(authStorage);
+		modelRegistry.registerProvider(model.provider, {
+			api: model.api,
+			baseUrl: model.baseUrl,
+			apiKey: "test-faux-key",
+			models: [
+				{
+					id: model.id,
+					name: model.name,
+					api: model.api,
+					baseUrl: model.baseUrl,
+					reasoning: model.reasoning,
+					thinkingLevelMap: model.thinkingLevelMap,
+					input: model.input,
+					cost: model.cost,
+					contextWindow: model.contextWindow,
+					maxTokens: model.maxTokens,
+					compat: model.compat,
+				},
+			],
+		});
+		const pi = {
+			getActiveTools: () => ["read", "bash", "grep", "edit", "write"],
+		} as unknown as ExtensionAPI;
+		const settingsStore = {
+			path: "memory://advisor.json",
+			read: async () => ({ model: `${model.provider}/${model.id}` }),
+		} as AdvisorSettingsStore;
+		const ctx = {
+			cwd: process.cwd(),
+			hasUI: false,
+			model,
+			modelRegistry,
+			ui: { notify() {} },
+		} as unknown as ExtensionCommandContext;
+		const runtime = new AdvisorRuntime(pi, settingsStore);
+
+		try {
+			const session = await (
+				runtime as unknown as {
+					ensureSession(ctx: ExtensionCommandContext): Promise<{ getActiveToolNames(): string[] } | undefined>;
+				}
+			).ensureSession(ctx);
+			const activeTools = session?.getActiveToolNames() ?? [];
+
+			expect(activeTools).toEqual(expect.arrayContaining(["read", "bash", "grep", "pull_transcript", "advise"]));
+			expect(activeTools).not.toContain("edit");
+			expect(activeTools).not.toContain("write");
+		} finally {
+			await runtime.dispose();
+			provider.unregister();
 		}
 	});
 });
