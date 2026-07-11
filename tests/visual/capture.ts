@@ -34,11 +34,11 @@ const scenarios: TuiVisualScenario[] = [
 		id: "ask-advisor-overlay",
 		title: "Ask Advisor Overlay",
 		description:
-			"Ask Advisor opens the right-side overlay with the user message, actual context, Pull, and advisor output.",
+			"Ask Advisor opens the top-center overlay with the user message, actual context, Pull, and advisor output.",
 		options: { advisorModelConfigured: true, width: 100, height: 30 },
 		captures: ["whole", "overlay"],
 		checklist: [
-			"Whole TUI shows the overlay anchored to the right side.",
+			"Whole TUI shows the overlay anchored at top-center with the dedicated input row.",
 			"Overlay does not cover the primary input/status area in a way that makes it unreadable.",
 			"User message uses the Primary transcript's foreground and a background that reaches both panel edges.",
 			"Overlay panel includes the user message, actual Context text, one-line Pull, and advisor output in order.",
@@ -69,7 +69,7 @@ const scenarios: TuiVisualScenario[] = [
 		captures: ["whole", "overlay"],
 		checklist: [
 			"Overlay can be hidden without losing the Advisor transcript.",
-			"Overlay can be shown again on the right side.",
+			"Overlay can be shown again at top-center.",
 			"Restored overlay still contains the previous Advisor output.",
 		],
 		async run(pi) {
@@ -102,7 +102,7 @@ const scenarios: TuiVisualScenario[] = [
 		options: { advisorModelConfigured: true, width: 82, height: 24 },
 		captures: ["whole", "overlay"],
 		checklist: [
-			"Overlay remains a right-side panel instead of a central modal.",
+			"Overlay remains a bounded top-center panel at the smaller terminal size.",
 			"Panel border stays closed at the smaller terminal size.",
 			"Context and Advisor text wrap without corrupting adjacent lines.",
 		],
@@ -233,13 +233,18 @@ try {
 				const title = `${scenario.title} · Advisor Overlay`.replace(/[&<>"']/g, (char) => htmlEntities[char] ?? char);
 				const content = overlay.replace(/[&<>"']/g, (char) => htmlEntities[char] ?? char);
 				const overlayColumns = Math.max(...overlay.split("\n").map((line) => visibleWidth(line)));
+				const overlayHeader = whole.split("\n").find((line) => line.includes("Advisor ·") && line.includes("╭"));
+				const overlayStart = overlayHeader?.indexOf("╭") ?? -1;
+				if (overlayStart < 0) {
+					throw new Error(`Could not locate Advisor Overlay start column for ${scenario.id}.`);
+				}
 				await renderer.screenshot({
 					ansiText: wholeAnsi,
 					columns: scenario.options.width ?? 100,
 					rows: scenario.options.height ?? 30,
 					outputPath: join(scenarioDir, "overlay.png"),
 					crop: {
-						startColumn: (scenario.options.width ?? 100) - overlayColumns,
+						startColumn: visibleWidth(overlayHeader?.slice(0, overlayStart) ?? ""),
 						columns: overlayColumns,
 					},
 				});

@@ -239,7 +239,6 @@ Advisor 只在有实际 Advice 时打扰 Primary Agent。
 - 首版不做 Advisor Transcript 的磁盘持久化。
 - Advisor 不承担替代 Primary Agent 执行任务的产品职责。
 
-
 ## 成功标准
 
 - 用户能在复杂任务中获得有用的第二视角，而 Primary Agent 的主流程保持连贯。

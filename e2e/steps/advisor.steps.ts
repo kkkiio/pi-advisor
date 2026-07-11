@@ -99,11 +99,6 @@ When("the Primary Agent response {string} becomes visible", async function (this
 	);
 });
 
-When("the user asks Advisor without a message", async function (this: AdvisorE2EWorld) {
-	this.lastEventIndex = this.rpcPi.eventCount();
-	await this.rpcPi.prompt("/advisor");
-});
-
 When("the user runs Advisor command {string}", async function (this: AdvisorE2EWorld, command: string) {
 	this.lastEventIndex = this.rpcPi.eventCount();
 	await this.rpcPi.prompt(command);
