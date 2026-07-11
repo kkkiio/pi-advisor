@@ -39,7 +39,7 @@ Advisor 已经在执行 Ask Advisor 或 Watch Run 时，用户可以继续通过
 
 ### Advice Delivery
 
-Watch Run 期间，Advisor 送达 Primary Agent 的内容是 Advice。加速信息是 Hint，应尽快影响 Primary Agent 当前工作。风险或疑虑是 Concern，应在 Primary Agent 完成当前工作后再处理，避免中途打断。
+Advisor 在 Watch Run 期间可以主动向 Primary Agent 送达 Advice，用户也可以直接要求 Advisor 发送特定观点。加速信息是 Hint，应尽快影响当前工作；风险或疑虑是 Concern，应在 Primary Agent 完成当前工作后再处理。
 
 ### Advisor Overlay
 
@@ -67,11 +67,12 @@ Overlay 是 Advisor 的旁路工作视图。它展示的是用户可理解的 Ad
 │                                                     │
 │                                                     │
 │                                                     │
-│ [input_____________________________________________]│
+├─────────────────────────────────────────────────────┤
+│Ask Advisor a follow-up…                              │
 ╰─────────────────────────────────────────────────────╯
 ```
 
-Primary Agent transcript and input 在上方正常显示，Overlay 是 top-center 的独立面板。Overlay 底部有一条输入框，用户可在其中直接向 Advisor 提问或输入控制命令。用户刚打开 Pi 时看不到这块；只有启动 Ask Advisor 或 Watch Run 后才出现。
+Primary Agent transcript and input 在上方正常显示，Overlay 是 top-center 的独立面板。用户可在 Overlay 中直接向 Advisor 提问或输入控制命令；只有启动 Ask Advisor 或 Watch Run 后才会出现。
 
 Overlay 使用 **prefixed transcript blocks**：每个活动是连续 transcript 中的一个紧凑 block，通过 prefix/badge、颜色、背景和空行表达类型，不使用固定的 role 列。`Context` block 的角色标签和正文都从 block 内的第一列开始，不额外缩进。
 
@@ -97,7 +98,7 @@ Overlay 使用 **prefixed transcript blocks**：每个活动是连续 transcript
 - Ask Context 不完整或用户问题需要更多历史、工具过程时，Advisor 能通过 Pull 主动补充 Primary Transcript View。
 - 多次 Ask Advisor 之间，Advisor 能延续自己的上下文。
 - Ask Advisor 不会创建与 Watch Run 分离的第二套 Advisor 记忆。
-- Ask Advisor 不会自行向 Primary Agent 送达 Advice。
+- 用户明确要求把特定观点送达 Primary Agent 时，Advisor 应直接执行，无需启动 Watch Run。
 
 ### PRD-002 Second Opinion Handoff
 
@@ -150,7 +151,7 @@ Advisor 的建议分为 Hint 和 Concern。
 - Concern 表达风险、错误或设计疑虑。
 - Hint 应尽快影响当前工作。
 - Concern 应作为后续审查意见到达，减少对当前工作节奏的破坏。
-- Advice 只能由 Watch Run 期间的 Advisor 主动送达。
+- Advisor 只能在 Watch Run 期间主动发送 Advice。
 
 ### PRD-005 可视化
 
@@ -226,7 +227,7 @@ Advisor 只在有实际 Advice 时打扰 Primary Agent。
 验收标准：
 
 - 没有 Advice 时，Advisor 保持静默。
-- Watch Run 外，Advisor 不发送 Advice；用户可通过 `/advisor:handoff` 转交已认可的 Second Opinion。
+- Watch Run 外，Advisor 不主动发送 Advice。
 - Advisor 不应重复消费自己刚送达的 Advice。
 - Advisor 不应因为自己的 Advice 形成反馈循环。
 - Advisor 应只读取审查 Primary Agent 当前工作所需的 transcript 视图。

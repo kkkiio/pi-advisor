@@ -7,7 +7,7 @@ import { advisorExtensionPath, fauxProviderExtensionPath, resolvePiBin } from ".
 export interface TuiPiOptions {
 	advisorModelConfigured?: boolean;
 	color?: boolean;
-	script?: "default" | "watch-wait";
+	script?: "default" | "readme" | "watch-wait";
 	width?: number;
 	height?: number;
 }

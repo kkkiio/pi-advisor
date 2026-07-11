@@ -1,5 +1,9 @@
 # Advisor
 
+<p align="center">
+  <img src="docs/assets/advisor-overview.png" alt="Advisor Overlay reviewing a Primary Agent run" width="900">
+</p>
+
 Advisor 是一个依附 Primary Agent 的会话内持久化第二 agent，用于异步审查 Primary Agent 的工作，向用户提供 Second Opinion，并在用户确认或 Watch Run 期间把有效观点送达 Primary Agent。
 
 ## 安装
@@ -31,7 +35,7 @@ pi install ./path/to/pi-advisor
 
 - 保持旁路审查安静、相关、可追溯、可观察，避免破坏 Primary Agent 的工作节奏。
 
-## 功能
+## 使用
 
 ### `/advisor [<消息>]` — Ask Advisor
 
@@ -47,7 +51,7 @@ pi install ./path/to/pi-advisor
 
 Ask Context 实际发送的内容会显示在 Advisor Overlay 的 `Context` block 中；没有附带 Ask Context 时，Overlay 不显示空 `Context` block。
 
-Ask Advisor 和 Watch Run 复用同一个 Advisor，Advisor Transcript 保持连续。Second Opinion 是 Advisor 面向用户的第二视角；Advice 是 Watch Run 期间 Advisor 送达 Primary Agent 的 Hint 或 Concern。Advisor 不获得 `write` 和 `edit` 写入工具，需要修改时代码通过 Second Opinion 或 Advice 交给 Primary Agent 处理。
+Ask Advisor 和 Watch Run 复用同一个 Advisor，Advisor Transcript 保持连续。Advisor 不获得 `write` 和 `edit` 写入工具，需要修改时通过 Second Opinion 或 Advice 交给 Primary Agent 处理。
 
 ### `/advisor:handoff [instructions]` — 转交 Second Opinion
 
@@ -78,7 +82,7 @@ Watch Run 期间，Advisor 根据 Advice 的意图自动选择送达通道：
 - **Hint**（加速信息）：正确的 API 用法、更好的算法等，通过 Steer 尽快送达，减少浪费时间
 - **Concern**（风险/质疑）：可能的 bug、架构疑虑等，通过 Follow-up 等 Primary Agent 完成当前工作后再处理，不打断连贯性
 
-Watch Run 外，Advisor 不会自行向 Primary Agent 发送 Advice。用户认可某个 Second Opinion 时，用 `/advisor:handoff` 显式转交。没有实质性 Advice 时 Advisor 保持静默。
+Watch Run 外，Advisor 不会自行发送 Advice；用户仍可通过 `/advisor` 要求它发送特定观点，或通过 `/advisor:handoff` 转交最近一次完整的 Second Opinion。
 
 ### `/advisor:watch-off` — 取消 Watch Run
 

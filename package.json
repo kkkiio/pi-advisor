@@ -31,6 +31,7 @@
     "test:visual": "vitest --run tests/visual && tsx tests/visual/capture.ts",
     "test:visual:snapshot": "vitest --run tests/visual",
     "test:visual:capture": "tsx tests/visual/capture.ts",
+    "docs:readme-image": "tsx tests/visual/capture.ts readme-overview --readme-asset",
     "test:e2e": "cucumber-js --config e2e/cucumber.mjs",
     "typecheck": "tsc --noEmit"
   },

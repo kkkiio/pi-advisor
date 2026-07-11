@@ -17,3 +17,8 @@ Feature: Ask Advisor
     When the user asks Advisor "Keep Advisor occupied."
     And the user asks Advisor "Keep this question." while Advisor is running
     Then the running Advisor should receive "Keep this question." without another Ask Context
+
+  Scenario: User explicitly asks Advisor to send a specific concern to Primary Agent
+    Given Advisor has a configured model
+    When the user asks Advisor "Send only this concern to Primary Agent: preserve the cache entry identity check."
+    Then Primary Agent should receive the user-directed Concern without Watch Run

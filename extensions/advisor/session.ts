@@ -604,9 +604,6 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 		if (!ctx) {
 			throw new Error("Advisor cannot deliver advice before Primary Agent context is available.");
 		}
-		if (!this.watchAbortController || this.watchAbortController.signal.aborted) {
-			throw new Error("Advisor can deliver advice only during an active Watch Run.");
-		}
 		const result = createAdviceDelivery(request, this.autoResumeSuppressed);
 		this.pi.sendMessage(
 			{

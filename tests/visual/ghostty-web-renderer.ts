@@ -29,7 +29,7 @@ const HARNESS_HTML = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <style>
-html,body{margin:0;background:#f8f8f8}
+html,body{margin:0;background:#fdf6e3}
 #terminal{display:inline-block}
 #terminal canvas{display:block}
 </style>
@@ -53,27 +53,27 @@ window.renderTerminal = async (input) => {
     fontFamily: input.fontFamily,
     fontSize: input.fontSize,
     theme: {
-      background: "#f8f8f8",
-      foreground: "#1f2328",
-      cursor: "#f8f8f8",
-      cursorAccent: "#f8f8f8",
-      selectionBackground: "#d0d0e0",
-      black: "#000000",
-      red: "#aa5555",
-      green: "#588458",
-      yellow: "#9a7326",
-      blue: "#547da7",
-      magenta: "#875f87",
-      cyan: "#5a8080",
-      white: "#f8f8f8",
-      brightBlack: "#767676",
-      brightRed: "#cc6666",
-      brightGreen: "#6e9b6e",
-      brightYellow: "#b88a2e",
-      brightBlue: "#6b94bd",
-      brightMagenta: "#a56da5",
-      brightCyan: "#70a0a0",
-      brightWhite: "#ffffff"
+      background: "#fdf6e3",
+      foreground: "#586e75",
+      cursor: "#657b83",
+      cursorAccent: "#fdf6e3",
+      selectionBackground: "#eee8d5",
+      black: "#073642",
+      red: "#dc322f",
+      green: "#859900",
+      yellow: "#b58900",
+      blue: "#268bd2",
+      magenta: "#d33682",
+      cyan: "#2aa198",
+      white: "#eee8d5",
+      brightBlack: "#002b36",
+      brightRed: "#cb4b16",
+      brightGreen: "#586e75",
+      brightYellow: "#657b83",
+      brightBlue: "#839496",
+      brightMagenta: "#6c71c4",
+      brightCyan: "#93a1a1",
+      brightWhite: "#fdf6e3"
     }
   });
   terminal.open(host);

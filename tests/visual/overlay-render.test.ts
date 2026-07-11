@@ -16,7 +16,7 @@ describe("Advisor overlay visual snapshots", () => {
 				failures.push("top border is not closed");
 			}
 			if (!lastLine.startsWith("╰") || !lastLine.endsWith("╯")) {
-				failures.push("bottom border is not closed");
+				failures.push("input bottom border is not closed");
 			}
 			if (lines.length !== scenario.height) {
 				failures.push(`expected ${scenario.height} rendered rows, got ${lines.length}`);
@@ -27,9 +27,27 @@ describe("Advisor overlay visual snapshots", () => {
 					failures.push(`line ${index + 1} width ${width} exceeds ${scenario.width}: ${line}`);
 				}
 				const framed = line.startsWith("│") && line.endsWith("│");
-				if (index > 0 && index < lines.length - 1 && !framed) {
+				if (index > 0 && index < lines.length - 3 && !framed) {
 					failures.push(`line ${index + 1} is not framed: ${line}`);
 				}
+			}
+			const inputTopBorder = lines.at(-3) ?? "";
+			const inputLine = lines.at(-2) ?? "";
+			if (
+				!inputTopBorder.startsWith("├") ||
+				!inputTopBorder.endsWith("┤") ||
+				visibleWidth(inputTopBorder) !== scenario.width
+			) {
+				failures.push("input top border is not connected to the transcript frame");
+			}
+			if (visibleWidth(inputLine) !== scenario.width) {
+				failures.push("input line does not span the overlay width");
+			}
+			if (!inputLine.startsWith("│") || !inputLine.endsWith("│")) {
+				failures.push("input line is not framed on both sides");
+			}
+			if (inputLine.slice(1).startsWith(">")) {
+				failures.push("input line still contains a prompt marker");
 			}
 			for (const text of scenario.requiredText) {
 				if (!visibleRendered.includes(text)) {

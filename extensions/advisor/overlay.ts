@@ -19,7 +19,7 @@ import {
 	type AdvisorTranscriptState,
 } from "./transcript-state";
 
-const ADVISOR_OVERLAY_CHROME_LINES = 3;
+const ADVISOR_OVERLAY_CHROME_LINES = 4;
 
 export interface AdvisorOverlayCallbacks {
 	onSubmit: (value: string) => void;
@@ -283,6 +283,7 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 		for (let i = 0; i < transcriptPadCount; i++) {
 			lines.push(this.frameLine("", innerWidth));
 		}
+		lines.push(this.theme.fg("border", `├${"─".repeat(innerWidth)}┤`));
 		lines.push(this.inputFrameLine(dialogWidth));
 		lines.push(this.borderLine(innerWidth, "bottom"));
 
@@ -383,7 +384,7 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 
 	private inputFrameLine(dialogWidth: number): string {
 		const targetWidth = Math.max(1, dialogWidth - 2);
-		const renderedInputLine = this.input.render(targetWidth)[0] ?? "";
+		const renderedInputLine = (this.input.render(targetWidth + 2)[0] ?? "").slice(2);
 		const cursorAwareInputLine = this.focused
 			? renderedInputLine
 			: renderedInputLine.replace("\x1b[7m", "").replace("\x1b[27m", "");

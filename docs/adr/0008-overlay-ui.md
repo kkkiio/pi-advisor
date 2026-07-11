@@ -63,10 +63,6 @@ Ask Advisor 和 Watch Run 使用同一 overlay。Overlay 的内容结构遵循 `
 
 Overlay 输入框聚焦时用户注意力在 Overlay 上。Concern 产生时额外通过 `ctx.ui.notify()` 发送 toast 提醒，确保主输入框聚焦时仍能感知。
 
-### Chrome 约束
-
-本次变更从 pi-btw 迁入交互模型（position、输入框、焦点切换、Esc、鼠标滚动、斜杠命令、草稿保留），不迁入 BTW 的 chrome 结构。Overlay 保留 Advisor 现有的两行 chrome（header border + bottom border，使用 `╭╮╰╯` 圆角），以及现有的 prefixed transcript blocks 内容结构。不新增 mode、summary、status、hints、rule 分隔线等展示行。
-
 ## Consequences
 
 **正面：**

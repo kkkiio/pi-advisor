@@ -213,7 +213,7 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 			id: "overlay-long-content-small-terminal",
 			title: "Long Content In A Small Overlay",
 			width: 44,
-			height: 20,
+			height: 21,
 			requiredText: ["Advisor · idle", "Context", "super-long-token"],
 			expectedFullWidthBackgroundRows: [
 				{ color: "userMessageBg", text: "Check whether this very long prompt wraps" },
