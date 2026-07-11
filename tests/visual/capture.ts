@@ -62,6 +62,68 @@ const scenarios: TuiVisualScenario[] = [
 		},
 	},
 	{
+		id: "unfocused-overlay-input",
+		title: "Unfocused Advisor Overlay Input",
+		description: "Unfocusing Advisor preserves its draft while removing the Overlay software cursor.",
+		options: { advisorModelConfigured: true, width: 100, height: 30 },
+		captures: ["whole", "overlay"],
+		checklist: [
+			"The complete Advisor draft remains visible after focus returns to the Primary input.",
+			"The unfocused Advisor input has no reverse-video software cursor.",
+			"The Overlay stays open and its input row keeps the same geometry as the focused capture.",
+		],
+		async run(pi) {
+			await pi.submit("/advisor");
+			await pi.waitForMouseReporting(true, 2_000, "focused Advisor Overlay before draft entry");
+			await pi.submit("Review this draft", []);
+			await pi.waitForScreen(
+				(screen) => screen.includes("Advisor ·") && screen.includes("Review this draft"),
+				10_000,
+				"Advisor Overlay draft before unfocus",
+			);
+			pi.sendRawInput("\x1b[47;3u");
+			await pi.waitForMouseReporting(false, 2_000, "unfocused Advisor Overlay draft");
+			await pi.waitForAnsiScreen(
+				(screen) => {
+					const inputLine = screen.split("\n").find((line) => line.includes("Review this draft"));
+					return inputLine !== undefined && !inputLine.includes("\x1b[7m");
+				},
+				2_000,
+				"unfocused Advisor Overlay software cursor removal",
+			);
+		},
+	},
+	{
+		id: "focused-overlay-input",
+		title: "Focused Advisor Overlay Input",
+		description: "Opening Advisor without a message focuses its input and displays the Overlay software cursor.",
+		options: { advisorModelConfigured: true, width: 100, height: 30 },
+		captures: ["whole", "overlay"],
+		checklist: [
+			"Focused Advisor input shows a reverse-video software cursor after the draft.",
+			"The same draft has no software cursor in the unfocused Advisor input capture.",
+			"Adding the focused cursor does not shift or open the Overlay border.",
+		],
+		async run(pi) {
+			await pi.submit("/advisor");
+			await pi.waitForScreen((screen) => screen.includes("Advisor ·"), 10_000, "focused Advisor Overlay");
+			await pi.submit("Review this draft", []);
+			await pi.waitForScreen(
+				(screen) => screen.includes("Advisor ·") && screen.includes("Review this draft"),
+				10_000,
+				"focused Advisor Overlay draft",
+			);
+			await pi.waitForAnsiScreen(
+				(screen) => {
+					const inputLine = screen.split("\n").find((line) => line.includes("Review this draft"));
+					return inputLine?.includes("\x1b[7m") ?? false;
+				},
+				2_000,
+				"focused Advisor Overlay software cursor",
+			);
+		},
+	},
+	{
 		id: "hide-show-overlay",
 		title: "Hide And Show Overlay",
 		description: "The preserved Advisor transcript returns when /advisor:show reopens the overlay.",

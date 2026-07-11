@@ -172,6 +172,21 @@ export class TuiPi {
 		throw new Error(`timeout waiting for ${label}\n\nLast screen:\n${lastScreen}\n\nStderr:\n${await this.stderr()}`);
 	}
 
+	async waitForAnsiScreen(predicate: (screen: string) => boolean, timeoutMs: number, label: string): Promise<string> {
+		const started = Date.now();
+		let lastScreen = "";
+		while (Date.now() - started < timeoutMs) {
+			lastScreen = this.captureAnsiText();
+			if (predicate(lastScreen)) {
+				return lastScreen;
+			}
+			await this.sleep(25);
+		}
+		throw new Error(
+			`timeout waiting for ${label}\n\nLast ANSI screen:\n${lastScreen}\n\nStderr:\n${await this.stderr()}`,
+		);
+	}
+
 	async dispose(): Promise<void> {
 		try {
 			this.tmux(["kill-server"]);

@@ -384,7 +384,10 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 	private inputFrameLine(dialogWidth: number): string {
 		const targetWidth = Math.max(1, dialogWidth - 2);
 		const renderedInputLine = this.input.render(targetWidth)[0] ?? "";
-		const inputLine = truncateToWidth(renderedInputLine, targetWidth, "");
+		const cursorAwareInputLine = this.focused
+			? renderedInputLine
+			: renderedInputLine.replace("\x1b[7m", "").replace("\x1b[27m", "");
+		const inputLine = truncateToWidth(cursorAwareInputLine, targetWidth, "");
 		const padding = Math.max(0, targetWidth - visibleWidth(inputLine));
 		return `${this.theme.fg("border", "│")}${inputLine}${" ".repeat(padding)}${this.theme.fg("border", "│")}`;
 	}

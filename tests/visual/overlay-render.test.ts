@@ -6,6 +6,7 @@ describe("Advisor overlay visual snapshots", () => {
 	for (const scenario of createOverlayVisualScenarios()) {
 		it(`${scenario.id} renders a stable bounded overlay`, () => {
 			const { text: rendered, fullWidthBackgroundRows } = renderOverlayVisualScenario(scenario);
+			const visibleRendered = rendered.replace(/\x1b\[[0-9;]*m/g, "");
 			const lines = rendered.split("\n");
 			const firstLine = lines[0] ?? "";
 			const lastLine = lines[lines.length - 1] ?? "";
@@ -31,17 +32,24 @@ describe("Advisor overlay visual snapshots", () => {
 				}
 			}
 			for (const text of scenario.requiredText) {
-				if (!rendered.includes(text)) {
+				if (!visibleRendered.includes(text)) {
 					failures.push(`missing required text: ${text}`);
 				}
 			}
 			for (const text of scenario.forbiddenText ?? []) {
-				if (rendered.includes(text)) {
+				if (visibleRendered.includes(text)) {
 					failures.push(`unexpected text: ${text}`);
 				}
 			}
 
 			expect(failures).toEqual([]);
+			if (scenario.focused) {
+				expect(rendered).toContain("\x1b[7m");
+				expect(rendered).toContain("\x1b[27m");
+			} else {
+				expect(rendered).not.toContain("\x1b[7m");
+				expect(rendered).not.toContain("\x1b[27m");
+			}
 			expect(fullWidthBackgroundRows).toEqual(scenario.expectedFullWidthBackgroundRows ?? []);
 			expect(rendered).toMatchSnapshot();
 		});

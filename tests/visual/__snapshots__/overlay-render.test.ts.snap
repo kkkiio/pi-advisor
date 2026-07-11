@@ -29,7 +29,7 @@ exports[`Advisor overlay visual snapshots > overlay-ask-advisor renders a stable
 │                                                │
 │                                                │
 │                                                │
-│> [7m [27m                                             │
+│>                                               │
 ╰────────────────────────────────────────────────╯"
 `;
 
@@ -48,7 +48,26 @@ exports[`Advisor overlay visual snapshots > overlay-empty renders a stable bound
 │                                                │
 │                                                │
 │                                                │
-│> [7m [27m                                             │
+│>                                               │
+╰────────────────────────────────────────────────╯"
+`;
+
+exports[`Advisor overlay visual snapshots > overlay-focused-input renders a stable bounded overlay 1`] = `
+"╭ Advisor · idle · ctx ?/128k ───────────────────╮
+│No Advisor chat yet.                            │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│> [7mR[27meview this draft                             │
 ╰────────────────────────────────────────────────╯"
 `;
 
@@ -71,7 +90,7 @@ exports[`Advisor overlay visual snapshots > overlay-long-content-small-terminal 
 │                                          │
 │The narrow overlay wraps the Primary      │
 │context safely without widening.          │
-│> [7m [27m                                       │
+│>                                         │
 ╰──────────────────────────────────────────╯"
 `;
 
@@ -90,7 +109,7 @@ exports[`Advisor overlay visual snapshots > overlay-repeated-ask renders a stabl
 │                                                │
 │                                                │
 │                                                │
-│> [7m [27m                                             │
+│>                                               │
 ╰────────────────────────────────────────────────╯"
 `;
 
@@ -109,7 +128,7 @@ exports[`Advisor overlay visual snapshots > overlay-reset renders a stable bound
 │                                                │
 │                                                │
 │                                                │
-│> [7m [27m                                             │
+│>                                               │
 ╰────────────────────────────────────────────────╯"
 `;
 
@@ -130,6 +149,25 @@ exports[`Advisor overlay visual snapshots > overlay-simplified-tools renders a s
 │                                                        │
 │                                                        │
 │                                                        │
-│> [7m [27m                                                     │
+│>                                                       │
 ╰────────────────────────────────────────────────────────╯"
+`;
+
+exports[`Advisor overlay visual snapshots > overlay-unfocused-input renders a stable bounded overlay 1`] = `
+"╭ Advisor · idle · ctx ?/128k ───────────────────╮
+│No Advisor chat yet.                            │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│> Review this draft                             │
+╰────────────────────────────────────────────────╯"
 `;

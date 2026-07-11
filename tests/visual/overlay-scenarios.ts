@@ -1,5 +1,5 @@
 import type { AgentSessionEvent, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { type TUI, visibleWidth } from "@earendil-works/pi-tui";
+import { CURSOR_MARKER, type TUI, visibleWidth } from "@earendil-works/pi-tui";
 import { AdvisorOverlayComponent, AdvisorOverlayState } from "../../extensions/advisor/overlay";
 
 export interface OverlayVisualScenario {
@@ -12,6 +12,8 @@ export interface OverlayVisualScenario {
 	expectedFullWidthBackgroundRows?: Array<{ color: string; text: string }>;
 	checklist: string[];
 	state: AdvisorOverlayState;
+	focused?: boolean;
+	draft?: string;
 }
 
 export interface OverlayVisualRender {
@@ -164,6 +166,35 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 			state: empty,
 		},
 		{
+			id: "overlay-focused-input",
+			title: "Focused Advisor Overlay Input",
+			width: 50,
+			height: 16,
+			requiredText: ["Advisor · idle · ctx ?/128k", "Review this draft"],
+			checklist: [
+				"Focused Advisor input shows one reverse-video software cursor.",
+				"The draft remains readable around the focused cursor.",
+				"Border geometry stays unchanged when focus adds the cursor marker.",
+			],
+			state: empty,
+			focused: true,
+			draft: "Review this draft",
+		},
+		{
+			id: "overlay-unfocused-input",
+			title: "Unfocused Advisor Overlay Input",
+			width: 50,
+			height: 16,
+			requiredText: ["Advisor · idle · ctx ?/128k", "Review this draft"],
+			checklist: [
+				"Unfocused Advisor input preserves the complete draft text.",
+				"The reverse-video software cursor is absent while unfocused.",
+				"Input-row geometry matches the focused state.",
+			],
+			state: empty,
+			draft: "Review this draft",
+		},
+		{
 			id: "overlay-ask-advisor",
 			title: "Ask Advisor Overlay Transcript",
 			width: 50,
@@ -272,7 +303,9 @@ export function renderOverlayVisualScenario(scenario: OverlayVisualScenario): Ov
 	} as unknown as TUI;
 	try {
 		const component = new AdvisorOverlayComponent(tui, theme, scenario.state);
-		const text = component.render(scenario.width).join("\n");
+		component.focused = scenario.focused ?? false;
+		component.setDraft(scenario.draft ?? "");
+		const text = component.render(scenario.width).join("\n").replaceAll(CURSOR_MARKER, "");
 		const fullWidthBackgroundRows = backgroundRows
 			.filter((row) => visibleWidth(row.text) === scenario.width - 2)
 			.map((row) => ({ color: row.color, text: row.text.trimEnd() }));
