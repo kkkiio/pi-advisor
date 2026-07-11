@@ -4,62 +4,62 @@
   <img src="docs/assets/advisor-overview.png" alt="Advisor Overlay reviewing a Primary Agent run" width="900">
 </p>
 
-Advisor 是一个依附 Primary Agent 的会话内持久化第二 agent，用于异步审查 Primary Agent 的工作，向用户提供 Second Opinion，并在用户确认或 Watch Run 期间把有效观点送达 Primary Agent。
+Advisor is a session-persistent second agent that works alongside the Primary Agent. It asynchronously reviews the Primary Agent's work, gives the user a Second Opinion, and, with user confirmation or during a Watch Run, delivers useful insights to the Primary Agent.
 
-## 安装
+## Installation
 
 ```bash
-# npm 安装
+# Install from npm
 pi install npm:@kkkiio/pi-advisor
 
-# 或本地路径安装
+# Or install from a local path
 pi install ./path/to/pi-advisor
 ```
 
-安装后需设置 Advisor model（否则不会启动）：
+After installation, set the Advisor model. Advisor will not start until a model is configured:
 
 ```
 /advisor:model openai/gpt-5.5
 ```
 
-详见[配置](#配置)。
+See [Configuration](#configuration) for details.
 
-## 目标
+## Goals
 
-### Advisor 目标
+### Advisor goals
 
-- **Review**：发现 bug、设计问题、流程问题和它们的根因，向用户提供独立 reviewer 的 Second Opinion。Advisor 作为 reviewer，不承担实现功能的职责。
-- **Guide**：引导可能陷入 tunnel effect 的 Primary Agent，用高效率事实、关键文件、API、约束和顺序提示帮助它越过障碍，并用 review 视角帮助它在工作结束前检查和修正工作。
+- **Review**: Identify bugs, design issues, workflow problems, and their root causes, then give the user an independent reviewer's Second Opinion. Advisor acts as a reviewer and does not implement features itself.
+- **Guide**: Help the Primary Agent escape tunnel vision. Advisor supplies high-value facts, key files, APIs, constraints, and sequencing guidance to get it past obstacles, then applies a reviewer's perspective so it can inspect and correct its work before finishing.
 
-### 产品体验目标
+### Product experience goal
 
-- 保持旁路审查安静、相关、可追溯、可观察，避免破坏 Primary Agent 的工作节奏。
+- Keep background review quiet, relevant, traceable, and observable without disrupting the Primary Agent's workflow.
 
-## 使用
+## Usage
 
-### `/advisor [<消息>]` — Ask Advisor
+### `/advisor [<message>]` — Ask Advisor
 
-- **无参数**：打开 Advisor Overlay 并将焦点置于 Overlay 输入框，用户可直接输入消息。
-- **有参数**：打开 Advisor Overlay 并立即以该消息发起 Ask Advisor。
+- **Without an argument**: Open the Advisor Overlay and focus its input box so you can type a message directly.
+- **With an argument**: Open the Advisor Overlay and immediately start Ask Advisor with that message.
 
-消息行为取决于 Advisor 当前状态：
+Message behavior depends on Advisor's current state:
 
-- **Advisor 空闲**：启动一次新的 Ask Advisor。当用户在 Primary Agent 进入新的用户对话轮次后首次使用时，自动附带 **Ask Context**：该 Primary user text message，以及它之后当前可见的 Primary assistant text（包含 streaming 文本，不包含 thinking、tool call、tool result 或 custom message）。同一个 Primary 用户对话轮次中的后续 Ask 不会重复附带 Ask Context。
-- **Advisor 正在运行**（Ask Advisor 或 Watch Run 期间）：消息作为 Steer 送入当前运行，只包含用户输入，不附带 Ask Context。
+- **Advisor is idle**: Start a new Ask Advisor run. The first Ask after the Primary Agent enters a new user turn automatically includes **Ask Context**: the Primary user text message and any currently visible Primary assistant text that follows it, including streaming text but excluding thinking, tool calls, tool results, and custom messages. Subsequent Asks within the same Primary user turn do not repeat the Ask Context.
+- **Advisor is running** (during Ask Advisor or Watch Run): Steer the active run with the message. Only the user's input is sent; Ask Context is not included.
 
-每次 Ask（空闲时启动的）都会告诉 Advisor 当前 Primary Transcript 的位置和 Primary Agent 运行状态。当用户的问题需要更多历史、工具过程或更新的进展时，Advisor 可以自行 Pull Primary Transcript View，无需用户手动复制上下文。
+Every Ask started while Advisor is idle tells Advisor the current position in the Primary Transcript and whether the Primary Agent is running. When a question requires more history, tool activity, or newer progress, Advisor can Pull the Primary Transcript View itself, so the user does not need to copy context manually.
 
-Ask Context 实际发送的内容会显示在 Advisor Overlay 的 `Context` block 中；没有附带 Ask Context 时，Overlay 不显示空 `Context` block。
+The Ask Context actually sent to Advisor appears in a `Context` block in the Advisor Overlay. When no Ask Context is attached, the Overlay does not show an empty `Context` block.
 
-Ask Advisor 和 Watch Run 复用同一个 Advisor，Advisor Transcript 保持连续。Advisor 不获得 `write` 和 `edit` 写入工具，需要修改时通过 Second Opinion 或 Advice 交给 Primary Agent 处理。
+Ask Advisor and Watch Run share the same Advisor, and the Advisor Transcript remains continuous between them. Advisor does not have the `write` or `edit` tools; when changes are needed, it delegates them to the Primary Agent through a Second Opinion or Advice.
 
-### `/advisor:handoff [instructions]` — 转交 Second Opinion
+### `/advisor:handoff [instructions]` — Hand off a Second Opinion
 
-将最近一次完成的 Ask Advisor Second Opinion 作为用户消息转交给 Primary Agent。未提供 `instructions` 时，默认要求 Primary Agent 使用该 Second Opinion 作为参考上下文。
+Send the latest completed Ask Advisor Second Opinion to the Primary Agent as a user message. When `instructions` are omitted, the default instruction asks the Primary Agent to use the Second Opinion as reference context.
 
-Primary Agent 空闲时立即收到；Primary Agent 正忙时，这条消息会排为 follow-up。
+The Primary Agent receives the message immediately when idle. If it is busy, the message is queued as a follow-up.
 
-转交消息格式：
+Handoff message format:
 
 ```text
 Here is the latest Advisor Second Opinion I want you to use. <instructions>
@@ -71,69 +71,69 @@ Advisor Second Opinion:
 <latest completed Ask Advisor answer>
 ```
 
-如果 Advisor 正在处理上一次 Ask，handoff 会等待其完成后再转交。没有完成过 Ask Advisor Second Opinion 时，用户收到明确提示。handoff 不清空 Advisor Transcript。
+If Advisor is still processing the previous Ask, handoff waits for it to finish before sending the message. If no Ask Advisor Second Opinion has been completed, the user receives a clear notice. Handoff does not clear the Advisor Transcript.
 
-### `/advisor:watch` — 启动 Watch Run
+### `/advisor:watch` — Start a Watch Run
 
-启动一次异步 Watch Run。Advisor 跟随 Primary Agent 的工作进展，自行判断何时完成本次审查。用户可以通过 `/advisor:watch-off` 提前取消。
+Start an asynchronous Watch Run. Advisor follows the Primary Agent's progress and decides when the review is complete. You can cancel it early with `/advisor:watch-off`.
 
-Watch Run 期间，Advisor 根据 Advice 的意图自动选择送达通道：
+During a Watch Run, Advisor automatically selects a delivery channel based on the intent of its Advice:
 
-- **Hint**（加速信息）：正确的 API 用法、更好的算法等，通过 Steer 尽快送达，减少浪费时间
-- **Concern**（风险/质疑）：可能的 bug、架构疑虑等，通过 Follow-up 等 Primary Agent 完成当前工作后再处理，不打断连贯性
+- **Hint** (accelerating information): Correct API usage, a better algorithm, and similar guidance are delivered promptly through Steer to reduce wasted effort.
+- **Concern** (risk or challenge): Potential bugs, architectural concerns, and similar issues are delivered through Follow-up after the Primary Agent finishes its current work, preserving its flow.
 
-Watch Run 外，Advisor 不会自行发送 Advice；用户仍可通过 `/advisor` 要求它发送特定观点，或通过 `/advisor:handoff` 转交最近一次完整的 Second Opinion。
+Outside a Watch Run, Advisor does not send Advice on its own. You can still use `/advisor` to ask it to send a specific insight, or `/advisor:handoff` to pass along the latest completed Second Opinion.
 
-### `/advisor:watch-off` — 取消 Watch Run
+### `/advisor:watch-off` — Cancel a Watch Run
 
-取消当前 Watch Run，保留 Advisor 实例和已有 Advisor Transcript。
+Cancel the current Watch Run while preserving the Advisor instance and its existing Advisor Transcript.
 
-### `/advisor:new` — 重置 Advisor
+### `/advisor:new` — Reset Advisor
 
-执行完整重置（清空 Advisor Transcript、Ask Context 自动注入记录、Second Opinion 记录、输入框草稿；如果 Watch Run 正在运行则先取消），Overlay 保持打开。
+Perform a full reset: clear the Advisor Transcript, Ask Context injection history, Second Opinion history, and input draft. If a Watch Run is active, cancel it first. The Overlay remains open.
 
-### `/advisor:clear` — 清空并关闭
+### `/advisor:clear` — Clear and close
 
-执行与 `/advisor:new` 完全相同的重置，然后关闭 Overlay。
+Perform the same full reset as `/advisor:new`, then close the Overlay.
 
-### `/advisor:model [model]` — 设置模型
+### `/advisor:model [model]` — Set the model
 
-打开可移动、可搜索的模型选择器，或直接通过参数设置 Advisor 使用的模型。修改后会自动重置 Advisor 会话。偏好保存在 `~/.pi/agent/advisor.json`，对同一用户的所有项目生效。未设置时 Advisor 不启动，并提示用户先设置 model。
+Open a movable, searchable model picker, or pass an argument to set the model directly. Changing the model automatically resets the Advisor session. The preference is saved in `~/.pi/agent/advisor.json` and applies to every project for the same user. If no model is configured, Advisor does not start and prompts the user to set one first.
 
-### `/advisor:thinking [level]` — 设置 Thinking Level
+### `/advisor:thinking [level]` — Set the thinking level
 
-打开 thinking 级别选择器，或直接设置 Advisor 的 thinking level。可用级别：`off`、`minimal`、`low`、`medium`、`high`、`xhigh`，默认为 `medium`。修改后会自动重置 Advisor 会话。未设置时使用 Advisor 的固定默认值。
+Open the thinking-level picker, or pass an argument to set Advisor's thinking level directly. Available levels are `off`, `minimal`, `low`, `medium`, `high`, and `xhigh`; the default is `medium`. Changing the level automatically resets the Advisor session. If no level is configured, Advisor uses its built-in default.
 
-### `/advisor:hide` — 隐藏 Overlay
+### `/advisor:hide` — Hide the Overlay
 
-隐藏 Advisor Overlay，不清空 Advisor Transcript。可随时通过 `/advisor:show` 重新显示。
+Hide the Advisor Overlay without clearing the Advisor Transcript. Use `/advisor:show` at any time to display it again.
 
-### `/advisor:show` — 显示 Overlay
+### `/advisor:show` — Show the Overlay
 
-重新显示 Advisor Overlay，恢复已有的 Advisor Transcript 视图。
+Display the Advisor Overlay again and restore the existing Advisor Transcript view.
 
 ### Advisor Overlay
 
-接受 `/advisor` 或 `/advisor:watch` 后 Overlay 自动打开。Overlay 采用 top-center 面板形态，以 prefixed transcript blocks 实时展示 Advisor 的审查轨迹：用户消息、Ask Context、工具调用（Pull、Hint、Concern 等）和 Advisor 回答。Overlay header 显示 Advisor 状态和 context window 用量（如 `Advisor · thinking · ctx 0.1%/128k`），内容超出可视区域时显示 `↑N ↓M` 滚动指示器。
+The Overlay opens automatically after `/advisor` or `/advisor:watch`. It appears as a top-center panel and shows Advisor's review process in real time as prefixed transcript blocks: user messages, Ask Context, tool calls such as Pull, Hint, and Concern, and Advisor responses. The Overlay header shows Advisor's status and context-window usage, for example `Advisor · thinking · ctx 0.1%/128k`. When content extends beyond the visible area, `↑N ↓M` scroll indicators appear.
 
-Overlay 底部有独立输入框，用户可直接输入消息或控制命令。主输入框保留全部公开命令（包括 `/advisor`、`/advisor:hide`、`/advisor:show`），Overlay 输入框复用以下七个控制命令：`/advisor:watch`、`/advisor:watch-off`、`/advisor:handoff`、`/advisor:new`、`/advisor:clear`、`/advisor:model`、`/advisor:thinking`。
+A separate input box at the bottom of the Overlay accepts messages and control commands. The main input box retains all public commands, including `/advisor`, `/advisor:hide`, and `/advisor:show`. The Overlay input box supports these seven control commands: `/advisor:watch`, `/advisor:watch-off`, `/advisor:handoff`, `/advisor:new`, `/advisor:clear`, `/advisor:model`, and `/advisor:thinking`.
 
-**Overlay 控制：**
+**Overlay controls:**
 
-- `Alt+/`：在 Overlay 输入框和主输入框之间切换焦点（备选：`Ctrl+Alt+W`）
-- Overlay 输入框聚焦时，`Esc` 关闭 Overlay 并将焦点归还主输入框
-- 切换到主输入框时，Overlay 输入框的草稿保留不丢失
-- 聚焦 Overlay 时，↑↓ PgUp/PgDn 和鼠标滚轮可滚动 transcript
+- `Alt+/`: Switch focus between the Overlay input box and the main input box. Alternative: `Ctrl+Alt+W`.
+- When the Overlay input box is focused, press `Esc` to close the Overlay and return focus to the main input box.
+- Switching to the main input box preserves the draft in the Overlay input box.
+- When the Overlay is focused, scroll the transcript with ↑/↓, PgUp/PgDn, or the mouse wheel.
 
-用户中断 Primary Agent 后，Advisor 不会自动唤醒 Primary Agent。
+After the user interrupts the Primary Agent, Advisor does not automatically wake it.
 
-## 限制
+## Limitations
 
-- **暂无 Advisor Transcript 磁盘持久化**：Advisor Transcript 仅在当前 session 内存中保留，关闭后不保存。这是出于首版简洁性考虑，Transcript 磁盘持久化方案尚未确定。
+- **No disk persistence for the Advisor Transcript yet**: The Advisor Transcript is kept in memory only for the current session and is not saved when the session closes. This keeps the initial release simple while the disk-persistence design remains undecided.
 
-## 配置
+## Configuration
 
-配置文件位于 `~/.pi/agent/advisor.json`：
+The configuration file is located at `~/.pi/agent/advisor.json`:
 
 ```json
 {
@@ -142,10 +142,10 @@ Overlay 底部有独立输入框，用户可直接输入消息或控制命令。
 }
 ```
 
-这是用户级配置，对同一用户的所有项目生效。Advisor model 需要用户通过 `/advisor:model` 选择或 `/advisor:model <model>` 显式设置；未设置时 Advisor 不启动，并提示用户先设置 model。`thinking` 可通过 `/advisor:thinking` 选择或 `/advisor:thinking <level>` 设置，未设置时使用 Advisor 的固定默认值。
+This user-level configuration applies to every project for the same user. The Advisor model must be explicitly chosen with `/advisor:model` or set with `/advisor:model <model>`. If it is not configured, Advisor does not start and prompts the user to set a model first. The thinking level can be chosen with `/advisor:thinking` or set with `/advisor:thinking <level>`; when omitted, Advisor uses its built-in default.
 
-## 产品与架构
+## Product and architecture
 
-产品需求详见 [`docs/prd.md`](docs/prd.md)。架构决策详见 [`docs/adr/`](docs/adr/)，记录了所有关键技术决策及其理由。
+See [`docs/prd.md`](docs/prd.md) for product requirements. See [`docs/adr/`](docs/adr/) for the accepted architecture decisions and the reasoning behind them.
 
-灵感致谢：本项目受到 pi-btw、oh-my-pi 和 pi-omplike-advisor 的启发。
+Acknowledgments: This project was inspired by pi-btw, oh-my-pi, and pi-omplike-advisor.
