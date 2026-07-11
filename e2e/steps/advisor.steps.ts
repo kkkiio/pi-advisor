@@ -99,11 +99,6 @@ When("the Primary Agent response {string} becomes visible", async function (this
 	);
 });
 
-When("the user asks Advisor without a message", async function (this: AdvisorE2EWorld) {
-	this.lastEventIndex = this.rpcPi.eventCount();
-	await this.rpcPi.prompt("/advisor");
-});
-
 When("the user runs Advisor command {string}", async function (this: AdvisorE2EWorld, command: string) {
 	this.lastEventIndex = this.rpcPi.eventCount();
 	await this.rpcPi.prompt(command);
@@ -375,6 +370,27 @@ Then("Advisor should deliver a Hint through Steer", async function (this: Adviso
 	});
 	this.lastAdvisorMessage = message;
 });
+
+Then(
+	"Primary Agent should receive the user-directed Concern without Watch Run",
+	async function (this: AdvisorE2EWorld) {
+		const message = await this.rpcPi.waitForMessage(
+			(candidate) =>
+				candidate.role === "custom" &&
+				candidate.customType === "advisor:advice" &&
+				JSON.stringify(candidate).includes("E2E_USER_REQUESTED_ADVICE"),
+			30_000,
+			"user-directed Advisor Concern custom message",
+		);
+
+		expect(message.details).toMatchObject({
+			origin: "advisor",
+			advisorAdviceKind: "concern",
+			deliverAs: "followUp",
+		});
+		this.lastAdvisorMessage = message;
+	},
+);
 
 Then("Advisor should receive the Primary Agent inspection tools", function (this: AdvisorE2EWorld) {
 	const observation = this.lastAdvisorObservation;

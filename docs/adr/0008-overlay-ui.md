@@ -10,13 +10,46 @@ Accepted
 
 ## Decision
 
-采用 **`nonCapturing` overlay（bordered dialog）** 作为 advisor 可视化载体：
+Advisor Overlay 提供独立输入框，采用 pi-btw 的交互模式：
 
-- 通过 `ctx.ui.custom(component, { overlay: true, overlayOptions: { nonCapturing: true, ... } })` 创建
-- `nonCapturing: true` 确保 overlay 保持可见但不抢占键盘焦点——用户打字仍发给 primary agent
-- overlay 中**不放 input box**，所有用户与 advisor 的交互走主输入框里的 `/advisor` 命令
+- Overlay 底部有一个输入框，用户可直接向 Advisor 提问或输入控制命令
+- `Alt+/` 在主输入框和 Overlay 输入框之间切换焦点。`Ctrl+Alt+W` 作为备选快捷键
+- Overlay 输入框聚焦时，`Esc` 关闭 Overlay 并将焦点归还主输入框
+- 切换到主输入框时，Overlay 输入框的草稿保留不丢失
+- Overlay 输入框识别以下控制命令：`/advisor:watch`、`/advisor:watch-off`、`/advisor:handoff`、`/advisor:new`、`/advisor:clear`、`/advisor:model`、`/advisor:thinking`
+- 以上命令同时注册在主输入框中，行为和 Overlay 内一致。用户可从任一入口执行（与 pi-btw 的 `/btw:*` 双路径模式对齐）
+- 普通文本（非斜杠前缀）作为 Ask Advisor 消息提交
 
-### 实时更新
+Overlay 仍使用 `nonCapturing: true` 创建，需要聚焦时通过 handle 显式调用 `focus()` / `unfocus()`。默认状态下键盘输入进入主输入框；仅在 `/advisor` 无参数或 `Alt+/` 时显式将焦点切换到 Overlay 输入框。
+
+### Esc 关闭语义
+
+Overlay 输入框聚焦时 `Esc` 仅关闭 Overlay（归还焦点到主输入框），不改变以下状态：
+
+- Advisor Session 和 Advisor Transcript 保留
+- 正在运行的 Watch Run 继续运行
+- 输入框草稿保留，下次打开 Overlay 时恢复
+
+### 输入排队与并发
+
+pi 自身的输入模型：`isStreaming` 覆盖整个 agent run（含工具调用），`steer()`/`followUp()` 在 run 期间排队。pi-btw 直接调用 `session.prompt()` 未传 `streamingBehavior`，并发提交时会抛错并 dispose sub-session。
+
+Advisor 的 Ask Context 注入（`sendCustomMessage` → `session.prompt()`）存在一个毫秒级的启动窗口，此窗口内 `isStreaming` 尚未变为 true。该窗口极其罕见，不值得引入状态机或队列。
+
+方案：简单的 transient guard：
+
+```
+dispatchAsk(text):
+  if isStreaming → sendUserMessage(text, { deliverAs: "steer" })
+  else if askCompletion || activeWatchRun → 恢复输入到原输入框（瞬态 guard，毫秒级窗口）
+  else → 启动新 ask
+```
+
+- 正常运行期间：走 pi 的 steer 通道
+- 极罕见的启动竞态：输入不丢失，恢复到原输入框供用户重试
+- 不增加 `askQueue`、`pendingSteer` 或额外状态机
+
+产品层不向用户暴露任何 "Advisor is busy" 或拒绝语义。
 
 Overlay 通过订阅 advisor 的 `AgentSessionEvent` 驱动实时更新（pi-btw 已验证的 `session.subscribe()` 模式）：
 
@@ -28,22 +61,23 @@ Ask Advisor 和 Watch Run 使用同一 overlay。Overlay 的内容结构遵循 `
 
 ### 用户通知
 
-由于 `nonCapturing` overlay 不抢焦点，concern 产生时用户可能未注意到 overlay 内容更新。需要额外通过 `ctx.ui.notify()` 发送 toast 提醒用户，由用户决定何时查看。
+Overlay 输入框聚焦时用户注意力在 Overlay 上。Concern 产生时额外通过 `ctx.ui.notify()` 发送 toast 提醒，确保主输入框聚焦时仍能感知。
 
 ## Consequences
 
 **正面：**
 
-- 用户可随时看到 advisor 的工作状态，无需手动切换视图
-- 不干扰用户与 primary agent 的正常交互
-- 单一入口（`/advisor`）降低 UI 复杂度
+- 用户通过 `Alt+/` 明确表达与 Advisor 交互的意图，无需记忆 `/advisor` 前缀来区分消息目标
+- 聚焦 overlay 时滚动操作（↑↓ PgUp/PgDn、鼠标滚轮）独立于主输入框
+- Overlay 内命令就近可用，减少上下文切换
+- 草稿保留让用户可以中途查看主对话后再回来继续编辑
 
 **负面：**
 
-- nonCapturing 下用户可能忽略 overlay 更新，依赖 notify toast 提示
-- overlay 占用屏幕空间，在终端尺寸较小时影响体验
+- 比纯 nonCapturing 方案多一个输入框的 UI 元素
+- 需要用户学习 `Alt+/` 快捷键
 
 ## Alternatives Considered
 
-- **自带 input box 的 overlay**（pi-btw 模式）：适合"用户在侧边对话中追问"的互动场景。Advisor 的用户交互点少且明确（`/advisor`、`/advisor:watch`、`/advisor:watch-off`），不需要第二个输入入口。
+- **纯 nonCapturing overlay（无输入框）**：所有交互走主输入框 `/advisor` 命令。问题：隐式交互、缺少焦点切换、滚动与主输入框冲突、控制命令需要退回主输入框执行。
 - **底部 widget**：占用空间小但展示能力有限，无法充分呈现 advisor 的审查过程。

@@ -7,7 +7,7 @@ import { advisorExtensionPath, fauxProviderExtensionPath, resolvePiBin } from ".
 export interface TuiPiOptions {
 	advisorModelConfigured?: boolean;
 	color?: boolean;
-	script?: "default" | "watch-wait";
+	script?: "default" | "readme" | "watch-wait";
 	width?: number;
 	height?: number;
 }
@@ -104,6 +104,11 @@ export class TuiPi {
 		}
 	}
 
+	sendRawInput(data: string): void {
+		const bytes = [...Buffer.from(data)].map((byte) => byte.toString(16).padStart(2, "0"));
+		this.tmux(["send-keys", "-t", this.sessionName, "-H", ...bytes]);
+	}
+
 	capturePlainText(): string {
 		return this.tmux(["capture-pane", "-t", this.sessionName, "-p"]);
 	}
@@ -112,21 +117,46 @@ export class TuiPi {
 		return this.tmux(["capture-pane", "-t", this.sessionName, "-p", "-e"]);
 	}
 
+	captureCursorPosition(): { column: number; row: number } {
+		const output = this.tmux(["list-panes", "-t", this.sessionName, "-F", "#{cursor_x}:#{cursor_y}"]).trim();
+		const match = output.match(/^(\d+):(\d+)$/);
+		if (!match) {
+			throw new Error(`Could not read TUI cursor position from tmux output: ${output}`);
+		}
+		return {
+			column: Number(match[1]),
+			row: Number(match[2]),
+		};
+	}
+
+	async waitForMouseReporting(expected: boolean, timeoutMs: number, label: string): Promise<void> {
+		const started = Date.now();
+		let lastOutput = "";
+		while (Date.now() - started < timeoutMs) {
+			lastOutput = this.tmux([
+				"list-panes",
+				"-t",
+				this.sessionName,
+				"-F",
+				"#{mouse_standard_flag}:#{mouse_sgr_flag}",
+			]).trim();
+			if ((lastOutput === "1:1") === expected) {
+				return;
+			}
+			await this.sleep(25);
+		}
+		throw new Error(`timeout waiting for ${label}; terminal mouse flags were ${lastOutput}`);
+	}
+
 	captureAdvisorOverlayPlainText(): string {
 		const lines = this.capturePlainText().split("\n");
-		const overlayStart = lines.reduce((start, line) => {
-			const headerIndex = line.indexOf("Advisor ·");
-			const squareBorderIndex = line.indexOf("┌");
-			const roundedBorderIndex = line.indexOf("╭");
-			const candidate = [headerIndex, squareBorderIndex, roundedBorderIndex]
-				.filter((index) => index !== -1)
-				.reduce((min, index) => Math.min(min, index), Number.POSITIVE_INFINITY);
-			return Number.isFinite(candidate) ? Math.min(start, candidate) : start;
-		}, Number.POSITIVE_INFINITY);
-		if (!Number.isFinite(overlayStart)) {
+		const header = lines.find((line) => line.includes("Advisor ·") && line.includes("╭") && line.includes("╮"));
+		const overlayStart = header?.indexOf("╭") ?? -1;
+		const overlayEnd = header?.indexOf("╮", overlayStart) ?? -1;
+		if (overlayStart < 0 || overlayEnd < overlayStart) {
 			throw new Error(`Advisor overlay was not found.\n\nScreen:\n${lines.join("\n")}`);
 		}
-		return lines.map((line) => (line.length > overlayStart ? line.slice(overlayStart) : "")).join("\n");
+		return lines.map((line) => (line.length > overlayStart ? line.slice(overlayStart, overlayEnd + 1) : "")).join("\n");
 	}
 
 	async waitForScreen(predicate: (screen: string) => boolean, timeoutMs: number, label: string): Promise<string> {
@@ -140,6 +170,21 @@ export class TuiPi {
 			await this.sleep(150);
 		}
 		throw new Error(`timeout waiting for ${label}\n\nLast screen:\n${lastScreen}\n\nStderr:\n${await this.stderr()}`);
+	}
+
+	async waitForAnsiScreen(predicate: (screen: string) => boolean, timeoutMs: number, label: string): Promise<string> {
+		const started = Date.now();
+		let lastScreen = "";
+		while (Date.now() - started < timeoutMs) {
+			lastScreen = this.captureAnsiText();
+			if (predicate(lastScreen)) {
+				return lastScreen;
+			}
+			await this.sleep(25);
+		}
+		throw new Error(
+			`timeout waiting for ${label}\n\nLast ANSI screen:\n${lastScreen}\n\nStderr:\n${await this.stderr()}`,
+		);
 	}
 
 	async dispose(): Promise<void> {

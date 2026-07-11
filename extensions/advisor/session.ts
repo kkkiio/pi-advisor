@@ -135,19 +135,34 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 		}
 	}
 
-	async ask(args: string, ctx: ExtensionCommandContext): Promise<void> {
+	async ask(args: string, ctx: ExtensionCommandContext, restoreToOverlay = false): Promise<void> {
 		this.bindPrimaryContext(ctx);
+		const callbacks = {
+			onSubmit: (value: string) => {
+				void this.submitFromOverlay(value, ctx);
+			},
+			onDismiss: () => {
+				this.overlay.close();
+			},
+			onUnfocus: () => {
+				this.overlay.unfocus();
+			},
+		};
 		const question = args.trim();
 		if (!question) {
-			ctx.ui.notify("Usage: /advisor <message>", "warning");
+			this.overlay.open(ctx, callbacks);
+			this.overlay.focus();
 			return;
 		}
 		const session = await this.ensureSession(ctx);
 		if (!session) {
+			if (restoreToOverlay) {
+				this.overlay.setDraft(question);
+			}
 			return;
 		}
 		if (session.isStreaming) {
-			this.overlay.open(ctx);
+			this.overlay.open(ctx, callbacks);
 			try {
 				await session.sendUserMessage(question, { deliverAs: "steer" });
 				this.overlay.state.recordUserMessage(question);
@@ -160,11 +175,14 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 			return;
 		}
 		if (this.askCompletion || (this.watchAbortController && !this.watchAbortController.signal.aborted)) {
-			ctx.ui.notify("Advisor is busy. Try again when the current run finishes.", "warning");
-			ctx.ui.setEditorText(`/advisor ${question}`);
+			if (restoreToOverlay) {
+				this.overlay.setDraft(question);
+			} else {
+				ctx.ui.setEditorText(`/advisor ${question}`);
+			}
 			return;
 		}
-		this.overlay.open(ctx);
+		this.overlay.open(ctx, callbacks);
 		this.overlay.refresh();
 		this.overlay.state.recordUserMessage(question);
 		const view = buildPrimaryTranscriptView(ctx, this.primaryStreamingAssistant);
@@ -232,6 +250,68 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 		void askCompletion;
 	}
 
+	async submitFromOverlay(text: string, ctx: ExtensionCommandContext): Promise<void> {
+		this.bindPrimaryContext(ctx);
+		const value = text.trim();
+		if (!value) {
+			return;
+		}
+		this.overlay.setDraft("");
+		const command = value.match(/^\/advisor:(watch|watch-off|handoff|new|clear|model|thinking)(?:\s+(.*))?$/);
+		if (command) {
+			const args = command[2]?.trim() ?? "";
+			switch (command[1]) {
+				case "watch":
+					await this.startWatch(ctx);
+					return;
+				case "watch-off":
+					await this.cancelWatch(ctx);
+					return;
+				case "handoff":
+					await this.handoff(args, ctx);
+					return;
+				case "new":
+					await this.reset(ctx);
+					return;
+				case "clear":
+					await this.clear(ctx);
+					return;
+				case "model":
+					await this.handleModelCommand(args, ctx);
+					return;
+				case "thinking":
+					await this.handleThinkingCommand(args, ctx);
+					return;
+			}
+		}
+		if (!value.startsWith("/")) {
+			await this.ask(value, ctx, true);
+			return;
+		}
+		const session = await this.ensureSession(ctx);
+		if (!session) {
+			this.overlay.setDraft(value);
+			return;
+		}
+		if (!session.isStreaming && (this.askCompletion || this.watchAbortController)) {
+			this.overlay.setDraft(value);
+			return;
+		}
+		this.overlay.state.recordUserMessage(value);
+		this.overlay.state.setStatus("ask started");
+		this.overlay.refresh();
+		try {
+			await session.prompt(value, {
+				expandPromptTemplates: false,
+				streamingBehavior: session.isStreaming ? "steer" : undefined,
+			});
+		} catch (error) {
+			this.overlay.state.recordError(error);
+			this.overlay.refresh();
+			ctx.ui.notify(error instanceof Error ? error.message : String(error), "error");
+		}
+	}
+
 	async handoff(args: string, ctx: ExtensionCommandContext): Promise<void> {
 		this.bindPrimaryContext(ctx);
 		if (this.askCompletion) {
@@ -281,7 +361,17 @@ ${latest.answer}`;
 		if (!session) {
 			return;
 		}
-		this.overlay.open(ctx);
+		this.overlay.open(ctx, {
+			onSubmit: (value) => {
+				void this.submitFromOverlay(value, ctx);
+			},
+			onDismiss: () => {
+				this.overlay.close();
+			},
+			onUnfocus: () => {
+				this.overlay.unfocus();
+			},
+		});
 		this.overlay.refresh();
 		const controller = new AbortController();
 		this.watchAbortController = controller;
@@ -340,19 +430,42 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 
 	async showOverlay(ctx: ExtensionCommandContext): Promise<void> {
 		this.bindPrimaryContext(ctx);
-		this.overlay.open(ctx);
+		this.overlay.open(ctx, {
+			onSubmit: (value) => {
+				void this.submitFromOverlay(value, ctx);
+			},
+			onDismiss: () => {
+				this.overlay.close();
+			},
+			onUnfocus: () => {
+				this.overlay.unfocus();
+			},
+		});
 		this.overlay.refresh();
 	}
 
 	async reset(ctx: ExtensionCommandContext): Promise<void> {
 		this.bindPrimaryContext(ctx);
+		this.watchAbortController?.abort();
+		this.watchAbortController = undefined;
+		this.resolveWaiters("watch_cancelled", true);
 		await this.disposeSession();
 		this.latestSecondOpinion = undefined;
 		this.askCompletion = undefined;
+		this.overlay.setDraft("");
 		this.overlay.state.clear();
 		this.overlay.state.setStatus("reset");
 		this.overlay.refresh();
 		ctx.ui.notify("Advisor transcript reset.", "info");
+	}
+
+	async clear(ctx: ExtensionCommandContext): Promise<void> {
+		await this.reset(ctx);
+		this.overlay.close();
+	}
+
+	toggleOverlayFocus(): void {
+		this.overlay.toggleFocus();
 	}
 
 	async handleModelCommand(args: string, ctx: ExtensionCommandContext): Promise<void> {
@@ -490,9 +603,6 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 		const ctx = this.primaryCtx;
 		if (!ctx) {
 			throw new Error("Advisor cannot deliver advice before Primary Agent context is available.");
-		}
-		if (!this.watchAbortController || this.watchAbortController.signal.aborted) {
-			throw new Error("Advisor can deliver advice only during an active Watch Run.");
 		}
 		const result = createAdviceDelivery(request, this.autoResumeSuppressed);
 		this.pi.sendMessage(

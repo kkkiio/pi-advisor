@@ -55,7 +55,7 @@ This package provides a Pi extension that runs a session-persistent Advisor agen
 │   │   ├── messages.ts             # Bridge missing Pi message role types until Pi exports them publicly
 │   │   ├── session-history-format.ts # Reusable markdown transcript serialization for Primary Transcript View
 │   │   ├── tools.ts                # pull_transcript and advise custom tool definitions using typebox schemas
-│   │   ├── overlay.ts              # Non-capturing read-only Advisor Overlay rendering, scrolling, auto-follow, terminal sizing
+│   │   ├── overlay.ts              # Advisor Overlay with input box, focus toggle, mouse scroll, and transcript rendering
 │   │   ├── delivery.ts             # Hint-to-Steer and Concern-to-Follow-up routing, provenance metadata, abort auto-resume suppression
 │   │   └── types.ts                # Shared Advisor domain types and runtime port interfaces
 ├── tests/

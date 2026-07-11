@@ -1,7 +1,15 @@
 import type { AgentSessionEvent, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import type { Component, OverlayHandle, TUI } from "@earendil-works/pi-tui";
-import { Key, matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
-import type { AdviceDeliveryResult, AdvisorContextUsage, AskContext, WatchRunState } from "./types";
+import type { Focusable, OverlayHandle, TUI } from "@earendil-works/pi-tui";
+import {
+	Container,
+	Input,
+	Key,
+	matchesKey,
+	truncateToWidth,
+	visibleWidth,
+	wrapTextWithAnsi,
+} from "@earendil-works/pi-tui";
+import type { AdviceDeliveryResult, AdvisorContextUsage, AskContext, TranscriptLine, WatchRunState } from "./types";
 import {
 	appendAskContext,
 	appendTranscriptNotice,
@@ -11,7 +19,13 @@ import {
 	type AdvisorTranscriptState,
 } from "./transcript-state";
 
-const ADVISOR_OVERLAY_CHROME_LINES = 2;
+const ADVISOR_OVERLAY_CHROME_LINES = 4;
+
+export interface AdvisorOverlayCallbacks {
+	onSubmit: (value: string) => void;
+	onDismiss: () => void;
+	onUnfocus: () => void;
+}
 
 export class AdvisorOverlayState {
 	private transcriptState: AdvisorTranscriptState = createEmptyTranscriptState();
@@ -129,20 +143,60 @@ export class AdvisorOverlayState {
 	}
 }
 
-export class AdvisorOverlayComponent implements Component {
+export class AdvisorOverlayComponent extends Container implements Focusable {
+	private readonly input = new Input();
 	private readonly tui: TUI;
 	private readonly theme: ExtensionContext["ui"]["theme"];
 	private readonly state: AdvisorOverlayState;
-	private transcriptLines: string[] = [];
+	private readonly onSubmitCallback: (value: string) => void;
+	private readonly onDismissCallback: () => void;
+	private readonly onUnfocusCallback: () => void;
+	private transcriptLines: TranscriptLine[] = [];
 	private transcriptScrollOffset = 0;
 	private transcriptViewportHeight = 8;
 	private followTranscript = true;
 	private headerTextValue = "Advisor · idle · ctx ?";
+	private _focused = false;
+	private mouseReportingEnabled = false;
 
-	constructor(tui: TUI, theme: ExtensionContext["ui"]["theme"], state: AdvisorOverlayState) {
+	get focused(): boolean {
+		return this._focused;
+	}
+
+	set focused(value: boolean) {
+		this._focused = value;
+		this.input.focused = value;
+		if (this.mouseReportingEnabled === value) {
+			return;
+		}
+		this.tui.terminal?.write?.(value ? "\x1b[?1000h\x1b[?1006h" : "\x1b[?1000l\x1b[?1006l");
+		this.mouseReportingEnabled = value;
+	}
+
+	constructor(
+		tui: TUI,
+		theme: ExtensionContext["ui"]["theme"],
+		state: AdvisorOverlayState,
+		onSubmit: (value: string) => void = () => {},
+		onDismiss: () => void = () => {},
+		onUnfocus: () => void = () => {},
+	) {
+		super();
 		this.tui = tui;
 		this.theme = theme;
 		this.state = state;
+		this.onSubmitCallback = onSubmit;
+		this.onDismissCallback = onDismiss;
+		this.onUnfocusCallback = onUnfocus;
+		this.input.onSubmit = (value) => {
+			this.followTranscript = true;
+			this.onSubmitCallback(value);
+		};
+		this.input.onEscape = () => {
+			if (this.focused) {
+				this.onDismissCallback();
+			}
+		};
 		this.refresh();
 	}
 
@@ -157,7 +211,27 @@ export class AdvisorOverlayComponent implements Component {
 		this.tui.requestRender();
 	}
 
+	dispose(): void {
+		if (this.mouseReportingEnabled) {
+			this.tui.terminal?.write?.("\x1b[?1000l\x1b[?1006l");
+			this.mouseReportingEnabled = false;
+		}
+	}
+
 	handleInput(data: string): void {
+		if (ADVISOR_FOCUS_SHORTCUTS.some((shortcut) => matchesKey(data, shortcut))) {
+			this.onUnfocusCallback();
+			return;
+		}
+		if (this.focused && matchesKey(data, Key.escape)) {
+			this.onDismissCallback();
+			return;
+		}
+		const mouseScrollDelta = this.getMouseScrollDelta(data);
+		if (mouseScrollDelta !== null) {
+			this.scrollTranscript(mouseScrollDelta);
+			return;
+		}
 		if (matchesKey(data, Key.pageUp) || matchesKey(data, Key.up)) {
 			const step = matchesKey(data, Key.pageUp) ? Math.max(1, this.transcriptViewportHeight - 1) : 1;
 			this.scrollTranscript(-step);
@@ -166,16 +240,18 @@ export class AdvisorOverlayComponent implements Component {
 		if (matchesKey(data, Key.pageDown) || matchesKey(data, Key.down)) {
 			const step = matchesKey(data, Key.pageDown) ? Math.max(1, this.transcriptViewportHeight - 1) : 1;
 			this.scrollTranscript(step);
+			return;
 		}
+		this.input.handleInput(data);
 	}
 
-	render(width: number): string[] {
+	override render(width: number): string[] {
 		const dialogWidth = Math.max(36, width);
 		const innerWidth = Math.max(34, dialogWidth - 2);
-		const transcriptLines = this.wrapTranscript(innerWidth);
 		const dialogHeight = this.getDialogHeight();
 		const transcriptHeight = Math.max(8, dialogHeight - ADVISOR_OVERLAY_CHROME_LINES);
 		this.transcriptViewportHeight = transcriptHeight;
+		const transcriptLines = this.wrapTranscript(innerWidth);
 
 		const maxScroll = Math.max(0, transcriptLines.length - transcriptHeight);
 		if (this.followTranscript) {
@@ -191,6 +267,7 @@ export class AdvisorOverlayComponent implements Component {
 			this.transcriptScrollOffset,
 			this.transcriptScrollOffset + transcriptHeight,
 		);
+
 		const transcriptPadCount = Math.max(0, transcriptHeight - visibleTranscript.length);
 		const hiddenAbove = this.transcriptScrollOffset;
 		const hiddenBelow = Math.max(0, maxScroll - this.transcriptScrollOffset);
@@ -206,14 +283,31 @@ export class AdvisorOverlayComponent implements Component {
 		for (let i = 0; i < transcriptPadCount; i++) {
 			lines.push(this.frameLine("", innerWidth));
 		}
+		lines.push(this.theme.fg("border", `├${"─".repeat(innerWidth)}┤`));
+		lines.push(this.inputFrameLine(dialogWidth));
 		lines.push(this.borderLine(innerWidth, "bottom"));
 
 		return lines.map((line) => this.fitRenderedLine(line, width));
 	}
 
-	private frameLine(content: string, innerWidth: number): string {
-		const truncated = truncateToWidth(content, innerWidth, "");
+	setDraft(value: string): void {
+		this.input.setValue(value);
+		this.tui.requestRender();
+	}
+
+	getDraft(): string {
+		return this.input.getValue();
+	}
+
+	private frameLine(line: TranscriptLine, innerWidth: number): string {
+		const text = typeof line === "string" ? line : line.text;
+		const bg = typeof line === "string" ? undefined : line.bg;
+		const truncated = truncateToWidth(text, innerWidth, "");
 		const padding = Math.max(0, innerWidth - visibleWidth(truncated));
+		if (bg) {
+			const fullContent = `${truncated}${" ".repeat(padding)}`;
+			return `${this.theme.fg("border", "│")}${this.theme.bg(bg, fullContent)}${this.theme.fg("border", "│")}`;
+		}
 		return `${this.theme.fg("border", "│")}${truncated}${" ".repeat(padding)}${this.theme.fg("border", "│")}`;
 	}
 
@@ -233,22 +327,27 @@ export class AdvisorOverlayComponent implements Component {
 		);
 	}
 
-	private wrapTranscript(innerWidth: number): string[] {
-		const wrapped: string[] = [];
+	private wrapTranscript(innerWidth: number): TranscriptLine[] {
+		const wrapped: TranscriptLine[] = [];
 		for (const line of this.transcriptLines) {
-			if (!line) {
+			const text = typeof line === "string" ? line : line.text;
+			const bg = typeof line === "string" ? undefined : line.bg;
+			if (!text) {
 				wrapped.push("");
 				continue;
 			}
-			const indent = line.match(/^\s+/)?.[0] ?? "";
+			const indent = text.match(/^\s+/)?.[0] ?? "";
 			if (!indent) {
-				wrapped.push(...wrapTextWithAnsi(line, Math.max(1, innerWidth)));
+				for (const t of wrapTextWithAnsi(text, Math.max(1, innerWidth))) {
+					wrapped.push(bg ? { text: t, bg } : t);
+				}
 				continue;
 			}
 			const availableWidth = Math.max(1, innerWidth - visibleWidth(indent));
-			const bodyLines = wrapTextWithAnsi(line.slice(indent.length), availableWidth);
+			const bodyLines = wrapTextWithAnsi(text.slice(indent.length), availableWidth);
 			for (const bodyLine of bodyLines) {
-				wrapped.push(`${indent}${bodyLine}`);
+				const fullLine = `${indent}${bodyLine}`;
+				wrapped.push(bg ? { text: fullLine, bg } : fullLine);
 			}
 		}
 		return wrapped;
@@ -257,6 +356,18 @@ export class AdvisorOverlayComponent implements Component {
 	private getDialogHeight(): number {
 		const terminalRows = process.stdout.rows ?? 30;
 		return Math.max(12, terminalRows);
+	}
+
+	private getMouseScrollDelta(data: string): number | null {
+		const match = data.match(/^\x1b\[<(\d+);\d+;\d+[Mm]$/);
+		if (!match) {
+			return null;
+		}
+		const button = Number(match[1]);
+		if ((button & 64) !== 64) {
+			return null;
+		}
+		return (button & 1) === 0 ? -3 : 3;
 	}
 
 	private scrollTranscript(delta: number): void {
@@ -270,20 +381,36 @@ export class AdvisorOverlayComponent implements Component {
 	private fitRenderedLine(line: string, width: number): string {
 		return visibleWidth(line) > width ? truncateToWidth(line, width, "") : line;
 	}
+
+	private inputFrameLine(dialogWidth: number): string {
+		const targetWidth = Math.max(1, dialogWidth - 2);
+		const renderedInputLine = (this.input.render(targetWidth + 2)[0] ?? "").slice(2);
+		const cursorAwareInputLine = this.focused
+			? renderedInputLine
+			: renderedInputLine.replace("\x1b[7m", "").replace("\x1b[27m", "");
+		const inputLine = truncateToWidth(cursorAwareInputLine, targetWidth, "");
+		const padding = Math.max(0, targetWidth - visibleWidth(inputLine));
+		return `${this.theme.fg("border", "│")}${inputLine}${" ".repeat(padding)}${this.theme.fg("border", "│")}`;
+	}
 }
 
 export class AdvisorOverlayController {
 	private component: AdvisorOverlayComponent | undefined;
 	private handle: OverlayHandle | undefined;
+	private callbacks: AdvisorOverlayCallbacks | undefined;
+	private finish: (() => void) | undefined;
+	private draft = "";
+	private pendingFocus = false;
 	private pullElapsedTimer: ReturnType<typeof setInterval> | undefined;
 	readonly state = new AdvisorOverlayState();
 
 	constructor(private readonly readContextUsage: () => AdvisorContextUsage | undefined = () => undefined) {}
 
-	open(ctx: ExtensionContext): void {
+	open(ctx: ExtensionContext, callbacks: AdvisorOverlayCallbacks): void {
 		if (!ctx.hasUI) {
 			return;
 		}
+		this.callbacks = callbacks;
 		this.state.setContextUsage(this.readContextUsage());
 		if (this.handle) {
 			this.handle.setHidden(false);
@@ -292,25 +419,40 @@ export class AdvisorOverlayController {
 		}
 		void ctx.ui
 			.custom<void>(
-				(tui, theme, _keybindings, _done) => {
-					this.component = new AdvisorOverlayComponent(tui, theme, this.state);
+				async (tui, theme, _keybindings, done) => {
+					this.finish = done;
+					this.component = new AdvisorOverlayComponent(
+						tui,
+						theme,
+						this.state,
+						(value) => this.callbacks?.onSubmit(value),
+						() => this.callbacks?.onDismiss(),
+						() => this.callbacks?.onUnfocus(),
+					);
+					this.component.focused = this.handle?.isFocused() ?? this.pendingFocus;
+					this.component.setDraft(this.draft);
 					return this.component;
 				},
 				{
 					overlay: true,
 					overlayOptions: {
-						width: "50%",
-						minWidth: 44,
+						width: "78%",
+						minWidth: 72,
 						maxHeight: "100%",
-						anchor: "right-center",
-						margin: { top: 0, right: 0, bottom: 0 },
+						anchor: "top-center",
+						margin: { top: 0, left: 2, right: 2 },
 						nonCapturing: true,
 					},
 					onHandle: (handle) => {
 						this.handle = handle;
 						handle.setHidden(false);
-						if (handle.isFocused()) {
+						if (this.pendingFocus) {
+							handle.focus();
+						} else if (handle.isFocused()) {
 							handle.unfocus();
+						}
+						if (this.component) {
+							this.component.focused = handle.isFocused();
 						}
 						this.refresh();
 					},
@@ -320,7 +462,47 @@ export class AdvisorOverlayController {
 				this.state.recordError(error);
 				this.handle = undefined;
 				this.component = undefined;
+				this.finish = undefined;
 			});
+	}
+
+	focus(): void {
+		this.pendingFocus = true;
+		this.handle?.setHidden(false);
+		this.handle?.focus();
+		if (this.component) {
+			this.component.focused = true;
+			this.component.refresh();
+		}
+	}
+
+	unfocus(): void {
+		this.pendingFocus = false;
+		this.handle?.unfocus();
+		if (this.component) {
+			this.component.focused = false;
+			this.component.refresh();
+		}
+	}
+
+	toggleFocus(): void {
+		if (!this.handle) {
+			return;
+		}
+		if (this.handle.isFocused()) {
+			this.unfocus();
+			return;
+		}
+		this.focus();
+	}
+
+	setDraft(value: string): void {
+		this.draft = value;
+		this.component?.setDraft(value);
+	}
+
+	getDraft(): string {
+		return this.component?.getDraft() ?? this.draft;
 	}
 
 	refresh(): void {
@@ -350,11 +532,18 @@ export class AdvisorOverlayController {
 			clearInterval(this.pullElapsedTimer);
 			this.pullElapsedTimer = undefined;
 		}
+		this.draft = this.component?.getDraft() ?? this.draft;
+		this.component?.dispose();
 		this.handle?.hide();
+		this.finish?.();
+		this.pendingFocus = false;
 		this.handle = undefined;
 		this.component = undefined;
+		this.finish = undefined;
 	}
 }
+
+const ADVISOR_FOCUS_SHORTCUTS = [Key.alt("/"), Key.ctrlAlt("w")] as const;
 
 function formatContextUsage(usage: AdvisorContextUsage | undefined): string {
 	if (!usage) {

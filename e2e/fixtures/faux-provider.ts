@@ -78,6 +78,11 @@ function scriptedResponse(
 		);
 	}
 	if (model.id === primaryModelId) {
+		if (script === "readme") {
+			return fauxAssistantMessage(
+				fauxText("Implemented request deduplication and eviction of failed in-flight entries."),
+			);
+		}
 		if (script === "ask-context" && !hasToolResult(context, "read")) {
 			return fauxAssistantMessage(
 				[fauxText("The cache now owns request deduplication."), fauxToolCall("read", { path: "SECRET_TOOL_PATH" })],
@@ -106,6 +111,10 @@ function scriptedResponse(
 			message.role === "user" &&
 			contentText(message.content).includes("Start a Watch Run for the current Primary Agent task."),
 	);
+	const isUserDirectedAdvice = context.messages.some(
+		(message) =>
+			message.role === "user" && contentText(message.content).includes("Send only this concern to Primary Agent"),
+	);
 	if (script === "ask-context" || script === "ask-context-streaming") {
 		return fauxAssistantMessage("E2E_ASK_CONTEXT_RECORDED");
 	}
@@ -123,6 +132,23 @@ function scriptedResponse(
 		return fauxAssistantMessage("E2E_WATCH_WAIT_DONE");
 	}
 	if (!isWatchRun) {
+		if (isUserDirectedAdvice && !hasToolResult(context, "advise")) {
+			return fauxAssistantMessage(
+				fauxToolCall("advise", {
+					kind: "concern",
+					advice: "E2E_USER_REQUESTED_ADVICE: preserve the cache entry identity check.",
+				}),
+				{ stopReason: "toolUse" },
+			);
+		}
+		if (isUserDirectedAdvice) {
+			return fauxAssistantMessage("E2E_USER_REQUESTED_ADVICE_DONE");
+		}
+		if (script === "readme") {
+			return fauxAssistantMessage(
+				"The direction is sound. One concern: a failed request may delete a newer in-flight entry. Guard eviction by entry identity before committing.",
+			);
+		}
 		const primaryTranscriptState = toolResultText(context, "pull_transcript").includes("E2E_PRIMARY_SENTINEL")
 			? "seen"
 			: "missing";

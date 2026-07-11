@@ -2,7 +2,7 @@
 
 exports[`Advisor overlay visual snapshots > overlay-ask-advisor renders a stable bounded overlay 1`] = `
 "╭ Advisor · idle · ctx 2.1%/128k ────────────────╮
-│Prompt Review the primary transcript.           │
+│Review the primary transcript.                  │
 │                                                │
 │Context                                         │
 │User → Primary                                  │
@@ -13,7 +13,6 @@ exports[`Advisor overlay visual snapshots > overlay-ask-advisor renders a stable
 │                                                │
 │Pull [0,12) · 4.2s                              │
 │                                                │
-│Advisor                                         │
 │E2E_SECOND_OPINION: primary_transcript=seen     │
 │                                                │
 │                                                │
@@ -29,6 +28,7 @@ exports[`Advisor overlay visual snapshots > overlay-ask-advisor renders a stable
 │                                                │
 │                                                │
 │                                                │
+├────────────────────────────────────────────────┤
 │                                                │
 ╰────────────────────────────────────────────────╯"
 `;
@@ -47,15 +47,34 @@ exports[`Advisor overlay visual snapshots > overlay-empty renders a stable bound
 │                                                │
 │                                                │
 │                                                │
+├────────────────────────────────────────────────┤
+│                                                │
+╰────────────────────────────────────────────────╯"
+`;
+
+exports[`Advisor overlay visual snapshots > overlay-focused-input renders a stable bounded overlay 1`] = `
+"╭ Advisor · idle · ctx ?/128k ───────────────────╮
+│No Advisor chat yet.                            │
 │                                                │
 │                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+├────────────────────────────────────────────────┤
+│[7mR[27meview this draft                               │
 ╰────────────────────────────────────────────────╯"
 `;
 
 exports[`Advisor overlay visual snapshots > overlay-long-content-small-terminal renders a stable bounded overlay 1`] = `
 "╭ Advisor · idle · ctx 13.3%/128k ─────────╮
-│Prompt Check whether this very long prompt│
-│wraps without breaking the panel border or│
+│Check whether this very long prompt wraps │
+│without breaking the panel border or      │
 │hiding the input area.                    │
 │                                          │
 │Context                                   │
@@ -69,18 +88,18 @@ exports[`Advisor overlay visual snapshots > overlay-long-content-small-terminal 
 │The Primary response remains visible while│
 │wrapping inside the narrow Context block. │
 │                                          │
-│Advisor                                   │
 │The narrow overlay wraps the Primary      │
 │context safely without widening.          │
+├──────────────────────────────────────────┤
+│                                          │
 ╰──────────────────────────────────────────╯"
 `;
 
 exports[`Advisor overlay visual snapshots > overlay-repeated-ask renders a stable bounded overlay 1`] = `
 "╭ Advisor · idle · ctx 2.5%/128k ────────────────╮
-│Prompt Explain the same Primary response from   │
-│another angle.                                  │
+│Explain the same Primary response from another  │
+│angle.                                          │
 │                                                │
-│Advisor                                         │
 │The repeated Ask reuses the existing Advisor    │
 │Transcript.                                     │
 │                                                │
@@ -90,6 +109,7 @@ exports[`Advisor overlay visual snapshots > overlay-repeated-ask renders a stabl
 │                                                │
 │                                                │
 │                                                │
+├────────────────────────────────────────────────┤
 │                                                │
 ╰────────────────────────────────────────────────╯"
 `;
@@ -108,7 +128,47 @@ exports[`Advisor overlay visual snapshots > overlay-reset renders a stable bound
 │                                                │
 │                                                │
 │                                                │
+├────────────────────────────────────────────────┤
+│                                                │
+╰────────────────────────────────────────────────╯"
+`;
+
+exports[`Advisor overlay visual snapshots > overlay-simplified-tools renders a stable bounded overlay 1`] = `
+"╭ Advisor · idle · ctx 3.4%/128k ────────────────────────╮
+│Review the delivery plan.                               │
+│                                                        │
+│Hint Use the SDK path.                                  │
+│                                                        │
+│Concern Keep delivery after validation.                 │
+│                                                        │
+│read {"path":"src/cache.ts"} ok                         │
+│                                                        │
+│The delivery plan is ready.                             │
+│                                                        │
+│                                                        │
+│                                                        │
+│                                                        │
+│                                                        │
+├────────────────────────────────────────────────────────┤
+│                                                        │
+╰────────────────────────────────────────────────────────╯"
+`;
+
+exports[`Advisor overlay visual snapshots > overlay-unfocused-input renders a stable bounded overlay 1`] = `
+"╭ Advisor · idle · ctx ?/128k ───────────────────╮
+│No Advisor chat yet.                            │
 │                                                │
 │                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+│                                                │
+├────────────────────────────────────────────────┤
+│Review this draft                               │
 ╰────────────────────────────────────────────────╯"
 `;

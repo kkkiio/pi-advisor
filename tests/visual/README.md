@@ -15,7 +15,9 @@ These checks render the Advisor Overlay directly from deterministic transcript s
 - panel borders are closed;
 - rendered lines stay inside the configured width;
 - required user-visible sections are present;
+- semantic background rows use the expected theme color and span the full panel width, including wrapped rows;
 - stable overlay layouts match Vitest snapshots.
+- unfocused Overlay inputs omit the reverse-video software cursor while focused inputs retain it.
 
 ## Review Artifacts
 
@@ -43,6 +45,8 @@ test-results/visual/
 ```
 
 Use `index.html` as the human entrypoint. It embeds PNG captures rendered from tmux ANSI cells by ghostty-web's Ghostty VT engine and Canvas renderer in headless Chromium, including foreground colors, backgrounds, text emphasis, and grapheme-aware cell widths. The manifest records the renderer, browser, font, and scale used for the run.
+
+Regenerate the project README screenshot with `npm run docs:readme-image`.
 
 The capture command uses Playwright's installed Chromium when available, then checks common Chrome and Chromium locations. Run `npx playwright-core install chromium` when no compatible browser is installed, or set `PI_ADVISOR_VISUAL_BROWSER` to an executable path.
 

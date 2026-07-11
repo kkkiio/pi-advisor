@@ -1,7 +1,7 @@
 import type { AgentSessionEvent, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { AssistantMessage, UserMessage } from "@earendil-works/pi-ai";
 import { PULL_ELAPSED_VISIBLE_MS } from "./constants";
-import type { AskContext } from "./types";
+import type { AskContext, TranscriptLine } from "./types";
 
 export type AdvisorTranscriptEntry =
 	| { id: number; turnId: number; type: "turn-boundary"; phase: "start" | "end" }
@@ -130,16 +130,15 @@ export function getCompletedExchangeCount(entries: AdvisorTranscript): number {
 export function buildAdvisorOverlayTranscript(
 	entries: AdvisorTranscript,
 	theme: ExtensionContext["ui"]["theme"],
-): string[] {
-	const lines: string[] = [];
-	const promptBadge = buildTranscriptBadge(theme, "Prompt", "userMessageBg", "accent");
+): TranscriptLine[] {
+	const lines: TranscriptLine[] = [];
 	const contextBadge = buildTranscriptBadge(theme, "Context", "customMessageBg", "accent");
-	const toolBadge = buildTranscriptBadge(theme, "Tool", "toolPendingBg", "warning");
-	const advisorBadge = buildTranscriptBadge(theme, "Advisor", "customMessageBg", "success");
 	const errorBadge = buildTranscriptBadge(theme, "Error", "customMessageBg", "error");
 
 	const pushBlankLine = () => {
-		if (lines.length > 0 && lines[lines.length - 1] !== "") {
+		const last = lines[lines.length - 1];
+		const lastText = typeof last === "string" ? last : (last?.text ?? "");
+		if (lines.length > 0 && lastText !== "") {
 			lines.push("");
 		}
 	};
@@ -184,7 +183,10 @@ export function buildAdvisorOverlayTranscript(
 			continue;
 		}
 		if (entry.type === "user-message") {
-			pushInlineBlock(promptBadge, entry.text, { blankBefore: false });
+			pushBlankLine();
+			for (const line of entry.text.split("\n")) {
+				lines.push({ text: theme.fg("userMessageText", line), bg: "userMessageBg" });
+			}
 			continue;
 		}
 		if (entry.type === "ask-context") {
@@ -202,7 +204,14 @@ export function buildAdvisorOverlayTranscript(
 			continue;
 		}
 		if (entry.type === "assistant-text") {
-			pushStackedBlock(entry.streaming ? `${advisorBadge} ${theme.fg("warning", "▍")}` : advisorBadge, entry.text);
+			if (entry.streaming) {
+				pushInlineBlock(theme.fg("warning", "▍"), entry.text);
+			} else {
+				pushBlankLine();
+				for (const line of entry.text.split("\n")) {
+					lines.push(theme.fg("text", line));
+				}
+			}
 			continue;
 		}
 		if (entry.type === "tool-call") {
@@ -220,13 +229,12 @@ export function buildAdvisorOverlayTranscript(
 				});
 				continue;
 			}
-			pushInlineBlock(toolBadge, theme.fg("warning", theme.bold(summary.call)));
+			const callStyled = theme.fg("warning", theme.bold(summary.call));
 			if (summary.result) {
-				const arrow = summary.isError ? theme.fg("error", "↳ error") : theme.fg("dim", "↳");
-				const resultStyle = summary.isError
-					? (line: string) => theme.fg("error", line)
-					: (line: string) => theme.fg("dim", line);
-				pushInlineBlock(arrow, summary.result, { blankBefore: false, style: resultStyle });
+				const resultStyled = summary.isError ? theme.fg("error", summary.result) : theme.fg("dim", summary.result);
+				pushInlineBlock(callStyled, resultStyled);
+			} else {
+				pushInlineBlock(callStyled, "");
 			}
 			continue;
 		}
@@ -489,18 +497,11 @@ function formatToolSummary(
 		try {
 			const args = JSON.parse(call.args) as { kind?: unknown; advice?: unknown };
 			const kind = typeof args.kind === "string" ? args.kind : "advice";
-			const delivered =
-				result?.type === "tool-result" ? result.content.match(/delivered \w+ as (\w+)/)?.[1] : undefined;
+			const label = kind === "hint" ? "Hint" : kind === "concern" ? "Concern" : "Advise";
+			const isError = result?.type === "tool-result" ? result.isError : false;
 			const advice = typeof args.advice === "string" ? oneLine(args.advice, 160) : "";
-			return {
-				call: `advise ${kind}`,
-				result: delivered
-					? `${delivered}${advice ? `: ${advice}` : ""}`
-					: result?.type === "tool-result"
-						? "ok"
-						: "running",
-				isError: result?.type === "tool-result" ? result.isError : false,
-			};
+			const resultText = isError ? `error: ${advice || "delivery failed"}` : advice || undefined;
+			return { call: label, result: resultText, isError };
 		} catch {
 			return {
 				call: "advise",

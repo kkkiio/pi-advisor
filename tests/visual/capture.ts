@@ -18,6 +18,40 @@ interface TuiVisualScenario {
 
 const scenarios: TuiVisualScenario[] = [
 	{
+		id: "readme-overview",
+		title: "Advisor Overview",
+		description: "A representative Ask Advisor review for the README opening image.",
+		options: { advisorModelConfigured: true, script: "readme", width: 100, height: 18 },
+		captures: ["whole", "overlay"],
+		checklist: [
+			"The Primary task remains visible behind the top-center Advisor Overlay.",
+			"The Overlay shows the user's review request, Primary Context, Pull, and Second Opinion.",
+			"The follow-up draft remains readable at README display sizes.",
+		],
+		async run(pi) {
+			await pi.submit("I finished the cache refactor. Review the implementation before I commit.");
+			await pi.waitForScreen(
+				(screen) => screen.includes("Implemented request deduplication"),
+				10_000,
+				"Primary work before the README Ask Advisor example",
+			);
+			await pi.submit("/advisor Review the Primary Agent's cache refactor.");
+			await pi.waitForScreen(
+				(screen) => screen.includes("Advisor · idle") && screen.includes("Guard eviction by entry identity"),
+				20_000,
+				"README Ask Advisor example",
+			);
+			pi.sendRawInput("\x1b[47;3u");
+			await pi.waitForMouseReporting(true, 2_000, "focused README Advisor Overlay");
+			await pi.submit("How should Primary fix it?", []);
+			await pi.waitForScreen(
+				(screen) => screen.includes("How should Primary fix it?"),
+				10_000,
+				"README Advisor follow-up draft",
+			);
+		},
+	},
+	{
 		id: "fresh-startup",
 		title: "Fresh Startup",
 		description: "Pi opens with Advisor configured but no Advisor overlay shown yet.",
@@ -33,13 +67,16 @@ const scenarios: TuiVisualScenario[] = [
 	{
 		id: "ask-advisor-overlay",
 		title: "Ask Advisor Overlay",
-		description: "Ask Advisor opens the right-side overlay with prompt, actual context, Pull, and advisor output.",
+		description:
+			"Ask Advisor opens the top-center overlay with the user message, actual context, Pull, and advisor output.",
 		options: { advisorModelConfigured: true, width: 100, height: 30 },
 		captures: ["whole", "overlay"],
 		checklist: [
-			"Whole TUI shows the overlay anchored to the right side.",
+			"Whole TUI shows the overlay anchored at top-center with the dedicated input row.",
 			"Overlay does not cover the primary input/status area in a way that makes it unreadable.",
-			"Overlay panel includes Prompt, actual Context text, one-line Pull, and Advisor sections.",
+			"User message uses the Primary transcript's foreground and a background that reaches both panel edges.",
+			"Overlay panel includes the user message, actual Context text, one-line Pull, and advisor output in order.",
+			"Prompt, Tool, and Advisor badges are absent while Context remains labeled.",
 			"Pull shows its returned range without arguments or a separate result line.",
 			"Advisor completion text is visible without breaking panel borders.",
 		],
@@ -59,6 +96,68 @@ const scenarios: TuiVisualScenario[] = [
 		},
 	},
 	{
+		id: "unfocused-overlay-input",
+		title: "Unfocused Advisor Overlay Input",
+		description: "Unfocusing Advisor preserves its draft while removing the Overlay software cursor.",
+		options: { advisorModelConfigured: true, width: 100, height: 30 },
+		captures: ["whole", "overlay"],
+		checklist: [
+			"The complete Advisor draft remains visible after focus returns to the Primary input.",
+			"The unfocused Advisor input has no reverse-video software cursor.",
+			"The Overlay input row keeps the same geometry as the focused capture.",
+		],
+		async run(pi) {
+			await pi.submit("/advisor");
+			await pi.waitForMouseReporting(true, 2_000, "focused Advisor Overlay before draft entry");
+			await pi.submit("Review this draft", []);
+			await pi.waitForScreen(
+				(screen) => screen.includes("Advisor ·") && screen.includes("Review this draft"),
+				10_000,
+				"Advisor Overlay draft before unfocus",
+			);
+			pi.sendRawInput("\x1b[47;3u");
+			await pi.waitForMouseReporting(false, 2_000, "unfocused Advisor Overlay draft");
+			await pi.waitForAnsiScreen(
+				(screen) => {
+					const inputLine = screen.split("\n").find((line) => line.includes("Review this draft"));
+					return inputLine !== undefined && !inputLine.includes("\x1b[7m");
+				},
+				2_000,
+				"unfocused Advisor Overlay software cursor removal",
+			);
+		},
+	},
+	{
+		id: "focused-overlay-input",
+		title: "Focused Advisor Overlay Input",
+		description: "Opening Advisor without a message focuses its input and displays the Overlay software cursor.",
+		options: { advisorModelConfigured: true, width: 100, height: 30 },
+		captures: ["whole", "overlay"],
+		checklist: [
+			"Focused Advisor input shows a reverse-video software cursor after the draft.",
+			"The same draft has no software cursor in the unfocused Advisor input capture.",
+			"Adding the focused cursor does not shift or open the Overlay border.",
+		],
+		async run(pi) {
+			await pi.submit("/advisor");
+			await pi.waitForScreen((screen) => screen.includes("Advisor ·"), 10_000, "focused Advisor Overlay");
+			await pi.submit("Review this draft", []);
+			await pi.waitForScreen(
+				(screen) => screen.includes("Advisor ·") && screen.includes("Review this draft"),
+				10_000,
+				"focused Advisor Overlay draft",
+			);
+			await pi.waitForAnsiScreen(
+				(screen) => {
+					const inputLine = screen.split("\n").find((line) => line.includes("Review this draft"));
+					return inputLine?.includes("\x1b[7m") ?? false;
+				},
+				2_000,
+				"focused Advisor Overlay software cursor",
+			);
+		},
+	},
+	{
 		id: "hide-show-overlay",
 		title: "Hide And Show Overlay",
 		description: "The preserved Advisor transcript returns when /advisor:show reopens the overlay.",
@@ -66,7 +165,7 @@ const scenarios: TuiVisualScenario[] = [
 		captures: ["whole", "overlay"],
 		checklist: [
 			"Overlay can be hidden without losing the Advisor transcript.",
-			"Overlay can be shown again on the right side.",
+			"Overlay can be shown again at top-center.",
 			"Restored overlay still contains the previous Advisor output.",
 		],
 		async run(pi) {
@@ -99,7 +198,7 @@ const scenarios: TuiVisualScenario[] = [
 		options: { advisorModelConfigured: true, width: 82, height: 24 },
 		captures: ["whole", "overlay"],
 		checklist: [
-			"Overlay remains a right-side panel instead of a central modal.",
+			"Overlay remains a bounded top-center panel at the smaller terminal size.",
 			"Panel border stays closed at the smaller terminal size.",
 			"Context and Advisor text wrap without corrupting adjacent lines.",
 		],
@@ -136,7 +235,8 @@ const scenarios: TuiVisualScenario[] = [
 	},
 ];
 
-const requested = process.argv.slice(2).filter((arg) => arg !== "--");
+const writeReadmeAsset = process.argv.includes("--readme-asset");
+const requested = process.argv.slice(2).filter((arg) => arg !== "--" && arg !== "--readme-asset");
 const selected =
 	requested.length === 0 || requested.includes("all")
 		? scenarios
@@ -154,14 +254,14 @@ const htmlEntities: Record<string, string> = {
 	"'": "&#39;",
 };
 const pageStyle = `<style>
-body{margin:0;background:#f6f5f0;color:#1f2328;font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+body{margin:0;background:#fdf6e3;color:#586e75;font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 main{max-width:1180px;margin:0 auto;padding:28px}
 h1{font-size:22px;margin:0 0 16px}
 h2{font-size:16px;margin:24px 0 8px}
 p{max-width:760px}
 pre{margin:0;padding:16px;background:#101418;color:#f3f6f8;border:1px solid #d0d7de;overflow:auto;font:14px/1.2 "SFMono-Regular",Consolas,"Liberation Mono",monospace;white-space:pre}
-.terminal{display:block;max-width:100%;height:auto;background:#f8f8f8;border:1px solid #d0d7de}
-.scenario{margin:0 0 24px;padding:16px;border:1px solid #d0d7de;border-radius:8px;background:#fff}
+.terminal{display:block;max-width:100%;height:auto;background:#fdf6e3;border:1px solid #d8d1bf}
+.scenario{margin:0 0 24px;padding:16px;border:1px solid #d8d1bf;border-radius:8px;background:#fffaf0}
 .scenario img{margin-top:8px}
 a{color:#0969da}
 li{margin:6px 0}
@@ -213,12 +313,21 @@ try {
 				await writeFile(join(scenarioDir, "whole.txt"), whole, "utf8");
 				const title = `${scenario.title} · Whole TUI`.replace(/[&<>"']/g, (char) => htmlEntities[char] ?? char);
 				const content = whole.replace(/[&<>"']/g, (char) => htmlEntities[char] ?? char);
-				await renderer.screenshot({
+				const screenshotInput = {
 					ansiText: wholeAnsi,
 					columns: scenario.options.width ?? 100,
 					rows: scenario.options.height ?? 30,
 					outputPath: join(scenarioDir, "whole.png"),
-				});
+				};
+				await renderer.screenshot(screenshotInput);
+				if (writeReadmeAsset && scenario.id === "readme-overview") {
+					const assetDirectory = join(repoRoot, "docs", "assets");
+					await mkdir(assetDirectory, { recursive: true });
+					await renderer.screenshot({
+						...screenshotInput,
+						outputPath: join(assetDirectory, "advisor-overview.png"),
+					});
+				}
 				await writeFile(
 					join(scenarioDir, "whole.html"),
 					`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>${pageStyle}</head><body><main><h1>${title}</h1><img class="terminal" src="whole.png" alt="${title}"><h2>Text</h2><pre>${content}</pre></main></body></html>`,
@@ -230,13 +339,18 @@ try {
 				const title = `${scenario.title} · Advisor Overlay`.replace(/[&<>"']/g, (char) => htmlEntities[char] ?? char);
 				const content = overlay.replace(/[&<>"']/g, (char) => htmlEntities[char] ?? char);
 				const overlayColumns = Math.max(...overlay.split("\n").map((line) => visibleWidth(line)));
+				const overlayHeader = whole.split("\n").find((line) => line.includes("Advisor ·") && line.includes("╭"));
+				const overlayStart = overlayHeader?.indexOf("╭") ?? -1;
+				if (overlayStart < 0) {
+					throw new Error(`Could not locate Advisor Overlay start column for ${scenario.id}.`);
+				}
 				await renderer.screenshot({
 					ansiText: wholeAnsi,
 					columns: scenario.options.width ?? 100,
 					rows: scenario.options.height ?? 30,
 					outputPath: join(scenarioDir, "overlay.png"),
 					crop: {
-						startColumn: (scenario.options.width ?? 100) - overlayColumns,
+						startColumn: visibleWidth(overlayHeader?.slice(0, overlayStart) ?? ""),
 						columns: overlayColumns,
 					},
 				});

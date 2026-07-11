@@ -1,9 +1,4 @@
 Feature: Ask Advisor
-  Scenario: Ask Advisor without a message reports usage
-    Given Advisor has a configured model
-    When the user asks Advisor without a message
-    Then Advisor should warn with "Usage: /advisor <message>"
-
   Scenario: Ask Advisor pulls Primary Transcript View, then hands off the latest Second Opinion
     Given Advisor has a configured model
     And the Primary Agent has recent work for Advisor to review
@@ -22,3 +17,8 @@ Feature: Ask Advisor
     When the user asks Advisor "Keep Advisor occupied."
     And the user asks Advisor "Keep this question." while Advisor is running
     Then the running Advisor should receive "Keep this question." without another Ask Context
+
+  Scenario: User explicitly asks Advisor to send a specific concern to Primary Agent
+    Given Advisor has a configured model
+    When the user asks Advisor "Send only this concern to Primary Agent: preserve the cache entry identity check."
+    Then Primary Agent should receive the user-directed Concern without Watch Run
