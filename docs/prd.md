@@ -50,27 +50,28 @@ Overlay 是 Advisor 的旁路工作视图。它展示的是用户可理解的 Ad
 目标形态：
 
 ```text
-Primary Agent transcript and input                     +----------------------------------------------+
-                                                       | Advisor · thinking · ctx 0.1%/128k          |
-Pi can explain its own work...                         +----------------------------------------------+
-                                                       |Review the current change.                    |
-[Context]                                              |                                              |
-  AGENTS.md                                            |Context                                       |
-                                                       |User → Primary                                |
-[Extensions]                                           |Review the cache design.                      |
-  @johnnywu/pi-advisor                                 |Primary                                       |
-                                                       |The cache now owns request deduplication.     |
-                                                       |                                              |
-                                                       |Pull [12,18) · 4.2s                           |
------------------------------------------------------- |                                              |
-~/work/project                                         |Hint Use the SDK path                         |
-0.0%/128k (auto)                                      |                                              |
-                                                       |The main risk is the overlay opening          |
-                                                       |before user intent.                           |
-                                                       +----------------------------------------------+
+╭ Advisor · thinking · ctx 0.1%/128k · ↑2 ↓0 ────────╮
+│                                                     │
+│ Review the current change.                          │
+│                                                     │
+│ Context                                             │
+│ User → Primary                                      │
+│ Review the cache design.                            │
+│ Primary                                             │
+│ The cache now owns request deduplication.           │
+│                                                     │
+│ Pull [12,18) · 4.2s                                 │
+│                                                     │
+│ Hint The main risk is the overlay opening           │
+│ before user intent.                                 │
+│                                                     │
+│                                                     │
+│                                                     │
+│ [input_____________________________________________]│
+╰─────────────────────────────────────────────────────╯
 ```
 
-Overlay 应像右侧 split panel，而不是覆盖屏幕中央的大弹窗。用户刚打开 Pi 时看不到这块；只有启动 Ask Advisor 或 Watch Run 后才出现。
+Primary Agent transcript and input 在上方正常显示，Overlay 是 top-center 的独立面板。Overlay 底部有一条输入框，用户可在其中直接向 Advisor 提问或输入控制命令。用户刚打开 Pi 时看不到这块；只有启动 Ask Advisor 或 Watch Run 后才出现。
 
 Overlay 使用 **prefixed transcript blocks**：每个活动是连续 transcript 中的一个紧凑 block，通过 prefix/badge、颜色、背景和空行表达类型，不使用固定的 role 列。`Context` block 的角色标签和正文都从 block 内的第一列开始，不额外缩进。
 
@@ -85,8 +86,8 @@ Overlay 使用 **prefixed transcript blocks**：每个活动是连续 transcript
 验收标准：
 
 - Ask Advisor 被接受后，Advisor 能基于 Primary Agent 的近期工作给出 Second Opinion。
-- Advisor 空闲时，`/advisor` 启动一次 Ask Advisor，并按 Ask Context 规则附带 Primary 上下文。
-- Advisor 正在 streaming 时，`/advisor` 立即接受用户消息，并将它作为 Steer 送入当前 Ask Advisor 或 Watch Run。
+- `/advisor` 无参数时打开 Overlay 并将焦点置于 Overlay 输入框。
+- Overlay 输入框中提交普通文本（非斜杠命令），行为与主输入框的 `/advisor <消息>` 相同：Advisor 空闲时启动新 Ask，运行时作为 Steer 送入当前运行。
 - 运行中发送的消息只包含用户输入，不创建 Ask Context custom message，不构造新的 Primary Transcript 位置，也不消耗 Ask Context 注入记录。
 - 这条消息在当前 assistant turn 的工具调用结束后、下一次模型调用前送达，让用户可以及时补充、纠正或对齐 Advisor。
 - 每次 Ask Advisor 都会告诉 Advisor 当前 Primary Transcript 的右开边界位置和 Primary Agent 运行状态，Advisor 可以用该位置判断进展变化并按需 Pull。
@@ -170,17 +171,25 @@ UI 内容契约：
 验收标准：
 
 - 安装 extension 或打开 Pi 时，Overlay 默认隐藏。
-- Advisor 接受 `/advisor <消息>` 或 `/advisor:watch` 后，Overlay 自动打开。
-- Overlay 使用右侧 split panel 形态，宽度约为终端的一半，避免大面积遮挡 Primary Agent 的工作区。
+- `/advisor` 无参数时打开 Overlay 并将焦点置于 Overlay 输入框。
+- `/advisor <消息>` 打开 Overlay 并立即以该消息发起 Ask Advisor。
+- `/advisor:watch` 启动 Watch Run 时 Overlay 自动打开。
+- Overlay 使用 top-center 面板形态，宽度约为终端的 78%，避免大面积遮挡 Primary Agent 的工作区。
+- Overlay 底部提供独立输入框，用户可直接输入消息或控制命令。
+- Overlay 默认 non-capturing；仅在 `/advisor` 无参数或 `Alt+/` 显式操作时将焦点置于 Overlay 输入框。`Ctrl+Alt+W` 作为备选快捷键。
+- Overlay 输入框聚焦时，`Esc` 关闭 Overlay 并将焦点归还主输入框。
+- Overlay 支持鼠标滚轮和触控板滚动 transcript 内容。
+- 切换到主输入框时，Overlay 输入框的草稿保留不丢失。
+- Overlay 输入框识别以下 `/advisor:` 前缀控制命令：`watch`、`watch-off`、`handoff`、`new`、`clear`、`model`、`thinking`。
+- 以上命令同时注册在主输入框中，行为和 Overlay 内一致。用户可从任一入口执行。
 - Overlay 内容符合上方 UI 内容契约。
 - Ask Advisor 附带 Ask Context 时，Overlay 展示实际发送的文本内容。
 - Ask Advisor 没有附带 Ask Context 时，Overlay 不显示空 Context block 或未注入状态。
 - Context block 中的角色标签、正文和换行文本使用同一起始列，不为层级额外占用 Overlay 宽度。
 - `pull_transcript` 执行期间显示 `Pulling…`；超过 3 秒后显示已等待的整秒数，例如 `Pulling… 4s`，并每秒更新。
 - `pull_transcript` 完成后原位替换为 `Pull [start,end)`；总耗时达到 3 秒时使用一位小数追加耗时，例如 `Pull [12,18) · 4.2s`。
-- Overlay 保持可见时不抢占 Primary Agent 的输入焦点。
-- 用户可以隐藏 Overlay，并在保留已有 Advisor Transcript 的情况下重新显示。
 - 重要 Concern 出现时，用户能获得额外提醒。
+- Overlay 输入框中输入非 Advisor 控制命令的 `/` 前缀内容（如 `/help`），透传给 Advisor sub-session 处理，与 pi-btw 行为对齐。
 
 ### PRD-006 生命周期控制
 
@@ -188,10 +197,11 @@ UI 内容契约：
 
 验收标准：
 
-- `/advisor:new` 清空 Advisor Transcript 和 Ask Context 自动注入记录，并开始新的 Advisor 上下文。
+- `/advisor:new` 执行完整重置（清空 Advisor Transcript、Ask Context 自动注入记录、Second Opinion 记录、输入框草稿；如果 Watch Run 正在运行则先取消），Overlay 保持打开。
+- `/advisor:clear` 执行与 `/advisor:new` 完全相同的重置，然后关闭 Overlay。
 - `/advisor:watch-off` 只取消当前 Watch Run，不清空 Advisor Transcript。
 - `/advisor:hide` 隐藏 Advisor Overlay，不清空 Advisor Transcript。
-- `/advisor:show` 重新显示 Advisor Overlay。
+- `/advisor:show` 重新显示 Advisor Overlay，不清空 Advisor Transcript。
 - `/advisor:handoff` 不清空 Advisor Transcript，也不结束当前 Advisor 实例。
 - 用户中断 Primary Agent 后，Advisor 不会自动唤醒 Primary Agent。
 
@@ -228,7 +238,7 @@ Advisor 只在有实际 Advice 时打扰 Primary Agent。
 - 首版不支持外部 agent 接入。
 - 首版不做 Advisor Transcript 的磁盘持久化。
 - Advisor 不承担替代 Primary Agent 执行任务的产品职责。
-- Advisor Overlay 不提供独立输入框，用户交互仍通过主输入框完成。
+
 
 ## 成功标准
 
