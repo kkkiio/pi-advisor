@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advisor Overlay UI</title>
+<style>
+  /*
+   * Color variables are visual approximations of Pi theme tokens.
+   * Pi token mapping:
+   *   --bg             → (overlay background)
+   *   --userMsgBg      → userMessageBg
+   *   --userMsgText    → userMessageText
+   *   --contextBg      → customMessageBg
+   *   --pullBg         → toolSuccessBg (Pull block reuses tool-success background)
+   *   --toolSuccessBg  → toolSuccessBg
+   *   --toolPendingBg  → toolPendingBg
+   *   --toolErrorBg    → toolErrorBg
+   *   --toolTitle      → toolTitle
+   *   --thinkingText   → thinkingText
+   *   --hintBg         → visual alias (Pi has no dedicated hintBg; choose an existing token or a derived color)
+   */
+  :root {
+    --bg: #fdf6e3;
+    --surface: #eee8d5;
+    --border: #93a1a1;
+    --text: #586e75;
+    --text-dim: #839496;
+    --accent: #268bd2;
+    --userMsgBg: #d6e4f0;
+    --userMsgText: #586e75;
+    --contextBg: #e6e6f0;
+    --pullBg: #e6f0e6;
+    --toolSuccessBg: #e6f0e6;
+    --toolPendingBg: #f0ecd6;
+    --toolErrorBg: #f0e6e6;
+    --toolTitle: #b58900;
+    --thinkingText: #839496;
+    --hintBg: #f0e6e6;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #eee8d5;
+    font-family: var(--font);
+    padding: 40px 24px;
+  }
+
+  .overlay {
+    width: 78%;
+    min-width: 580px;
+    max-width: 840px;
+    margin: 0 auto;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.6;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  .ov-header {
+    background: var(--surface);
+    color: var(--accent);
+    font-weight: bold;
+    padding: 3px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .ov-body { padding: 4px 0; }
+
+  /* default text line — no background, default/text color */
+  .ov-line { padding: 1px 14px; color: var(--text); }
+
+  /* thinking — thinkingText + italic, no background */
+  .ov-line.think { color: var(--thinkingText); font-style: italic; }
+
+  /* ── blocks: background is the boundary, body lines not indented ── */
+  .blk { margin: 2px 0; }
+  .blk-line { padding: 1px 14px; }
+
+  .blk.user-msg    { background: var(--userMsgBg); color: var(--userMsgText); }
+  .blk.context     { background: var(--contextBg); }
+  .blk.pull        { background: var(--pullBg); }
+  .blk.tool        { background: var(--toolSuccessBg); }
+  .blk.tool-pend   { background: var(--toolPendingBg); }
+  .blk.tool-err    { background: var(--toolErrorBg); }
+  .blk.hint        { background: var(--hintBg); }
+
+  /* block headers — bold, semantic color */
+  .blk .hd       { font-weight: bold; }
+  .blk.context .hd   { color: var(--accent); }    /* customMessageLabel */
+  .blk.pull .hd      { color: var(--toolTitle); }
+  .blk.tool .hd      { color: var(--toolTitle); }
+  .blk.tool-pend .hd { color: var(--toolTitle); }
+  .blk.tool-err .hd  { color: var(--toolTitle); }
+  .blk.hint .hd      { color: var(--text); }
+
+  /* primary message prefixes inside blocks */
+  .blk .pfx       { color: var(--text-dim); }
+  .blk .arrow     { color: var(--toolTitle); }
+  .blk .dim       { color: var(--text-dim); font-style: italic; }
+
+  .ov-sep {
+    border-top: 1px solid var(--border);
+    padding: 8px 14px;
+  }
+  .ov-sep .cursor {
+    display: inline-block;
+    width: 7px;
+    height: 14px;
+    background: var(--text);
+    vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+
+<div class="overlay">
+
+  <div class="ov-header">Advisor · thinking · ctx 0.8%/200k</div>
+
+  <div class="ov-body">
+
+    <!-- user prompt — userMessageBg + userMessageText -->
+    <div class="blk user-msg">
+      <div class="blk-line">Review the current auth refactoring — check for thread-safety issues in token refresh.</div>
+    </div>
+
+    <!-- Context block — customMessageBg -->
+    <div class="blk context">
+      <div class="blk-line"><span class="hd">Context</span> → 1 user + 2 agent msgs</div>
+      <div class="blk-line"><span class="pfx">user:</span> 请帮我重构 auth 模块的 token 刷新逻辑，尤其是处理并发请求时的竞态条件</div>
+      <div class="blk-line"><span class="pfx">agent:</span> Let me first read the current auth module structure to understand the existing token refresh flow.</div>
+      <div class="blk-line"><span class="pfx">agent:</span> The key issue is the retry interceptor — it fires on every 401 without deduplication.</div>
+    </div>
+
+    <!-- streaming thinking — thinkingText + italic, no background -->
+    <div class="ov-line think">Let me check what the primary agent has done so far, then pull the recent transcript...</div>
+
+    <!-- Pull block — toolSuccessBg -->
+    <div class="blk pull">
+      <div class="blk-line"><span class="hd">Pull</span> [0, 12) → 8 msgs · 1.2s</div>
+      <div class="blk-line"><span class="pfx">user:</span> 请帮我重构 auth 模块的 token 刷新逻辑，尤其是处理并发请求时的竞态条件</div>
+      <div class="blk-line"><span class="pfx">agent:</span> Let me first read the current auth module structure to understand the existing token refresh flow.</div>
+      <div class="blk-line"><span class="arrow">→ read</span> /src/auth.ts:1-200 ⇒ ok · 200 lines</div>
+      <div class="blk-line"><span class="arrow">→ grep</span> refreshToken @ /src/**/*.ts ⇒ ok · 12 matches</div>
+      <div class="blk-line"><span class="arrow">→ write</span> /src/auth-refresh.ts ⇒ ok · 85 lines</div>
+      <div class="blk-line dim">... (3 more, Ctrl+O to expand)</div>
+    </div>
+
+    <!-- thinking -->
+    <div class="ov-line think">The primary agent wrote auth-refresh.ts. Let me read it to check for thread-safety...</div>
+
+    <!-- advisor tool call — toolSuccessBg, toolTitle for header -->
+    <div class="blk tool">
+      <div class="blk-line"><span class="hd">read</span> /src/auth-refresh.ts:1-50 ⇒ ok · 50 lines</div>
+    </div>
+
+    <div class="ov-line think">I see the TokenRefresher class but no pendingRefresh dedup. Let me also grep for existing retry...</div>
+
+    <div class="blk tool">
+      <div class="blk-line"><span class="hd">grep</span> retry|RetryInterceptor @ /src/**/*.ts ⇒ ok · 5 matches</div>
+    </div>
+
+    <!-- advisor tool call — toolPendingBg -->
+    <div class="blk tool-pend">
+      <div class="blk-line"><span class="hd">grep</span> pendingRefresh @ /src/**/*.ts ⇒ pending</div>
+    </div>
+
+    <!-- advisor tool call — toolErrorBg -->
+    <div class="blk tool-err">
+      <div class="blk-line"><span class="hd">read</span> /src/typo.ts ⇒ error · ENOENT: no such file</div>
+    </div>
+
+    <!-- assistant text — default/text color, no background -->
+    <div class="ov-line">Found the issue: the RetryInterceptor fires on every 401, but multiple concurrent</div>
+    <div class="ov-line">requests that all get 401 will each trigger a separate refreshToken call — a race</div>
+    <div class="ov-line">condition. The TokenRefresher needs a pendingRefresh promise to deduplicate.</div>
+
+    <!-- Hint — visual alias; no official Pi hintBg token exists -->
+    <div class="blk hint">
+      <div class="blk-line"><span class="hd">Hint:</span> 建议在 TokenManager 中加入 pendingRefresh promise 去重逻辑。</div>
+    </div>
+
+    <div class="ov-line think">Let me pull again to see if the primary agent applied the fix...</div>
+
+    <div class="blk pull">
+      <div class="blk-line"><span class="hd">Pull</span> [12, 18) → 3 msgs · 0.4s</div>
+      <div class="blk-line"><span class="pfx">agent:</span> I'll add a pendingRefresh promise to deduplicate concurrent 401 retries.</div>
+      <div class="blk-line"><span class="arrow">→ edit</span> /src/auth-refresh.ts +42 -5 ⇒ ok · diff applied</div>
+      <div class="blk-line"><span class="arrow">→ bash!</span> npm test ⇒ ok · 42 lines</div>
+    </div>
+
+    <div class="ov-line">Primary agent has addressed the concern. Watch Run complete.</div>
+
+  </div>
+
+  <div class="ov-sep"><span class="cursor"></span></div>
+
+</div>
+
+</body>
+</html>

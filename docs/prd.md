@@ -47,36 +47,9 @@ Advisor 在 Watch Run 期间可以主动向 Primary Agent 送达 Advice，用户
 
 `Alt+/` 是用户在 Advisor 和 Primary Agent 之间快速切换的核心交互：按一次进入 Advisor，打开 Overlay 并聚焦其输入框；再按一次离开 Advisor，关闭 Overlay 并将焦点归还 Primary。关闭只离开视图，Advisor Transcript、输入草稿和正在运行的 Watch Run 都继续保留。
 
-Overlay 是 Advisor 的旁路工作视图。它展示的是用户可理解的 Advisor 轨迹：用户问了什么、这次 Ask 实际附带了什么 Ask Context、Advisor 通过 Pull 读取了哪些 Primary Transcript 范围、Advisor 调用了哪些工具、Advisor 输出了什么内容。
-
-目标形态：
-
-```text
-╭ Advisor · thinking · ctx 0.1%/128k · ↑2 ↓0 ────────╮
-│                                                     │
-│ Review the current change.                          │
-│                                                     │
-│ Context                                             │
-│ User → Primary                                      │
-│ Review the cache design.                            │
-│ Primary                                             │
-│ The cache now owns request deduplication.           │
-│                                                     │
-│ Pull [12,18) · 4.2s                                 │
-│                                                     │
-│ Hint The main risk is the overlay opening           │
-│ before user intent.                                 │
-│                                                     │
-│                                                     │
-│                                                     │
-├─────────────────────────────────────────────────────┤
-│Ask Advisor a follow-up…                              │
-╰─────────────────────────────────────────────────────╯
-```
+Overlay 是 Advisor 的旁路工作视图。它展示的是用户可理解的 Advisor 轨迹：用户问了什么、这次 Ask 实际附带了什么 Ask Context、Advisor 通过 Pull 读取了哪些 Primary Transcript 范围、Advisor 调用了哪些工具、Advisor 输出了什么内容。具体 UI 设计见 [`docs/ui.html`](ui.html)。
 
 Overlay 是 top-center 的独立面板。用户可在 Overlay 中直接向 Advisor 提问或输入控制命令，也可以随时通过 `Alt+/` 返回 Primary Agent。
-
-Overlay 使用 **prefixed transcript blocks**：每个活动是连续 transcript 中的一个紧凑 block，通过 prefix/badge、颜色、背景和空行表达类型，不使用固定的 role 列。`Context` block 的角色标签和正文都从 block 内的第一列开始，不额外缩进。
 
 ## 需求
 
@@ -157,19 +130,24 @@ Advisor 的建议分为 Hint 和 Concern。
 
 ### PRD-005 可视化
 
-用户可以通过 Advisor Overlay 看到 Advisor 的工作过程。
+用户可以通过 Advisor Overlay 看到 Advisor 的工作过程。Overlay UI 对齐 Pi 官方 UI 设计：复用 Pi 的 theme token（`userMessageBg`/`userMessageText`、`thinkingText`+italic、`toolSuccessBg`/`toolPendingBg`/`toolErrorBg`、`toolTitle`/`toolOutput` 等）、复用 `app.tools.expand` keybinding 控制折叠展开、Block 背景色块风格与 Pi tool block 一致。视觉设计以 [`docs/ui.html`](ui.html) 为权威参考。
 
-UI 内容契约：
+Overlay 的 UI 内容约定和渲染示例见 [`docs/ui.html`](ui.html)。
 
-| 区域            | 内容                                                | 说明                                                                               |
-| --------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Header          | `Advisor · <status> · ctx <used>/<window>`          | 展示 Advisor 当前状态和 context window 使用情况。                                  |
-| 用户消息        | 用户传给 Advisor 的原始提问或任务                   | 使用 `userMessageBg` 背景色 + `userMessageText` 前景色，与 pi 主 transcript 一致。 |
-| `Context` block | 这次 Ask 实际发送的 Ask Context                     | 只在附带 Ask Context 时出现，展示 user text 和 Primary assistant text 的实际内容。 |
-| 工具轨迹        | `Pull`、`Hint`/`Concern`、`read`、`grep` 等工具轨迹 | 工具名直接作为行首标签（不使用 "Tool" badge），单行展示 call + result。            |
-| Advisor 回答    | Advisor chat 内容                                   | 不设 badge，直接以 `text` 颜色展示。                                               |
+**区块格式**：Overlay 内容使用带背景色的 Block，与 Pi 的 tool call/result block 视觉一致。背景色覆盖整行即 block 边界，不额外缩进。不使用 emoji 图标。
 
-不进入 Overlay 的内容：Ask Context 之外的完整 Primary Transcript 原文、冗长 tool result 明细、重复 footer hints、仅供实现调试的状态噪音。
+| Block | Header | 背景色 | 说明 |
+|-------|--------|--------|------|
+| Context | `Context → 1 user + 2 agent msgs` | `customMessageBg` + `customMessageLabel`/`customMessageText` | Ask Advisor 附带 Ask Context 时出现，始终完整显示 |
+| Pull | `Pull [0,12) → 8 msgs · 1.2s` | `toolSuccessBg` + `toolTitle`/`toolOutput` | `pull_transcript` 返回，默认显示前 5 条，Ctrl+O 展开全部 |
+
+Block 内部消息行使用文本前缀：`user:`（用户）、`agent:`（Primary 回复）、`→ tool_name(args) ⇒ ok · N lines`（工具调用合并结果）。
+
+Advisor 自身消息使用 Pi 官方 theme token：用户提问（`userMessageBg` + `userMessageText`）、streaming thinking（`thinkingText` + italic，无背景）、assistant text（默认 `text` 色，无背景）、工具调用成功（call + result 合并一行，`toolSuccessBg` + `toolTitle`/`toolOutput`）、工具调用等待（`toolPendingBg`）、工具调用错误（`toolErrorBg`）、Hint/Concern（背景色为视觉别名，Pi 无专用 hintBg token，实现时选用现有 token）。
+
+**折叠展开**：使用 Pi 的 `app.tools.expand` keybinding（默认 Ctrl+O）。Overlay 监听同一 action，不依赖 Primary 状态。Pull block 折叠时末尾显示 `... (N more, Ctrl+O to expand)`。
+
+不进入 Overlay 的内容：完整 Primary Transcript 原文、冗长 tool result 明细、重复 footer hints、仅供实现调试的状态噪音。
 
 验收标准：
 
@@ -178,7 +156,7 @@ UI 内容契约：
 - `Esc` 与打开状态下的 `Alt+/` 都会离开 Advisor。
 - `/advisor`、`/advisor <消息>`、`/advisor:watch` 和 `/advisor:new` 是带具体意图的进入入口，执行后打开并聚焦 Overlay。
 - Overlay 使用 top-center 面板，宽度约为终端的 78%，底部提供可输入消息和 Advisor 控制命令的独立输入框。
-- Overlay 内容符合上方 UI 内容契约；Ask Context 只在实际附带时展示，内部文本不额外缩进。
+- Overlay 内容符合 [`docs/ui.html`](ui.html) 的约定。
 - Pull 运行时显示 `Pulling…` 和超过 3 秒后的等待时间；完成后原位显示读取范围及达到 3 秒时的总耗时。
 - Overlay 关闭期间 Ask Advisor 完成、Watch Run 自然结束或产生重要 Concern 时，用户收到提醒，并能通过 `Alt+/` 快速查看。
 

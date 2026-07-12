@@ -29,6 +29,15 @@ When changing Advisor runtime code under `extensions/`, read the relevant living
 
 Skip this reading requirement for changes outside `extensions/` unless the change modifies an engineering contract described by those documents.
 
+### UI Design Policy
+
+Advisor Overlay 的对用户可见 UI 对齐 Pi 官方 UI 设计：
+
+- Overlay 的 Block（Context、Pull、Hint）、thinking、工具调用等元素的渲染语义对齐 Pi 官方 theme token（`userMessageBg`/`userMessageText`、`thinkingText`+italic、`toolSuccessBg`/`toolPendingBg`/`toolErrorBg`、`toolTitle`/`toolOutput`、`customMessageBg`）。
+- Overlay 的折叠/展开行为复用 Pi 的 `app.tools.expand` keybinding（默认 Ctrl+O），使用同一 action 名称。
+- 视觉设计以 [`docs/ui.html`](docs/ui.html) 为权威参考，以 Pi 的实际渲染行为和 theme token 为最终裁定。
+- 不发明自有 UI 模式；新增的视觉元素优先复用 Pi 已有组件（Box、背景色块、截断提示等）。
+
 ### Compatibility Policy
 
 When changing public APIs, persisted data, config files, CLI flags, plugin contracts, or user-facing workflows, follow this project's compatibility policy.
@@ -63,6 +72,7 @@ This package provides a Pi extension that runs a session-persistent Advisor besi
 ├── README.md                         # User-facing overview, installation, and usage
 ├── docs/
 │   ├── prd.md                        # Product requirements and user-visible behavior
+│   ├── ui.html                       # Advisor Overlay visual design reference
 │   └── engineering/                  # Current engineering intent — living docs
 │       ├── advisor-runtime.md        # Independent shared Advisor session, tools, lifecycle, abort boundaries
 │       ├── pull-transcript.md        # Pull model, cursor contract, waiting, Primary loop state
