@@ -61,13 +61,8 @@ describe("Advisor overlay visual snapshots", () => {
 			}
 
 			expect(failures).toEqual([]);
-			if (scenario.focused) {
-				expect(rendered).toContain("\x1b[7m");
-				expect(rendered).toContain("\x1b[27m");
-			} else {
-				expect(rendered).not.toContain("\x1b[7m");
-				expect(rendered).not.toContain("\x1b[27m");
-			}
+			expect(rendered).toContain("\x1b[7m");
+			expect(rendered).toContain("\x1b[27m");
 			expect(fullWidthBackgroundRows).toEqual(scenario.expectedFullWidthBackgroundRows ?? []);
 			expect(rendered).toMatchSnapshot();
 		});

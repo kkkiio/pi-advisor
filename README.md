@@ -88,13 +88,9 @@ Outside a Watch Run, Advisor does not send Advice on its own. You can still use 
 
 Cancel the current Watch Run while preserving the Advisor instance and its existing Advisor Transcript.
 
-### `/advisor:new` — Reset Advisor
+### `/advisor:new` — Start fresh
 
-Perform a full reset: clear the Advisor Transcript, Ask Context injection history, Second Opinion history, and input draft. If a Watch Run is active, cancel it first. The Overlay remains open.
-
-### `/advisor:clear` — Clear and close
-
-Perform the same full reset as `/advisor:new`, then close the Overlay.
+Start a fresh Advisor conversation: clear the Advisor Transcript, Ask Context injection history, Second Opinion history, and input draft. If a Watch Run is active, cancel it first. The Overlay opens with its input focused so the new conversation is ready to use.
 
 ### `/advisor:model [model]` — Set the model
 
@@ -104,26 +100,19 @@ Open a movable, searchable model picker, or pass an argument to set the model di
 
 Open the thinking-level picker, or pass an argument to set Advisor's thinking level directly. Available levels are `off`, `minimal`, `low`, `medium`, `high`, and `xhigh`; the default is `medium`. Changing the level automatically resets the Advisor session. If no level is configured, Advisor uses its built-in default.
 
-### `/advisor:hide` — Hide the Overlay
-
-Hide the Advisor Overlay without clearing the Advisor Transcript. Use `/advisor:show` at any time to display it again.
-
-### `/advisor:show` — Show the Overlay
-
-Display the Advisor Overlay again and restore the existing Advisor Transcript view.
-
 ### Advisor Overlay
 
-The Overlay opens automatically after `/advisor` or `/advisor:watch`. It appears as a top-center panel and shows Advisor's review process in real time as prefixed transcript blocks: user messages, Ask Context, tool calls such as Pull, Hint, and Concern, and Advisor responses. The Overlay header shows Advisor's status and context-window usage, for example `Advisor · thinking · ctx 0.1%/128k`. When content extends beyond the visible area, `↑N ↓M` scroll indicators appear.
+The Overlay opens automatically after `/advisor`, `/advisor:new`, or `/advisor:watch`. It appears as a top-center panel and shows Advisor's review process in real time as prefixed transcript blocks: user messages, Ask Context, tool calls such as Pull, Hint, and Concern, and Advisor responses. The Overlay header shows Advisor's status and context-window usage, for example `Advisor · thinking · ctx 0.1%/128k`. When content extends beyond the visible area, `↑N ↓M` scroll indicators appear.
 
-A separate input box at the bottom of the Overlay accepts messages and control commands. The main input box retains all public commands, including `/advisor`, `/advisor:hide`, and `/advisor:show`. The Overlay input box supports these seven control commands: `/advisor:watch`, `/advisor:watch-off`, `/advisor:handoff`, `/advisor:new`, `/advisor:clear`, `/advisor:model`, and `/advisor:thinking`.
+A separate input box at the bottom of the Overlay accepts messages and control commands. A visible Overlay always owns keyboard focus; close it before returning to the Primary input. The Overlay input box supports these six control commands: `/advisor:watch`, `/advisor:watch-off`, `/advisor:handoff`, `/advisor:new`, `/advisor:model`, and `/advisor:thinking`.
 
 **Overlay controls:**
 
-- `Alt+/`: Switch focus between the Overlay input box and the main input box. Alternative: `Ctrl+Alt+W`.
-- When the Overlay input box is focused, press `Esc` to close the Overlay and return focus to the main input box.
-- Switching to the main input box preserves the draft in the Overlay input box.
-- When the Overlay is focused, scroll the transcript with ↑/↓, PgUp/PgDn, or the mouse wheel.
+- `Alt+/`: Open the Overlay with focus, or close it and return focus to the Primary input.
+- `Esc`: Close the Overlay and return focus to the Primary input.
+- Closing the Overlay preserves its transcript, active Watch Run, and input draft.
+- Scroll the open Overlay transcript with ↑/↓, PgUp/PgDn, or the mouse wheel.
+- When work finishes while the Overlay is closed, a notification tells you to press `Alt+/` to view it.
 
 After the user interrupts the Primary Agent, Advisor does not automatically wake it.
 
@@ -146,6 +135,6 @@ This user-level configuration applies to every project for the same user. The Ad
 
 ## Product and architecture
 
-See [`docs/prd.md`](docs/prd.md) for product requirements. See [`docs/adr/`](docs/adr/) for the accepted architecture decisions and the reasoning behind them.
+See [`docs/prd.md`](docs/prd.md) for product requirements. See [`docs/engineering/`](docs/engineering/) for current engineering intent and considered alternatives.
 
 Acknowledgments: This project was inspired by pi-btw, oh-my-pi, and pi-omplike-advisor.

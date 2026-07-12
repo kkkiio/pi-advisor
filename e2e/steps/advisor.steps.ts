@@ -258,8 +258,6 @@ Then("Advisor commands should be available", async function (this: AdvisorE2EWor
 			"advisor:watch",
 			"advisor:watch-off",
 			"advisor:handoff",
-			"advisor:hide",
-			"advisor:show",
 			"advisor:new",
 			"advisor:model",
 			"advisor:thinking",

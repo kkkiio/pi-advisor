@@ -1,15 +1,33 @@
 # AGENTS.md
 
-Developer-agent guide for implementing the Pi Advisor extension.
+## Domain Language
+
+- **Primary Agent** — 用户在 Pi 主会话中直接交互并负责实现任务的 agent。
+- **Advisor** — 与 Primary Agent 隔离、面向用户提供审查视角的单一会话内 agent。
+- **Ask Advisor** — 用户向 Advisor 发起问题并获得 Second Opinion 的交互。
+- **Ask Context** — Ask Advisor 自动附带的近期 Primary user text 与 assistant text。
+- **Second Opinion** — Advisor 针对 Ask Advisor 直接呈现给用户的独立审查回答。
+- **Watch Run** — Advisor 持续旁观当前 Primary Agent 任务的一次异步审查运行。
+- **Pull** — Advisor 主动读取 Primary Agent 工作进展的动作。
+- **Primary Transcript View** — 经过来源过滤和脱敏、专供 Advisor Pull 与 Ask Context 使用的 Primary transcript 视图。
+- **Advice** — Advisor 送达 Primary Agent 的具体指导信息。
+- **Hint** — 通过 Steer 尽快送达 Primary Agent 的加速型 Advice。
+- **Concern** — 通过 Follow-up 在当前工作完成后处理的风险型 Advice。
+- **Advisor Overlay** — 用户查看和操作 Advisor 的 top-center 完整工作视图。
 
 ## Policies & Mandatory Rules
 
 ### Architecture Boundaries
 
-When implementing Advisor runtime code under `extensions/`, follow the accepted ADRs in `docs/adr/`.
+When changing Advisor runtime code under `extensions/`, read the relevant living engineering documents before editing:
 
-- Use the Pull model from `docs/adr/0001-pull-not-push.md`.
+- Read `docs/engineering/advisor-runtime.md`, `docs/engineering/pull-transcript.md`, and `docs/engineering/advice-delivery.md` when changing session lifecycle, tools, Watch Run, Pull, or Advice Delivery.
+- Read `docs/engineering/primary-transcript-view.md` and `docs/engineering/ask-context.md` when changing transcript filtering, serialization, indexing, redaction, or Ask Context.
+- Read `docs/engineering/overlay.md` when changing Overlay state, focus, input, commands, scrolling, or notifications.
+- Use the Pull model; do not push Primary transcript deltas into Advisor turns.
 - Keep one Advisor instance shared by Ask Advisor and Watch Run.
+
+Skip this reading requirement for changes outside `extensions/` unless the change modifies an engineering contract described by those documents.
 
 ### Compatibility Policy
 
@@ -22,61 +40,70 @@ When changing public APIs, persisted data, config files, CLI flags, plugin contr
 
 ### Testing Policy
 
-- Do not add runtime/unit tests for Advisor behavior. Cover behavior through BDD E2E or visual tests instead.
-- The only allowed unit test is `tests/advisor/session-history-format.test.ts`, because markdown transcript serialization is dense, deterministic, and valuable to pin directly.
-- Write `.feature` files in Advisor domain and user-observable business language. Keep implementation details such as RPC sessions, faux providers, test scripts, snapshots, tmux, and harnesses out of BDD scenario text.
-- Use deterministic overlay snapshots for stable TUI layout checks. Use generated HTML artifacts for visual review against `docs/prd.md`.
+When changing Advisor behavior, cover it through BDD E2E or visual tests. Do not add runtime unit tests.
+
+- Use `tests/advisor/session-history-format.test.ts` only for markdown transcript serialization, because this dense deterministic format benefits from direct unit coverage.
+- Write `e2e/features/*.feature` in Advisor domain and user-observable business language. Keep RPC sessions, faux providers, test scripts, snapshots, tmux, and harnesses out of scenario text.
+- Use deterministic Overlay snapshots for stable TUI layout checks. Use generated HTML artifacts for visual review against `docs/prd.md`.
 - Do not use whole-TUI exact text snapshots as the default E2E oracle.
+- Run the visual test flow when changing Advisor Overlay layout or TUI visual behavior; skip it for non-visual changes.
 
 ## Project Structure Guide
 
 ### Overview
 
-This package provides a Pi extension that runs a session-persistent Advisor agent beside the Primary Agent. Runtime code is organized around the Advisor domain model: Ask Advisor, Watch Run, Pull, Advise, Primary Transcript View, Advice Delivery, and Advisor Overlay.
+This package provides a Pi extension that runs a session-persistent Advisor beside the Primary Agent. Runtime code follows the Advisor domain model defined above, and `docs/engineering/` records current engineering intent as living documentation.
 
 ### Repo Structure & Important Files
 
 ```text
 .
-├── AGENTS.md                       # Developer-agent guide
-├── CONTEXT.md                      # Advisor domain glossary
-├── README.md                       # User-facing overview and usage
+├── AGENTS.md                         # Developer-agent rules, terminology, structure, and workflows
+├── CONTEXT.md                        # Extended Advisor domain glossary
+├── README.md                         # User-facing overview, installation, and usage
 ├── docs/
-│   ├── prd.md                      # Product requirements and user-visible behavior
-│   └── adr/                        # Accepted architecture decisions
+│   ├── prd.md                        # Product requirements and user-visible behavior
+│   └── engineering/                  # Current engineering intent — living docs
+│       ├── advisor-runtime.md        # Independent shared Advisor session, tools, lifecycle, abort boundaries
+│       ├── pull-transcript.md        # Pull model, cursor contract, waiting, Primary loop state
+│       ├── advice-delivery.md        # Hint/Concern routing, provenance, abort protection
+│       ├── primary-transcript-view.md # Source filtering, indexing, omitted markers, redaction
+│       ├── ask-context.md            # Ask Context injection, deduplication, message boundaries
+│       └── overlay.md                # Overlay visibility, focus, input, events, notifications
 ├── extensions/
-│   ├── advisor.ts                  # Thin Pi entrypoint: compose runtime, register commands/renderers, bind lifecycle events
-│   ├── advisor/                    # Advisor runtime package organized by Advisor domain language
-│   │   ├── constants.ts            # Custom message/entry IDs, command/tool names, overlay constants, defaults, system prompt
-│   │   ├── settings.ts             # Read/write ~/.pi/agent/advisor.json, parse model refs, validate thinking levels
-│   │   ├── session.ts              # Long-lived Advisor AgentSession, Primary lifecycle binding, Watch Run reset/cancel, disposal
-│   │   ├── primary-transcript.ts   # Primary Transcript View filtering, redaction, compaction boundaries, index normalization, rendering
-│   │   ├── transcript-state.ts     # Advisor transcript UI state: turn boundaries, thinking/text streams, tool calls/results, notices
-│   │   ├── messages.ts             # Bridge missing Pi message role types until Pi exports them publicly
-│   │   ├── session-history-format.ts # Reusable markdown transcript serialization for Primary Transcript View
-│   │   ├── tools.ts                # pull_transcript and advise custom tool definitions using typebox schemas
-│   │   ├── overlay.ts              # Advisor Overlay with input box, focus toggle, mouse scroll, and transcript rendering
-│   │   ├── delivery.ts             # Hint-to-Steer and Concern-to-Follow-up routing, provenance metadata, abort auto-resume suppression
-│   │   └── types.ts                # Shared Advisor domain types and runtime port interfaces
+│   ├── advisor.ts                    # Thin Pi entrypoint: runtime composition and registrations
+│   └── advisor/
+│       ├── constants.ts              # Custom IDs, names, defaults, and system prompt
+│       ├── settings.ts               # User-level Advisor model and thinking settings
+│       ├── session.ts                # Advisor session lifecycle, Ask Advisor, Watch Run, Pull runtime
+│       ├── primary-transcript.ts     # Primary Transcript View filtering, indexing, redaction, rendering
+│       ├── transcript-state.ts       # Advisor Overlay transcript projection
+│       ├── messages.ts               # Pi message-role type bridge
+│       ├── session-history-format.ts # Markdown serialization for Primary Transcript View
+│       ├── tools.ts                  # pull_transcript and advise tool definitions
+│       ├── overlay.ts                # Focused Overlay component and controller
+│       ├── delivery.ts               # Advice channel routing and provenance
+│       └── types.ts                  # Shared domain and runtime port types
 ├── tests/
 │   ├── advisor/
-│   │   └── session-history-format.test.ts # The only allowed unit test; transcript formatter tests
-│   └── visual/                       # TUI visual tests: overlay snapshots plus HTML artifact capture
+│   │   └── session-history-format.test.ts # Only allowed unit test
+│   └── visual/                       # Overlay snapshots and HTML artifact capture
 ├── e2e/
-│   ├── features/                    # Advisor BDD feature files
-│   ├── steps/                       # Cucumber step definitions
-│   ├── support/                     # Real pi RPC and tmux TUI E2E harnesses
-│   └── fixtures/                    # Faux provider and E2E fixtures
-├── test-results/                    # Gitignored generated visual artifacts and test outputs
-├── package.json                    # Package metadata, Pi entrypoints, scripts, dependencies
-├── package-lock.json               # npm lockfile
-├── tsconfig.json                   # TypeScript project config
-└── vitest.config.ts                # Vitest config
+│   ├── features/                     # Advisor BDD feature files
+│   ├── steps/                        # Cucumber step definitions
+│   ├── support/                      # Real Pi RPC and tmux TUI harnesses
+│   └── fixtures/                     # Deterministic faux provider and fixtures
+├── test-results/                     # Gitignored generated test and visual artifacts
+├── package.json                      # Package metadata, Pi entrypoint, npm scripts
+├── package-lock.json                 # Locked dependencies
+├── justfile                          # Submit-ready verification recipes
+├── tsconfig.json                     # TypeScript configuration
+└── vitest.config.ts                  # Vitest configuration
 ```
 
 ## Operation Guide
 
-Before committing or handing work back, run the local verification flow through `just`:
+Before committing or handing work back, run the submit-ready verification flow:
 
 ```bash
 just fmt
@@ -85,12 +112,10 @@ just test
 just test-e2e
 ```
 
-That sequence is the default submit-ready check. Run extra commands only when the user asks for them or the change clearly needs them.
-
-When changing Advisor Overlay layout or TUI visual behavior, run the visual test flow:
+When changing Advisor Overlay layout or TUI visual behavior, also run:
 
 ```bash
 npm run test:visual
 ```
 
-Use `test-results/visual/index.html` as the review entrypoint for generated visual artifacts.
+Review generated visual artifacts from `test-results/visual/index.html`.

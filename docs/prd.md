@@ -43,7 +43,9 @@ Advisor 在 Watch Run 期间可以主动向 Primary Agent 送达 Advice，用户
 
 ### Advisor Overlay
 
-用户需要知道 Advisor 是否在工作、看到了什么、形成了什么 Second Opinion 或 Advice。Advisor Overlay 应展示 Advisor 的审查活动和输出，但不抢占用户正在与 Primary Agent 交互的输入焦点。
+用户需要知道 Advisor 是否在工作、看到了什么、形成了什么 Second Opinion 或 Advice。Advisor Overlay 是用户进入 Advisor 的完整工作视图；它显示时直接承接用户的注意力和键盘输入。
+
+`Alt+/` 是用户在 Advisor 和 Primary Agent 之间快速切换的核心交互：按一次进入 Advisor，打开 Overlay 并聚焦其输入框；再按一次离开 Advisor，关闭 Overlay 并将焦点归还 Primary。关闭只离开视图，Advisor Transcript、输入草稿和正在运行的 Watch Run 都继续保留。
 
 Overlay 是 Advisor 的旁路工作视图。它展示的是用户可理解的 Advisor 轨迹：用户问了什么、这次 Ask 实际附带了什么 Ask Context、Advisor 通过 Pull 读取了哪些 Primary Transcript 范围、Advisor 调用了哪些工具、Advisor 输出了什么内容。
 
@@ -72,7 +74,7 @@ Overlay 是 Advisor 的旁路工作视图。它展示的是用户可理解的 Ad
 ╰─────────────────────────────────────────────────────╯
 ```
 
-Primary Agent transcript and input 在上方正常显示，Overlay 是 top-center 的独立面板。用户可在 Overlay 中直接向 Advisor 提问或输入控制命令；只有启动 Ask Advisor 或 Watch Run 后才会出现。
+Overlay 是 top-center 的独立面板。用户可在 Overlay 中直接向 Advisor 提问或输入控制命令，也可以随时通过 `Alt+/` 返回 Primary Agent。
 
 Overlay 使用 **prefixed transcript blocks**：每个活动是连续 transcript 中的一个紧凑 block，通过 prefix/badge、颜色、背景和空行表达类型，不使用固定的 role 列。`Context` block 的角色标签和正文都从 block 内的第一列开始，不额外缩进。
 
@@ -171,26 +173,14 @@ UI 内容契约：
 
 验收标准：
 
-- 安装 extension 或打开 Pi 时，Overlay 默认隐藏。
-- `/advisor` 无参数时打开 Overlay 并将焦点置于 Overlay 输入框。
-- `/advisor <消息>` 打开 Overlay 并立即以该消息发起 Ask Advisor。
-- `/advisor:watch` 启动 Watch Run 时 Overlay 自动打开。
-- Overlay 使用 top-center 面板形态，宽度约为终端的 78%，避免大面积遮挡 Primary Agent 的工作区。
-- Overlay 底部提供独立输入框，用户可直接输入消息或控制命令。
-- Overlay 默认 non-capturing；仅在 `/advisor` 无参数或 `Alt+/` 显式操作时将焦点置于 Overlay 输入框。`Ctrl+Alt+W` 作为备选快捷键。
-- Overlay 输入框聚焦时，`Esc` 关闭 Overlay 并将焦点归还主输入框。
-- Overlay 支持鼠标滚轮和触控板滚动 transcript 内容。
-- 切换到主输入框时，Overlay 输入框的草稿保留不丢失。
-- Overlay 输入框识别以下 `/advisor:` 前缀控制命令：`watch`、`watch-off`、`handoff`、`new`、`clear`、`model`、`thinking`。
-- 以上命令同时注册在主输入框中，行为和 Overlay 内一致。用户可从任一入口执行。
-- Overlay 内容符合上方 UI 内容契约。
-- Ask Advisor 附带 Ask Context 时，Overlay 展示实际发送的文本内容。
-- Ask Advisor 没有附带 Ask Context 时，Overlay 不显示空 Context block 或未注入状态。
-- Context block 中的角色标签、正文和换行文本使用同一起始列，不为层级额外占用 Overlay 宽度。
-- `pull_transcript` 执行期间显示 `Pulling…`；超过 3 秒后显示已等待的整秒数，例如 `Pulling… 4s`，并每秒更新。
-- `pull_transcript` 完成后原位替换为 `Pull [start,end)`；总耗时达到 3 秒时使用一位小数追加耗时，例如 `Pull [12,18) · 4.2s`。
-- 重要 Concern 出现时，用户能获得额外提醒。
-- Overlay 输入框中输入非 Advisor 控制命令的 `/` 前缀内容（如 `/help`），透传给 Advisor sub-session 处理，与 pi-btw 行为对齐。
+- 启动时 Overlay 默认关闭；`Alt+/` 可以随时快速进入 Advisor，或离开 Advisor 返回 Primary。
+- Overlay 只有关闭和打开且聚焦两种状态。打开时键盘、滚动和触控板输入归 Overlay；关闭时 Advisor Transcript、输入草稿和 Watch Run 保留。
+- `Esc` 与打开状态下的 `Alt+/` 都会离开 Advisor。
+- `/advisor`、`/advisor <消息>`、`/advisor:watch` 和 `/advisor:new` 是带具体意图的进入入口，执行后打开并聚焦 Overlay。
+- Overlay 使用 top-center 面板，宽度约为终端的 78%，底部提供可输入消息和 Advisor 控制命令的独立输入框。
+- Overlay 内容符合上方 UI 内容契约；Ask Context 只在实际附带时展示，内部文本不额外缩进。
+- Pull 运行时显示 `Pulling…` 和超过 3 秒后的等待时间；完成后原位显示读取范围及达到 3 秒时的总耗时。
+- Overlay 关闭期间 Ask Advisor 完成、Watch Run 自然结束或产生重要 Concern 时，用户收到提醒，并能通过 `Alt+/` 快速查看。
 
 ### PRD-006 生命周期控制
 
@@ -198,11 +188,8 @@ UI 内容契约：
 
 验收标准：
 
-- `/advisor:new` 执行完整重置（清空 Advisor Transcript、Ask Context 自动注入记录、Second Opinion 记录、输入框草稿；如果 Watch Run 正在运行则先取消），Overlay 保持打开。
-- `/advisor:clear` 执行与 `/advisor:new` 完全相同的重置，然后关闭 Overlay。
+- `/advisor:new` 执行完整重置（清空 Advisor Transcript、Ask Context 自动注入记录、Second Opinion 记录、输入框草稿；如果 Watch Run 正在运行则先取消），然后打开并聚焦 Overlay。
 - `/advisor:watch-off` 只取消当前 Watch Run，不清空 Advisor Transcript。
-- `/advisor:hide` 隐藏 Advisor Overlay，不清空 Advisor Transcript。
-- `/advisor:show` 重新显示 Advisor Overlay，不清空 Advisor Transcript。
 - `/advisor:handoff` 不清空 Advisor Transcript，也不结束当前 Advisor 实例。
 - 用户中断 Primary Agent 后，Advisor 不会自动唤醒 Primary Agent。
 
