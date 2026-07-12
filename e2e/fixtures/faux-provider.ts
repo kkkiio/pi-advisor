@@ -78,6 +78,23 @@ function scriptedResponse(
 		);
 	}
 	if (model.id === primaryModelId) {
+		if (script === "overlay-pull-collapse") {
+			const request = latestUserMessage ? contentText(latestUserMessage.content) : "";
+			if (request.includes("PRIMARY_CHAT_USER_1") && !hasToolResult(context, "read")) {
+				return fauxAssistantMessage([fauxText("PRIMARY_CHAT_AGENT_2"), fauxToolCall("read", { path: "README.md" })], {
+					stopReason: "toolUse",
+				});
+			}
+			if (request.includes("PRIMARY_CHAT_USER_1")) {
+				return fauxAssistantMessage("PRIMARY_CHAT_AGENT_4");
+			}
+			if (request.includes("PRIMARY_CHAT_USER_5")) {
+				return fauxAssistantMessage("PRIMARY_CHAT_AGENT_6");
+			}
+			if (request.includes("PRIMARY_CHAT_USER_7")) {
+				return fauxAssistantMessage("PRIMARY_CHAT_AGENT_8");
+			}
+		}
 		if (script === "readme") {
 			return fauxAssistantMessage(
 				fauxText("Implemented request deduplication and eviction of failed in-flight entries."),

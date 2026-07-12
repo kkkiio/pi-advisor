@@ -4,7 +4,7 @@
 
 Advisor 使用 Pull 模型读取 Primary Agent 的工作进展。Runtime 不按 Primary turn 主动推送 transcript delta；Advisor 根据当前任务、Primary Agent loop state 和已有 cursor，自行决定何时调用 `pull_transcript`。
 
-`pull_transcript` 读取经过过滤和脱敏的 Primary Transcript View，并把选定范围序列化成 markdown tool result。Advisor 模型通过 tool output 阅读 Primary Agent 的 user message、assistant output、thinking、tool calls 和 tool results。
+`pull_transcript` 读取经过来源过滤的 Primary Transcript View，并把选定范围序列化成 markdown tool result。Advisor 模型通过 tool output 阅读 Primary Agent 的 user message、assistant output、thinking、tool calls 和 tool results。
 
 ## Tool Contract
 
@@ -20,6 +20,8 @@ pull_transcript(since_index?, timeout_ms?, count?)
 - `wait_result` 为 `new_messages`、`state_changed`、`watch_cancelled` 或 `timeout`。
 - `primary_agent_loop_state` 为 `running`、`idle` 或 `aborted`，描述完整 agent loop，注意跟单个 turn 和 token streaming 区分。
 
+Overlay 的 `Pulling… Ns` 从 `tool_execution_start` 开始计时。模型流式生成 tool call arguments 的时间不属于 Pull 等待时间；完成态使用 result details 的 `waitedMs`。
+
 返回值以状态 header 开始，随后是 markdown transcript：
 
 ```text
@@ -28,6 +30,8 @@ pull_transcript(since_index?, timeout_ms?, count?)
 **agent**:
 我先看一下现有的 auth 模块。
 ```
+
+Tool result details 同时携带供 Advisor Overlay 使用的结构化 display items。它们与 markdown 从同一个过滤后 slice 生成，使用 `user`、`agent` 和 `tool` 三种类型；tool call 与对应 result 合并为一个 item。Display items 不替代 markdown tool output，也不改变 `[start, end)` cursor 语义。
 
 如果 compaction 或 tree 切换使 `since_index` 超过当前 View 长度，Pull 从 View index 0 恢复读取，继续受 `count` 限制，并在 header 中注明 cursor 越界。
 
@@ -45,4 +49,4 @@ Push 需要 runtime 维护发送 cursor、pending queue、drain loop、重复上
 
 ### 把 Primary Messages 直接注入 Advisor Transcript
 
-直接注入会混合两套会话的消息边界，并让来源过滤、redaction 和 cursor 语义分散到多个写入路径。当前方案把 Primary 内容作为格式稳定的 tool result 返回。
+直接注入会混合两套会话的消息边界，并让来源过滤和 cursor 语义分散到多个写入路径。当前方案把 Primary 内容作为格式稳定的 tool result 返回。

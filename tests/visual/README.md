@@ -16,6 +16,8 @@ These checks render the Advisor Overlay directly from deterministic transcript s
 - rendered lines stay inside the configured width;
 - required user-visible sections are present;
 - semantic background rows use the expected theme color and span the full panel width, including wrapped rows;
+- Context, Pull, tool, thinking, and Advice content use Pi's foreground, bold, and italic theme semantics;
+- Pull previews show five structured items and expand through the configured `app.tools.expand` action;
 - stable overlay layouts match Vitest snapshots.
 - visible Overlay inputs retain the reverse-video software cursor because an open Overlay always owns focus.
 

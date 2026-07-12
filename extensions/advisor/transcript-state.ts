@@ -1,7 +1,8 @@
 import type { AgentSessionEvent, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { AssistantMessage, UserMessage } from "@earendil-works/pi-ai";
+import { Box, type Component, Container, Spacer, Text } from "@earendil-works/pi-tui";
 import { PULL_ELAPSED_VISIBLE_MS } from "./constants";
-import type { AskContext, TranscriptLine } from "./types";
+import type { AskContext, PullTranscriptDetails, PullTranscriptDisplayItem } from "./types";
 
 export type AdvisorTranscriptEntry =
 	| { id: number; turnId: number; type: "turn-boundary"; phase: "start" | "end" }
@@ -16,7 +17,8 @@ export type AdvisorTranscriptEntry =
 			toolCallId: string;
 			toolName: string;
 			args: string;
-			startedAt: number;
+			rawArgs: unknown;
+			startedAt: number | null;
 	  }
 	| {
 			id: number;
@@ -25,6 +27,8 @@ export type AdvisorTranscriptEntry =
 			toolCallId: string;
 			toolName: string;
 			content: string;
+			lineCount: number;
+			details: unknown;
 			truncated: boolean;
 			isError: boolean;
 			streaming: boolean;
@@ -97,11 +101,18 @@ export function applyTranscriptEvent(state: AdvisorTranscriptState, event: Agent
 			return;
 		}
 		if (event.message.role === "toolResult") {
-			upsertToolResultEntry(state, event.message.toolCallId, event.message.toolName, event.message, false);
+			upsertToolResultEntry(
+				state,
+				event.message.toolCallId,
+				event.message.toolName,
+				event.message,
+				false,
+				event.message.isError,
+			);
 		}
 	}
 	if (event.type === "tool_execution_start") {
-		ensureToolCallEntry(state, event.toolCallId, event.toolName, event.args ?? {});
+		ensureToolCallEntry(state, event.toolCallId, event.toolName, event.args ?? {}, Date.now());
 		return;
 	}
 	if (event.type === "tool_execution_update") {
@@ -130,120 +141,133 @@ export function getCompletedExchangeCount(entries: AdvisorTranscript): number {
 export function buildAdvisorOverlayTranscript(
 	entries: AdvisorTranscript,
 	theme: ExtensionContext["ui"]["theme"],
-): TranscriptLine[] {
-	const lines: TranscriptLine[] = [];
-	const contextBadge = buildTranscriptBadge(theme, "Context", "customMessageBg", "accent");
-	const errorBadge = buildTranscriptBadge(theme, "Error", "customMessageBg", "error");
-
-	const pushBlankLine = () => {
-		const last = lines[lines.length - 1];
-		const lastText = typeof last === "string" ? last : (last?.text ?? "");
-		if (lines.length > 0 && lastText !== "") {
-			lines.push("");
-		}
-	};
-
-	const pushInlineBlock = (
-		header: string,
-		text: string,
-		options: { blankBefore?: boolean; style?: (value: string) => string } = {},
-	) => {
-		const bodyLines = text.split("\n");
-		const style = options.style ?? ((value: string) => value);
-		if (options.blankBefore !== false) {
-			pushBlankLine();
-		}
-
-		const firstLine = bodyLines.shift() ?? "";
-		lines.push(`${header}${firstLine ? ` ${style(firstLine)}` : ""}`);
-		for (const line of bodyLines) {
-			lines.push(style(line));
-		}
-	};
-
-	const pushStackedBlock = (
-		header: string,
-		text: string,
-		options: { blankBefore?: boolean; style?: (value: string) => string } = {},
-	) => {
-		const bodyLines = text.split("\n");
-		const style = options.style ?? ((value: string) => value);
-		if (options.blankBefore !== false) {
-			pushBlankLine();
-		}
-
-		lines.push(header);
-		for (const line of bodyLines) {
-			lines.push(style(line));
-		}
-	};
-
+	pullsExpanded = false,
+	expandKeyText: string | null = "ctrl+o",
+): Component {
+	const transcript = new Container();
+	let hasVisibleContent = false;
 	for (const entry of entries) {
 		if (entry.type === "turn-boundary") {
 			continue;
 		}
 		if (entry.type === "user-message") {
-			pushBlankLine();
-			for (const line of entry.text.split("\n")) {
-				lines.push({ text: theme.fg("userMessageText", line), bg: "userMessageBg" });
+			if (hasVisibleContent) {
+				transcript.addChild(new Spacer(1));
 			}
+			const box = new Box(1, 0, (text) => theme.bg("userMessageBg", text));
+			box.addChild(new Text(theme.fg("userMessageText", entry.text), 0, 0));
+			transcript.addChild(box);
+			hasVisibleContent = true;
 			continue;
 		}
 		if (entry.type === "ask-context") {
-			const contextLines = ["User → Primary", ...entry.userText.split("\n")];
-			if (entry.assistantTexts.length > 0) {
-				contextLines.push("", "Primary");
-				for (const [index, text] of entry.assistantTexts.entries()) {
-					if (index > 0) {
-						contextLines.push("");
-					}
-					contextLines.push(...text.split("\n"));
-				}
+			if (hasVisibleContent) {
+				transcript.addChild(new Spacer(1));
 			}
-			pushStackedBlock(contextBadge, contextLines.join("\n"));
+			const box = new Box(1, 0, (text) => theme.bg("customMessageBg", text));
+			const agentCount = entry.assistantTexts.length;
+			const agentLabel = agentCount === 1 ? "agent msg" : "agent msgs";
+			box.addChild(
+				new Text(
+					`${theme.fg("customMessageLabel", theme.bold("Context"))}${theme.fg(
+						"customMessageText",
+						` → 1 user + ${agentCount} ${agentLabel}`,
+					)}`,
+					0,
+					0,
+				),
+			);
+			box.addChild(new Text(`${theme.fg("dim", "user:")} ${theme.fg("customMessageText", entry.userText)}`, 0, 0));
+			for (const text of entry.assistantTexts) {
+				box.addChild(new Text(`${theme.fg("dim", "agent:")} ${theme.fg("customMessageText", text)}`, 0, 0));
+			}
+			transcript.addChild(box);
+			hasVisibleContent = true;
+			continue;
+		}
+		if (entry.type === "thinking") {
+			if (hasVisibleContent) {
+				transcript.addChild(new Spacer(1));
+			}
+			transcript.addChild(new Text(theme.italic(theme.fg("thinkingText", entry.text)), 1, 0));
+			hasVisibleContent = true;
 			continue;
 		}
 		if (entry.type === "assistant-text") {
-			if (entry.streaming) {
-				pushInlineBlock(theme.fg("warning", "▍"), entry.text);
-			} else {
-				pushBlankLine();
-				for (const line of entry.text.split("\n")) {
-					lines.push(theme.fg("text", line));
-				}
+			if (hasVisibleContent) {
+				transcript.addChild(new Spacer(1));
 			}
+			transcript.addChild(new Text(theme.fg("text", entry.text), 1, 0));
+			hasVisibleContent = true;
 			continue;
 		}
 		if (entry.type === "tool-call") {
+			if (hasVisibleContent) {
+				transcript.addChild(new Spacer(1));
+			}
 			const result = entries.find(
 				(candidate) => candidate.type === "tool-result" && candidate.toolCallId === entry.toolCallId,
 			);
 			const summary = formatToolSummary(entry, result);
-			if (entry.toolName === "pull_transcript") {
-				const separator = summary.call.indexOf(" ");
-				const label = separator >= 0 ? summary.call.slice(0, separator) : summary.call;
-				const text = separator >= 0 ? summary.call.slice(separator + 1) : "";
-				const prefix = theme.fg(summary.isError ? "error" : "warning", theme.bold(label));
-				pushInlineBlock(prefix, text, {
-					style: (line) => theme.fg(summary.isError ? "error" : "dim", line),
-				});
-				continue;
+			const background =
+				summary.status === "pending"
+					? "toolPendingBg"
+					: summary.status === "error" || summary.kind === "advice"
+						? "toolErrorBg"
+						: "toolSuccessBg";
+			const box = new Box(1, 0, (text) => theme.bg(background, text));
+			const titleColor = summary.kind === "advice" ? "text" : "toolTitle";
+			const outputColor = summary.kind === "advice" ? "text" : "toolOutput";
+			box.addChild(
+				new Text(
+					`${theme.fg(titleColor, theme.bold(summary.title))}${
+						summary.output ? ` ${theme.fg(outputColor, summary.output)}` : ""
+					}`,
+					0,
+					0,
+				),
+			);
+			if (summary.kind === "pull" && summary.items) {
+				const visibleItems = pullsExpanded ? summary.items : summary.items.slice(0, 5);
+				for (const item of visibleItems) {
+					if (item.kind === "tool") {
+						const match = item.text.match(/^(→\s+[^\s(]+)([\s\S]*)$/);
+						const title = match?.[1] ?? "→";
+						const output = match?.[2] ?? item.text;
+						box.addChild(new Text(`${theme.fg("toolTitle", title)}${theme.fg("toolOutput", output)}`, 0, 0));
+						continue;
+					}
+					box.addChild(new Text(`${theme.fg("dim", `${item.kind}:`)} ${theme.fg("toolOutput", item.text)}`, 0, 0));
+				}
+				const hiddenCount = summary.items.length - visibleItems.length;
+				if (hiddenCount > 0) {
+					const hint = expandKeyText
+						? `... (${hiddenCount} more, ${expandKeyText} to expand)`
+						: `... (${hiddenCount} more)`;
+					box.addChild(new Text(theme.italic(theme.fg("dim", hint)), 0, 0));
+				}
 			}
-			const callStyled = theme.fg("warning", theme.bold(summary.call));
-			if (summary.result) {
-				const resultStyled = summary.isError ? theme.fg("error", summary.result) : theme.fg("dim", summary.result);
-				pushInlineBlock(callStyled, resultStyled);
-			} else {
-				pushInlineBlock(callStyled, "");
-			}
+			transcript.addChild(box);
+			hasVisibleContent = true;
 			continue;
 		}
 		if (entry.type === "notice" && entry.level === "error") {
-			pushInlineBlock(errorBadge, entry.text);
+			if (hasVisibleContent) {
+				transcript.addChild(new Spacer(1));
+			}
+			const box = new Box(1, 0, (text) => theme.bg("toolErrorBg", text));
+			box.addChild(
+				new Text(`${theme.fg("toolTitle", theme.bold("Error"))} ${theme.fg("toolOutput", entry.text)}`, 0, 0),
+			);
+			transcript.addChild(box);
+			hasVisibleContent = true;
 			continue;
 		}
 	}
-	return lines.length > 0 ? lines : [theme.fg("dim", "No Advisor chat yet.")];
+	if (!hasVisibleContent) {
+		transcript.addChild(new Text(theme.fg("dim", "No Advisor chat yet."), 1, 0));
+	}
+	return transcript;
 }
 
 function appendTranscriptEntry(
@@ -338,13 +362,23 @@ function upsertTranscriptTextEntry(
 	appendTranscriptEntry(state, { turnId, type, text, streaming });
 }
 
-function ensureToolCallEntry(state: AdvisorTranscriptState, toolCallId: string, toolName: string, args: unknown): void {
+function ensureToolCallEntry(
+	state: AdvisorTranscriptState,
+	toolCallId: string,
+	toolName: string,
+	args: unknown,
+	startedAt?: number,
+): void {
 	const tracked = state.toolCalls.get(toolCallId);
 	if (tracked) {
 		const existing = state.entries.find((entry) => entry.id === tracked.callEntryId && entry.type === "tool-call");
 		if (existing?.type === "tool-call") {
 			existing.toolName = toolName;
 			existing.args = formatToolPreview(args);
+			existing.rawArgs = args;
+			if (startedAt !== undefined) {
+				existing.startedAt = startedAt;
+			}
 		}
 		return;
 	}
@@ -355,7 +389,8 @@ function ensureToolCallEntry(state: AdvisorTranscriptState, toolCallId: string, 
 		toolCallId,
 		toolName,
 		args: formatToolPreview(args),
-		startedAt: Date.now(),
+		rawArgs: args,
+		startedAt: startedAt ?? null,
 	});
 	state.toolCalls.set(toolCallId, { turnId, callEntryId: entry.id });
 }
@@ -375,6 +410,8 @@ function upsertToolResultEntry(
 		const existing = state.entries.find((entry) => entry.id === tracked.resultEntryId && entry.type === "tool-result");
 		if (existing?.type === "tool-result") {
 			existing.content = summary.content;
+			existing.lineCount = summary.lineCount;
+			existing.details = summary.details;
 			existing.truncated = summary.truncated;
 			existing.streaming = streaming;
 			existing.isError = isError;
@@ -388,6 +425,8 @@ function upsertToolResultEntry(
 		toolCallId,
 		toolName,
 		content: summary.content,
+		lineCount: summary.lineCount,
+		details: summary.details,
 		truncated: summary.truncated,
 		isError,
 		streaming,
@@ -420,12 +459,18 @@ function applyAssistantMessageToTranscript(state: AdvisorTranscriptState, messag
 	}
 }
 
-function summarizeToolResult(value: unknown, maxLength = 400): { content: string; truncated: boolean } {
+function summarizeToolResult(
+	value: unknown,
+	maxLength = 400,
+): { content: string; lineCount: number; details: unknown; truncated: boolean } {
 	let text = "";
+	let details: unknown;
 	if (typeof value === "string") {
 		text = value;
 	} else if (value && typeof value === "object") {
-		const maybeContent = (value as { content?: unknown }).content;
+		const result = value as { content?: unknown; details?: unknown };
+		const maybeContent = result.content;
+		details = result.details;
 		if (Array.isArray(maybeContent)) {
 			text = maybeContent
 				.map((part) => {
@@ -436,6 +481,8 @@ function summarizeToolResult(value: unknown, maxLength = 400): { content: string
 				})
 				.filter(Boolean)
 				.join("\n");
+		} else if (typeof maybeContent === "string") {
+			text = maybeContent;
 		} else {
 			try {
 				text = JSON.stringify(value);
@@ -447,9 +494,16 @@ function summarizeToolResult(value: unknown, maxLength = 400): { content: string
 		text = String(value ?? "");
 	}
 	const flat = text.replace(/\s+/g, " ").trim();
-	return flat.length > maxLength
-		? { content: `${flat.slice(0, maxLength - 1)}…`, truncated: true }
-		: { content: flat || "(empty)", truncated: false };
+	const lineCount = text ? text.split("\n").length : 0;
+	if (flat.length > maxLength) {
+		return {
+			content: `${flat.slice(0, maxLength - 1)}…`,
+			lineCount,
+			details,
+			truncated: true,
+		};
+	}
+	return { content: flat || "(empty)", lineCount, details, truncated: false };
 }
 
 function formatToolPreview(value: unknown): string {
@@ -469,64 +523,72 @@ function formatToolPreview(value: unknown): string {
 function formatToolSummary(
 	call: Extract<AdvisorTranscriptEntry, { type: "tool-call" }>,
 	result: AdvisorTranscriptEntry | undefined,
-): { call: string; result?: string; isError: boolean } {
+): {
+	kind: "pull" | "advice" | "tool";
+	title: string;
+	output: string;
+	status: "pending" | "success" | "error";
+	items?: PullTranscriptDisplayItem[];
+} {
+	const toolResult = result?.type === "tool-result" ? result : undefined;
 	if (call.toolName === "pull_transcript") {
-		const completed = result?.type === "tool-result" && !result.streaming;
-		if (!completed) {
-			const elapsedMs = Math.max(0, Date.now() - call.startedAt);
+		if (!toolResult || toolResult.streaming) {
+			const elapsedMs = call.startedAt === null ? 0 : Math.max(0, Date.now() - call.startedAt);
 			return {
-				call: elapsedMs >= PULL_ELAPSED_VISIBLE_MS ? `Pulling… ${Math.floor(elapsedMs / 1_000)}s` : "Pulling…",
-				isError: false,
+				kind: "pull",
+				title: "Pulling…",
+				output:
+					call.startedAt !== null && elapsedMs >= PULL_ELAPSED_VISIBLE_MS ? `${Math.floor(elapsedMs / 1_000)}s` : "",
+				status: "pending",
 			};
 		}
-		if (result.isError) {
-			return { call: "Pull error", isError: true };
+		if (toolResult.isError) {
+			return {
+				kind: "pull",
+				title: "Pull",
+				output: `error · ${oneLine(toolResult.content, 160)}`,
+				status: "error",
+			};
 		}
-		const match = result.content.match(/\[(\d+),\s*(\d+)\).*?waited_ms=(\d+)/);
-		if (!match) {
-			return { call: "Pull complete", isError: false };
-		}
-		const waitedMs = Number(match[3]);
-		const duration = waitedMs >= PULL_ELAPSED_VISIBLE_MS ? ` · ${(waitedMs / 1_000).toFixed(1)}s` : "";
+		const details = toolResult.details as Partial<PullTranscriptDetails> | undefined;
+		const start = typeof details?.start === "number" ? details.start : 0;
+		const end = typeof details?.end === "number" ? details.end : start;
+		const waitedMs = typeof details?.waitedMs === "number" ? details.waitedMs : 0;
+		const items = Array.isArray(details?.displayItems) ? details.displayItems : [];
 		return {
-			call: `Pull [${match[1]},${match[2]})${duration}`,
-			isError: false,
+			kind: "pull",
+			title: "Pull",
+			output: `[${start}, ${end}) → ${items.length} msgs · ${(waitedMs / 1_000).toFixed(1)}s`,
+			status: "success",
+			items,
 		};
 	}
 	if (call.toolName === "advise") {
-		try {
-			const args = JSON.parse(call.args) as { kind?: unknown; advice?: unknown };
-			const kind = typeof args.kind === "string" ? args.kind : "advice";
-			const label = kind === "hint" ? "Hint" : kind === "concern" ? "Concern" : "Advise";
-			const isError = result?.type === "tool-result" ? result.isError : false;
-			const advice = typeof args.advice === "string" ? oneLine(args.advice, 160) : "";
-			const resultText = isError ? `error: ${advice || "delivery failed"}` : advice || undefined;
-			return { call: label, result: resultText, isError };
-		} catch {
-			return {
-				call: "advise",
-				result: result?.type === "tool-result" ? (result.isError ? "error" : "ok") : "running",
-				isError: result?.type === "tool-result" ? result.isError : false,
-			};
-		}
+		const args =
+			call.rawArgs && typeof call.rawArgs === "object"
+				? (call.rawArgs as { kind?: unknown; advice?: unknown })
+				: undefined;
+		const label = args?.kind === "hint" ? "Hint" : args?.kind === "concern" ? "Concern" : "Advise";
+		const advice = typeof args?.advice === "string" ? oneLine(args.advice, 160) : "delivery failed";
+		const status = !toolResult || toolResult.streaming ? "pending" : toolResult.isError ? "error" : "success";
+		const suffix = status === "pending" ? " ⇒ pending" : status === "error" ? " ⇒ error" : "";
+		return { kind: "advice", title: `${label}:`, output: `${advice}${suffix}`, status };
 	}
-	if (result?.type === "tool-result") {
+	const args = call.args ? `${call.args} ` : "";
+	if (!toolResult || toolResult.streaming) {
+		return { kind: "tool", title: call.toolName, output: `${args}⇒ pending`, status: "pending" };
+	}
+	const count = `${toolResult.lineCount} ${toolResult.lineCount === 1 ? "line" : "lines"}`;
+	if (toolResult.isError) {
+		const error = oneLine(toolResult.content, 160);
 		return {
-			call: `${call.toolName}${call.args ? ` ${call.args}` : ""}`,
-			result: result.isError ? "error" : result.streaming ? "running" : "ok",
-			isError: result.isError,
+			kind: "tool",
+			title: call.toolName,
+			output: `${args}⇒ error · ${count}${error ? ` — ${error}` : ""}`,
+			status: "error",
 		};
 	}
-	return { call: `${call.toolName}${call.args ? ` ${call.args}` : ""}`, result: "running", isError: false };
-}
-
-function buildTranscriptBadge(
-	theme: ExtensionContext["ui"]["theme"],
-	label: string,
-	background: "userMessageBg" | "toolPendingBg" | "customMessageBg",
-	foreground: "accent" | "warning" | "success" | "error",
-): string {
-	return theme.bg(background, theme.fg(foreground, theme.bold(label)));
+	return { kind: "tool", title: call.toolName, output: `${args}⇒ ok · ${count}`, status: "success" };
 }
 
 function oneLine(text: string, max: number): string {

@@ -9,7 +9,7 @@
 - **Second Opinion** — Advisor 针对 Ask Advisor 直接呈现给用户的独立审查回答。
 - **Watch Run** — Advisor 持续旁观当前 Primary Agent 任务的一次异步审查运行。
 - **Pull** — Advisor 主动读取 Primary Agent 工作进展的动作。
-- **Primary Transcript View** — 经过来源过滤和脱敏、专供 Advisor Pull 与 Ask Context 使用的 Primary transcript 视图。
+- **Primary Transcript View** — 经过来源过滤、专供 Advisor Pull 与 Ask Context 使用的 Primary transcript 视图。
 - **Advice** — Advisor 送达 Primary Agent 的具体指导信息。
 - **Hint** — 通过 Steer 尽快送达 Primary Agent 的加速型 Advice。
 - **Concern** — 通过 Follow-up 在当前工作完成后处理的风险型 Advice。
@@ -22,12 +22,21 @@
 When changing Advisor runtime code under `extensions/`, read the relevant living engineering documents before editing:
 
 - Read `docs/engineering/advisor-runtime.md`, `docs/engineering/pull-transcript.md`, and `docs/engineering/advice-delivery.md` when changing session lifecycle, tools, Watch Run, Pull, or Advice Delivery.
-- Read `docs/engineering/primary-transcript-view.md` and `docs/engineering/ask-context.md` when changing transcript filtering, serialization, indexing, redaction, or Ask Context.
+- Read `docs/engineering/primary-transcript-view.md` and `docs/engineering/ask-context.md` when changing transcript filtering, serialization, indexing, or Ask Context.
 - Read `docs/engineering/overlay.md` when changing Overlay state, focus, input, commands, scrolling, or notifications.
 - Use the Pull model; do not push Primary transcript deltas into Advisor turns.
 - Keep one Advisor instance shared by Ask Advisor and Watch Run.
 
 Skip this reading requirement for changes outside `extensions/` unless the change modifies an engineering contract described by those documents.
+
+### UI Design Policy
+
+Advisor Overlay 的对用户可见 UI 对齐 Pi 官方 UI 设计：
+
+- Overlay 的 Block（Context、Pull、Hint）、thinking、工具调用等元素的渲染语义对齐 Pi 官方 theme token（`userMessageBg`/`userMessageText`、`thinkingText`+italic、`toolSuccessBg`/`toolPendingBg`/`toolErrorBg`、`toolTitle`/`toolOutput`、`customMessageBg`）。
+- Overlay 的折叠/展开行为复用 Pi 的 `app.tools.expand` keybinding（默认 Ctrl+O），使用同一 action 名称。
+- 视觉设计以 [`docs/ui.html`](docs/ui.html) 为权威参考，以 Pi 的实际渲染行为和 theme token 为最终裁定。
+- 不发明自有 UI 模式；新增的视觉元素优先复用 Pi 已有组件（Box、背景色块、截断提示等）。
 
 ### Compatibility Policy
 
@@ -63,11 +72,12 @@ This package provides a Pi extension that runs a session-persistent Advisor besi
 ├── README.md                         # User-facing overview, installation, and usage
 ├── docs/
 │   ├── prd.md                        # Product requirements and user-visible behavior
+│   ├── ui.html                       # Advisor Overlay visual design reference
 │   └── engineering/                  # Current engineering intent — living docs
 │       ├── advisor-runtime.md        # Independent shared Advisor session, tools, lifecycle, abort boundaries
 │       ├── pull-transcript.md        # Pull model, cursor contract, waiting, Primary loop state
 │       ├── advice-delivery.md        # Hint/Concern routing, provenance, abort protection
-│       ├── primary-transcript-view.md # Source filtering, indexing, omitted markers, redaction
+│       ├── primary-transcript-view.md # Source filtering, indexing, omitted markers
 │       ├── ask-context.md            # Ask Context injection, deduplication, message boundaries
 │       └── overlay.md                # Overlay visibility, focus, input, events, notifications
 ├── extensions/
@@ -76,7 +86,7 @@ This package provides a Pi extension that runs a session-persistent Advisor besi
 │       ├── constants.ts              # Custom IDs, names, defaults, and system prompt
 │       ├── settings.ts               # User-level Advisor model and thinking settings
 │       ├── session.ts                # Advisor session lifecycle, Ask Advisor, Watch Run, Pull runtime
-│       ├── primary-transcript.ts     # Primary Transcript View filtering, indexing, redaction, rendering
+│       ├── primary-transcript.ts     # Primary Transcript View filtering, indexing, rendering
 │       ├── transcript-state.ts       # Advisor Overlay transcript projection
 │       ├── messages.ts               # Pi message-role type bridge
 │       ├── session-history-format.ts # Markdown serialization for Primary Transcript View

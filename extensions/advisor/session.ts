@@ -563,6 +563,7 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 				waitedMs: 0,
 				sinceIndexOutOfBounds: false,
 				omittedAdvisorAdviceCount: 0,
+				displayItems: [],
 			};
 			return {
 				text: `[0, 0) primary_agent_loop_state=${this.primaryLoopState} wait_result=timeout waited_ms=0 total=0\n\n(no primary context)\n`,

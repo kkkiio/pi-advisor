@@ -5,7 +5,13 @@ import { createOverlayVisualScenarios, renderOverlayVisualScenario } from "./ove
 describe("Advisor overlay visual snapshots", () => {
 	for (const scenario of createOverlayVisualScenarios()) {
 		it(`${scenario.id} renders a stable bounded overlay`, () => {
-			const { text: rendered, fullWidthBackgroundRows } = renderOverlayVisualScenario(scenario);
+			const {
+				text: rendered,
+				fullWidthBackgroundRows,
+				foregroundText,
+				italicText,
+				boldText,
+			} = renderOverlayVisualScenario(scenario);
 			const visibleRendered = rendered.replace(/\x1b\[[0-9;]*m/g, "");
 			const lines = rendered.split("\n");
 			const firstLine = lines[0] ?? "";
@@ -57,6 +63,21 @@ describe("Advisor overlay visual snapshots", () => {
 			for (const text of scenario.forbiddenText ?? []) {
 				if (visibleRendered.includes(text)) {
 					failures.push(`unexpected text: ${text}`);
+				}
+			}
+			for (const expected of scenario.expectedForegroundText ?? []) {
+				if (!foregroundText.some((actual) => actual.color === expected.color && actual.text === expected.text)) {
+					failures.push(`missing ${expected.color} foreground: ${expected.text}`);
+				}
+			}
+			for (const expected of scenario.expectedItalicText ?? []) {
+				if (!italicText.includes(expected)) {
+					failures.push(`missing italic text: ${expected}`);
+				}
+			}
+			for (const expected of scenario.expectedBoldText ?? []) {
+				if (!boldText.includes(expected)) {
+					failures.push(`missing bold text: ${expected}`);
 				}
 			}
 

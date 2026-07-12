@@ -16,6 +16,14 @@ Given("Advisor is configured in a compact interactive terminal", async function 
 	await this.startTuiPi({ advisorModelConfigured: true, width: 100, height: 14 });
 });
 
+Given("Advisor uses Ctrl+X to expand chats in the interactive terminal", async function (this: AdvisorE2EWorld) {
+	await this.startTuiPi({
+		advisorModelConfigured: true,
+		expandToolsKey: "ctrl+x",
+		script: "overlay-pull-collapse",
+	});
+});
+
 When("the user submits {string} in the TUI", async function (this: AdvisorE2EWorld, text: string) {
 	await this.tuiPi.submit(text);
 });
@@ -26,6 +34,27 @@ When("the user asks Advisor from the main input {string}", async function (this:
 
 When("the user gives Primary Agent work to review", async function (this: AdvisorE2EWorld) {
 	await this.tuiPi.submit("E2E_PRIMARY_SENTINEL: review the current Advisor scenario.");
+});
+
+When("the Primary conversation gains eight chat items", async function (this: AdvisorE2EWorld) {
+	await this.tuiPi.submit("PRIMARY_CHAT_USER_1");
+	await this.tuiPi.waitForScreen(
+		(screen) => screen.includes("PRIMARY_CHAT_AGENT_4"),
+		10_000,
+		"the fourth Primary chat item",
+	);
+	await this.tuiPi.submit("PRIMARY_CHAT_USER_5 E2E_PRIMARY_SENTINEL");
+	await this.tuiPi.waitForScreen(
+		(screen) => screen.includes("PRIMARY_CHAT_AGENT_6"),
+		10_000,
+		"the sixth Primary chat item",
+	);
+	await this.tuiPi.submit("PRIMARY_CHAT_USER_7");
+	await this.tuiPi.waitForScreen(
+		(screen) => screen.includes("PRIMARY_CHAT_AGENT_8"),
+		10_000,
+		"the eighth Primary chat item",
+	);
 });
 
 When("the user opens Advisor Overlay from the main input", async function (this: AdvisorE2EWorld) {
@@ -46,6 +75,10 @@ When("the user returns to Advisor Overlay", async function (this: AdvisorE2EWorl
 
 When("the user starts a new Advisor conversation from the main input", async function (this: AdvisorE2EWorld) {
 	await this.tuiPi.submit("/advisor:new");
+});
+
+When("the user presses Ctrl+X in Advisor Overlay", function (this: AdvisorE2EWorld) {
+	this.tuiPi.sendRawInput("\x18");
 });
 
 When("the user scrolls Advisor Overlay upward with the mouse wheel", async function (this: AdvisorE2EWorld) {
@@ -173,6 +206,104 @@ Then("Advisor Overlay should show a completed Second Opinion", async function (t
 
 	expect(screen).toContain("E2E_SECOND_OPINION: primary_transcript=seen");
 });
+
+Then("Context should summarize one user and one agent message", async function (this: AdvisorE2EWorld) {
+	await this.tuiPi.waitForScreen(
+		(candidate) => candidate.includes("Context → 1 user + 1 agent msg"),
+		10_000,
+		"Context message summary",
+	);
+	const overlay = this.tuiPi.captureAdvisorOverlayPlainText();
+
+	expect(overlay).toContain("Context → 1 user + 1 agent msg");
+	expect(overlay).toContain("user: PRIMARY_CHAT_USER_7");
+	expect(overlay).toContain("agent: PRIMARY_CHAT_AGENT_8");
+});
+
+Then("Pull should summarize all eight Primary chat items", async function (this: AdvisorE2EWorld) {
+	await this.tuiPi.waitForScreen(
+		(candidate) => candidate.includes("Pull [0, 8) → 8 msgs · 0.0s"),
+		10_000,
+		"Pull message summary",
+	);
+
+	expect(this.tuiPi.captureAdvisorOverlayPlainText()).toContain("Pull [0, 8) → 8 msgs · 0.0s");
+});
+
+Then("Pull should show the first five Primary chat items", function (this: AdvisorE2EWorld) {
+	const overlay = this.tuiPi.captureAdvisorOverlayPlainText();
+
+	expect(overlay).toContain("user: PRIMARY_CHAT_USER_1");
+	expect(overlay).toContain("agent: PRIMARY_CHAT_AGENT_2");
+	expect(overlay).toContain("→ read(README.md) ⇒ ok");
+	expect(overlay).toContain("agent: PRIMARY_CHAT_AGENT_4");
+	expect(overlay).toContain("user: PRIMARY_CHAT_USER_5");
+	expect(overlay).not.toContain("agent: PRIMARY_CHAT_AGENT_6");
+});
+
+Then("Pull should offer to expand the remaining three items with Ctrl+X", function (this: AdvisorE2EWorld) {
+	const overlay = this.tuiPi.captureAdvisorOverlayPlainText();
+
+	expect(overlay).toContain("... (3 more, ctrl+x to expand)");
+	expect(overlay.match(/PRIMARY_CHAT_USER_7/g)).toHaveLength(1);
+	expect(overlay.match(/PRIMARY_CHAT_AGENT_8/g)).toHaveLength(1);
+});
+
+Then("Pull should show all eight Primary chat items", async function (this: AdvisorE2EWorld) {
+	await this.tuiPi.waitForScreen(
+		(candidate) => candidate.includes("agent: PRIMARY_CHAT_AGENT_6"),
+		10_000,
+		"expanded Pull chat items",
+	);
+	const overlay = this.tuiPi.captureAdvisorOverlayPlainText();
+
+	expect(overlay).toContain("user: PRIMARY_CHAT_USER_1");
+	expect(overlay).toContain("agent: PRIMARY_CHAT_AGENT_2");
+	expect(overlay).toContain("→ read(README.md) ⇒ ok");
+	expect(overlay).toContain("agent: PRIMARY_CHAT_AGENT_4");
+	expect(overlay).toContain("user: PRIMARY_CHAT_USER_5");
+	expect(overlay).toContain("agent: PRIMARY_CHAT_AGENT_6");
+	expect(overlay.match(/PRIMARY_CHAT_USER_7/g)).toHaveLength(2);
+	expect(overlay.match(/PRIMARY_CHAT_AGENT_8/g)).toHaveLength(2);
+	expect(overlay).not.toContain("... (3 more, ctrl+x to expand)");
+});
+
+Then("Pull should return to its five-item preview", async function (this: AdvisorE2EWorld) {
+	await this.tuiPi.waitForScreen(
+		(candidate) =>
+			!candidate.includes("agent: PRIMARY_CHAT_AGENT_6") && candidate.includes("... (3 more, ctrl+x to expand)"),
+		10_000,
+		"collapsed Pull chat items",
+	);
+	const overlay = this.tuiPi.captureAdvisorOverlayPlainText();
+
+	expect(overlay).toContain("user: PRIMARY_CHAT_USER_5");
+	expect(overlay).not.toContain("agent: PRIMARY_CHAT_AGENT_6");
+	expect(overlay.match(/PRIMARY_CHAT_USER_7/g)).toHaveLength(1);
+	expect(overlay.match(/PRIMARY_CHAT_AGENT_8/g)).toHaveLength(1);
+	expect(overlay).toContain("... (3 more, ctrl+x to expand)");
+});
+
+Then(
+	"Context and Pull should preserve the Primary text {string}",
+	async function (this: AdvisorE2EWorld, text: string) {
+		await this.tuiPi.waitForScreen(
+			(candidate) => candidate.includes("Context → 1 user + 1 agent msg") && candidate.includes("Pull [0, 2)"),
+			10_000,
+			"Context and Pull chat items",
+		);
+		const overlay = this.tuiPi.captureAdvisorOverlayPlainText();
+		const contextStart = overlay.indexOf("Context →");
+		const pullStart = overlay.indexOf("Pull [", contextStart);
+		const contextText = overlay.indexOf(text, contextStart);
+		const pullText = overlay.indexOf(text, contextText + 1);
+
+		expect(contextStart).toBeGreaterThanOrEqual(0);
+		expect(contextText).toBeGreaterThan(contextStart);
+		expect(contextText).toBeLessThan(pullStart);
+		expect(pullText).toBeGreaterThan(pullStart);
+	},
+);
 
 Then("mouse wheel interaction should be active for Advisor Overlay", async function (this: AdvisorE2EWorld) {
 	await this.tuiPi.waitForMouseReporting(true, 2_000, "focused Advisor Overlay mouse interaction");
