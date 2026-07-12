@@ -24,7 +24,6 @@ const ADVISOR_OVERLAY_CHROME_LINES = 4;
 export interface AdvisorOverlayCallbacks {
 	onSubmit: (value: string) => void;
 	onDismiss: () => void;
-	onUnfocus: () => void;
 }
 
 export class AdvisorOverlayState {
@@ -150,7 +149,6 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 	private readonly state: AdvisorOverlayState;
 	private readonly onSubmitCallback: (value: string) => void;
 	private readonly onDismissCallback: () => void;
-	private readonly onUnfocusCallback: () => void;
 	private transcriptLines: TranscriptLine[] = [];
 	private transcriptScrollOffset = 0;
 	private transcriptViewportHeight = 8;
@@ -179,7 +177,6 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 		state: AdvisorOverlayState,
 		onSubmit: (value: string) => void = () => {},
 		onDismiss: () => void = () => {},
-		onUnfocus: () => void = () => {},
 	) {
 		super();
 		this.tui = tui;
@@ -187,7 +184,6 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 		this.state = state;
 		this.onSubmitCallback = onSubmit;
 		this.onDismissCallback = onDismiss;
-		this.onUnfocusCallback = onUnfocus;
 		this.input.onSubmit = (value) => {
 			this.followTranscript = true;
 			this.onSubmitCallback(value);
@@ -219,8 +215,8 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 	}
 
 	handleInput(data: string): void {
-		if (ADVISOR_FOCUS_SHORTCUTS.some((shortcut) => matchesKey(data, shortcut))) {
-			this.onUnfocusCallback();
+		if (matchesKey(data, ADVISOR_OVERLAY_SHORTCUT)) {
+			this.onDismissCallback();
 			return;
 		}
 		if (this.focused && matchesKey(data, Key.escape)) {
@@ -400,9 +396,13 @@ export class AdvisorOverlayController {
 	private callbacks: AdvisorOverlayCallbacks | undefined;
 	private finish: (() => void) | undefined;
 	private draft = "";
-	private pendingFocus = false;
+	private openRequested = false;
 	private pullElapsedTimer: ReturnType<typeof setInterval> | undefined;
 	readonly state = new AdvisorOverlayState();
+
+	get isOpen(): boolean {
+		return this.openRequested;
+	}
 
 	constructor(private readonly readContextUsage: () => AdvisorContextUsage | undefined = () => undefined) {}
 
@@ -410,10 +410,15 @@ export class AdvisorOverlayController {
 		if (!ctx.hasUI) {
 			return;
 		}
+		this.openRequested = true;
 		this.callbacks = callbacks;
 		this.state.setContextUsage(this.readContextUsage());
 		if (this.handle) {
 			this.handle.setHidden(false);
+			this.handle.focus();
+			if (this.component) {
+				this.component.focused = true;
+			}
 			this.refresh();
 			return;
 		}
@@ -427,9 +432,8 @@ export class AdvisorOverlayController {
 						this.state,
 						(value) => this.callbacks?.onSubmit(value),
 						() => this.callbacks?.onDismiss(),
-						() => this.callbacks?.onUnfocus(),
 					);
-					this.component.focused = this.handle?.isFocused() ?? this.pendingFocus;
+					this.component.focused = this.handle?.isFocused() ?? this.openRequested;
 					this.component.setDraft(this.draft);
 					return this.component;
 				},
@@ -445,14 +449,19 @@ export class AdvisorOverlayController {
 					},
 					onHandle: (handle) => {
 						this.handle = handle;
-						handle.setHidden(false);
-						if (this.pendingFocus) {
-							handle.focus();
-						} else if (handle.isFocused()) {
-							handle.unfocus();
+						if (!this.openRequested) {
+							this.component?.dispose();
+							handle.hide();
+							this.finish?.();
+							this.handle = undefined;
+							this.component = undefined;
+							this.finish = undefined;
+							return;
 						}
+						handle.setHidden(false);
+						handle.focus();
 						if (this.component) {
-							this.component.focused = handle.isFocused();
+							this.component.focused = true;
 						}
 						this.refresh();
 					},
@@ -460,40 +469,11 @@ export class AdvisorOverlayController {
 			)
 			.catch((error) => {
 				this.state.recordError(error);
+				this.openRequested = false;
 				this.handle = undefined;
 				this.component = undefined;
 				this.finish = undefined;
 			});
-	}
-
-	focus(): void {
-		this.pendingFocus = true;
-		this.handle?.setHidden(false);
-		this.handle?.focus();
-		if (this.component) {
-			this.component.focused = true;
-			this.component.refresh();
-		}
-	}
-
-	unfocus(): void {
-		this.pendingFocus = false;
-		this.handle?.unfocus();
-		if (this.component) {
-			this.component.focused = false;
-			this.component.refresh();
-		}
-	}
-
-	toggleFocus(): void {
-		if (!this.handle) {
-			return;
-		}
-		if (this.handle.isFocused()) {
-			this.unfocus();
-			return;
-		}
-		this.focus();
 	}
 
 	setDraft(value: string): void {
@@ -523,11 +503,8 @@ export class AdvisorOverlayController {
 		this.refresh();
 	}
 
-	hide(): void {
-		this.close();
-	}
-
 	close(): void {
+		this.openRequested = false;
 		if (this.pullElapsedTimer) {
 			clearInterval(this.pullElapsedTimer);
 			this.pullElapsedTimer = undefined;
@@ -536,14 +513,13 @@ export class AdvisorOverlayController {
 		this.component?.dispose();
 		this.handle?.hide();
 		this.finish?.();
-		this.pendingFocus = false;
 		this.handle = undefined;
 		this.component = undefined;
 		this.finish = undefined;
 	}
 }
 
-const ADVISOR_FOCUS_SHORTCUTS = [Key.alt("/"), Key.ctrlAlt("w")] as const;
+const ADVISOR_OVERLAY_SHORTCUT = Key.alt("/");
 
 function formatContextUsage(usage: AdvisorContextUsage | undefined): string {
 	if (!usage) {

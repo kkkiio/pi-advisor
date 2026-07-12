@@ -32,34 +32,24 @@ When("the user opens Advisor Overlay from the main input", async function (this:
 	await this.tuiPi.submit("/advisor");
 });
 
-When("the user hides Advisor Overlay", async function (this: AdvisorE2EWorld) {
-	await this.tuiPi.submit("/advisor:hide");
-});
-
-When("the user shows Advisor Overlay", async function (this: AdvisorE2EWorld) {
-	await this.tuiPi.submit("/advisor:show");
-});
-
 When("the user dismisses Advisor Overlay from its input", async function (this: AdvisorE2EWorld) {
 	await this.tuiPi.submit("", ["Escape"]);
 });
 
-When("the user focuses Advisor Overlay input", async function (this: AdvisorE2EWorld) {
-	await this.tuiPi.submit("/advisor");
+When("the user leaves Advisor Overlay", async function (this: AdvisorE2EWorld) {
+	this.tuiPi.sendRawInput("\x1b[47;3u");
 });
 
-When("the user returns focus to the main input", async function (this: AdvisorE2EWorld) {
+When("the user returns to Advisor Overlay", async function (this: AdvisorE2EWorld) {
 	this.tuiPi.sendRawInput("\x1b[47;3u");
+});
+
+When("the user starts a new Advisor conversation from the main input", async function (this: AdvisorE2EWorld) {
+	await this.tuiPi.submit("/advisor:new");
 });
 
 When("the user scrolls Advisor Overlay upward with the mouse wheel", async function (this: AdvisorE2EWorld) {
 	this.tuiPi.sendRawInput("\x1b[<64;50;8M");
-});
-
-When("the user scrolls downward with the mouse wheel", async function (this: AdvisorE2EWorld) {
-	this.lastAdvisorOverlay = this.tuiPi.captureAdvisorOverlayPlainText();
-	this.tuiPi.sendRawInput("\x1b[<65;50;8M");
-	await new Promise((resolve) => setTimeout(resolve, 250));
 });
 
 When("the user opens the Advisor model picker in the terminal", async function (this: AdvisorE2EWorld) {
@@ -222,12 +212,6 @@ Then("the main input should accept {string}", async function (this: AdvisorE2EWo
 	);
 
 	expect(screen).toContain(draft);
-	expect(this.tuiPi.captureAdvisorOverlayPlainText()).not.toContain(draft);
-});
-
-Then("Advisor Overlay scroll position should stay unchanged", function (this: AdvisorE2EWorld) {
-	expect(this.lastAdvisorOverlay).toBeDefined();
-	expect(this.tuiPi.captureAdvisorOverlayPlainText()).toBe(this.lastAdvisorOverlay);
 });
 
 Then("Advisor Overlay should be hidden", async function (this: AdvisorE2EWorld) {

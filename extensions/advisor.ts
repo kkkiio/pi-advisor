@@ -3,7 +3,7 @@ import { Box, Key, Text } from "@earendil-works/pi-tui";
 import { ADVISOR_ADVICE_CUSTOM_TYPE } from "./advisor/types";
 import { AdvisorRuntime, renderAdviceMessage } from "./advisor/session";
 
-const BTW_FOCUS_SHORTCUTS = [Key.alt("/"), Key.ctrlAlt("w")] as const;
+const ADVISOR_OVERLAY_SHORTCUT = Key.alt("/");
 
 export default function advisorExtension(pi: ExtensionAPI): void {
 	const runtime = new AdvisorRuntime(pi);
@@ -54,14 +54,12 @@ export default function advisorExtension(pi: ExtensionAPI): void {
 		runtime.handlePrimaryEvent(event, ctx);
 	});
 
-	for (const shortcut of BTW_FOCUS_SHORTCUTS) {
-		pi.registerShortcut(shortcut, {
-			description: "Toggle Advisor overlay focus while leaving it open.",
-			handler: async () => {
-				runtime.toggleOverlayFocus();
-			},
-		});
-	}
+	pi.registerShortcut(ADVISOR_OVERLAY_SHORTCUT, {
+		description: "Open or close the Advisor overlay.",
+		handler: async (ctx) => {
+			runtime.toggleOverlay(ctx);
+		},
+	});
 
 	pi.registerCommand("advisor", {
 		description: "Ask an idle Advisor with context, or message a running Advisor directly.",
@@ -91,31 +89,10 @@ export default function advisorExtension(pi: ExtensionAPI): void {
 		},
 	});
 
-	pi.registerCommand("advisor:hide", {
-		description: "Hide the Advisor overlay without resetting the Advisor transcript.",
-		handler: async (_args, ctx) => {
-			await runtime.hideOverlay(ctx);
-		},
-	});
-
-	pi.registerCommand("advisor:show", {
-		description: "Show the Advisor overlay with the preserved Advisor transcript.",
-		handler: async (_args, ctx) => {
-			await runtime.showOverlay(ctx);
-		},
-	});
-
 	pi.registerCommand("advisor:new", {
-		description: "Reset Advisor transcript and start a fresh Advisor context.",
+		description: "Start a fresh Advisor context and open its overlay.",
 		handler: async (_args, ctx) => {
 			await runtime.reset(ctx);
-		},
-	});
-
-	pi.registerCommand("advisor:clear", {
-		description: "Reset Advisor transcript and close the Advisor overlay.",
-		handler: async (_args, ctx) => {
-			await runtime.clear(ctx);
 		},
 	});
 

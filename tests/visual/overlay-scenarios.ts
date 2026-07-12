@@ -12,7 +12,6 @@ export interface OverlayVisualScenario {
 	expectedFullWidthBackgroundRows?: Array<{ color: string; text: string }>;
 	checklist: string[];
 	state: AdvisorOverlayState;
-	focused?: boolean;
 	draft?: string;
 }
 
@@ -177,21 +176,6 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 				"Border geometry stays unchanged when focus adds the cursor marker.",
 			],
 			state: empty,
-			focused: true,
-			draft: "Review this draft",
-		},
-		{
-			id: "overlay-unfocused-input",
-			title: "Unfocused Advisor Overlay Input",
-			width: 50,
-			height: 16,
-			requiredText: ["Advisor · idle · ctx ?/128k", "Review this draft"],
-			checklist: [
-				"Unfocused Advisor input preserves the complete draft text.",
-				"The reverse-video software cursor is absent while unfocused.",
-				"Input-row geometry matches the focused state.",
-			],
-			state: empty,
 			draft: "Review this draft",
 		},
 		{
@@ -303,7 +287,7 @@ export function renderOverlayVisualScenario(scenario: OverlayVisualScenario): Ov
 	} as unknown as TUI;
 	try {
 		const component = new AdvisorOverlayComponent(tui, theme, scenario.state);
-		component.focused = scenario.focused ?? false;
+		component.focused = true;
 		component.setDraft(scenario.draft ?? "");
 		const text = component.render(scenario.width).join("\n").replaceAll(CURSOR_MARKER, "");
 		const fullWidthBackgroundRows = backgroundRows

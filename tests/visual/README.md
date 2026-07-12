@@ -17,7 +17,7 @@ These checks render the Advisor Overlay directly from deterministic transcript s
 - required user-visible sections are present;
 - semantic background rows use the expected theme color and span the full panel width, including wrapped rows;
 - stable overlay layouts match Vitest snapshots.
-- unfocused Overlay inputs omit the reverse-video software cursor while focused inputs retain it.
+- visible Overlay inputs retain the reverse-video software cursor because an open Overlay always owns focus.
 
 ## Review Artifacts
 
