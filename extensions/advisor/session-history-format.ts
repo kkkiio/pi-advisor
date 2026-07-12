@@ -17,6 +17,7 @@ import type {
 	HookMessage,
 	PythonExecutionMessage,
 } from "./messages";
+import type { PullTranscriptDisplayItem } from "./types";
 
 const INTENT_FIELD = "i";
 
@@ -46,6 +47,8 @@ export interface HistoryFormatOptions {
 	 * this so it sees what changed without re-reading the file.
 	 */
 	expandEditDiffs?: boolean;
+	/** Collect compact user, agent, and merged tool rows for the Advisor Overlay Pull block. */
+	displayItems?: PullTranscriptDisplayItem[];
 }
 
 /** Max length of the primary-arg summary inside `→ tool(...)` lines. */
@@ -306,6 +309,7 @@ export function formatSessionHistoryMarkdown(messages: unknown[], opts?: History
 			case "developer": {
 				const text = contentToText(msg.content);
 				if (!text.trim()) break;
+				opts?.displayItems?.push({ kind: "user", text });
 				if (opts?.watchedRoles) {
 					const label = `**${msg.role}**:`;
 					if (lastWatchedLabel === label) {
@@ -324,17 +328,24 @@ export function formatSessionHistoryMarkdown(messages: unknown[], opts?: History
 				const body: string[] = [];
 				for (const block of assistantMsg.content) {
 					if (block.type === "text") {
-						if (block.text.trim()) body.push(block.text);
+						if (block.text.trim()) {
+							body.push(block.text);
+							opts?.displayItems?.push({ kind: "agent", text: block.text });
+						}
 					} else if (block.type === "toolCall") {
 						const result = resultsByCallId.get(block.id);
 						if (result) consumed.add(block.id);
 						body.push(
 							toolCallLine(block.name, block.arguments, result, opts?.includeToolIntent, opts?.expandEditDiffs),
 						);
+						opts?.displayItems?.push({
+							kind: "tool",
+							text: toolCallLine(block.name, block.arguments, result, false, false),
+						});
 					} else if (opts?.includeThinking && block.type === "thinking" && block.thinking.trim()) {
 						body.push(`_thinking:_ ${block.thinking}`);
 					}
-					// redactedThinking elided entirely (no readable text)
+					// Provider-hidden thinking has no readable text to render.
 				}
 				if (body.length === 0) break;
 				if (opts?.watchedRoles) {
@@ -354,20 +365,25 @@ export function formatSessionHistoryMarkdown(messages: unknown[], opts?: History
 				// Normally consumed by its toolCall; orphans (e.g. truncated history) get their own line.
 				if (consumed.has(msg.toolCallId)) break;
 				lines.push(toolCallLine(msg.toolName, undefined, msg, opts?.includeToolIntent, opts?.expandEditDiffs), "");
+				opts?.displayItems?.push({ kind: "tool", text: toolCallLine(msg.toolName, undefined, msg, false, false) });
 				lastWatchedLabel = undefined;
 				break;
 			}
 			case "bashExecution": {
 				const bashMsg = msg as BashExecutionMessage;
 				if (bashMsg.excludeFromContext) break;
-				lines.push(executionLine("bash", bashMsg.command, bashMsg), "");
+				const rendered = executionLine("bash", bashMsg.command, bashMsg);
+				lines.push(rendered, "");
+				opts?.displayItems?.push({ kind: "tool", text: rendered });
 				lastWatchedLabel = undefined;
 				break;
 			}
 			case "pythonExecution": {
 				const pythonMsg = msg as PythonExecutionMessage;
 				if (pythonMsg.excludeFromContext) break;
-				lines.push(executionLine("python", pythonMsg.code, pythonMsg), "");
+				const rendered = executionLine("python", pythonMsg.code, pythonMsg);
+				lines.push(rendered, "");
+				opts?.displayItems?.push({ kind: "tool", text: rendered });
 				lastWatchedLabel = undefined;
 				break;
 			}
@@ -378,28 +394,37 @@ export function formatSessionHistoryMarkdown(messages: unknown[], opts?: History
 					const text = contentToText(custom.content).trim();
 					if (text) {
 						lines.push(`<primary-context kind="${custom.customType}">`, escapeXmlText(text), "</primary-context>", "");
+						opts?.displayItems?.push({ kind: "agent", text });
 					}
 				} else {
-					lines.push(customOneLiner(custom), "");
+					const rendered = customOneLiner(custom);
+					lines.push(rendered, "");
+					opts?.displayItems?.push({ kind: "agent", text: rendered });
 				}
 				lastWatchedLabel = undefined;
 				break;
 			}
 			case "branchSummary": {
 				const branchMsg = msg as BranchSummaryMessage;
-				lines.push(`[branch] from ${branchMsg.fromId}: ${oneLine(branchMsg.summary)}`, "");
+				const rendered = `[branch] from ${branchMsg.fromId}: ${oneLine(branchMsg.summary)}`;
+				lines.push(rendered, "");
+				opts?.displayItems?.push({ kind: "agent", text: rendered });
 				lastWatchedLabel = undefined;
 				break;
 			}
 			case "compactionSummary": {
 				const compactMsg = msg as CompactionSummaryMessage;
-				lines.push(`[compaction] ${oneLine(compactMsg.summary)}`, "");
+				const rendered = `[compaction] ${oneLine(compactMsg.summary)}`;
+				lines.push(rendered, "");
+				opts?.displayItems?.push({ kind: "agent", text: rendered });
 				lastWatchedLabel = undefined;
 				break;
 			}
 			case "fileMention": {
 				const fileMsg = msg as FileMentionMessage;
-				lines.push(`[file-mention] ${oneLine(fileMsg.files.map((f) => f.path).join(", "))}`, "");
+				const rendered = `[file-mention] ${oneLine(fileMsg.files.map((f) => f.path).join(", "))}`;
+				lines.push(rendered, "");
+				opts?.displayItems?.push({ kind: "agent", text: rendered });
 				lastWatchedLabel = undefined;
 				break;
 			}

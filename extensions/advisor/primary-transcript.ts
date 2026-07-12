@@ -1,5 +1,5 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import type { ImageContent, TextContent, ToolCall } from "@earendil-works/pi-ai";
+import type { ImageContent, TextContent } from "@earendil-works/pi-ai";
 import type { ExtensionContext, SessionEntry } from "@earendil-works/pi-coding-agent";
 import { ADVISOR_ADVICE_CUSTOM_TYPE, ADVISOR_OMITTED_CUSTOM_TYPE } from "./types";
 import type {
@@ -8,6 +8,7 @@ import type {
 	PrimaryAgentLoopState,
 	PrimaryTranscriptView,
 	PullTranscriptDetails,
+	PullTranscriptDisplayItem,
 	PullTranscriptRequest,
 	PullWaitResult,
 } from "./types";
@@ -80,7 +81,7 @@ export function buildPrimaryTranscriptView(
 		if (message.role === "custom" && message.customType.startsWith("advisor:")) {
 			continue;
 		}
-		messages.push(redactMessage(message));
+		messages.push(message);
 	}
 	return {
 		messages,
@@ -149,12 +150,14 @@ export function renderPrimaryTranscriptSlice(
 	const start = normalized.outOfBounds ? 0 : normalized.start;
 	const end = Math.min(view.messages.length, start + count);
 	const messages = view.messages.slice(start, end);
+	const displayItems: PullTranscriptDisplayItem[] = [];
 	const body = messages.length
 		? formatSessionHistoryMarkdown(messages, {
 				watchedRoles: true,
 				includeToolIntent: true,
 				expandPrimaryContext: true,
 				expandEditDiffs: true,
+				displayItems,
 			}).trim()
 		: "(no primary transcript entries)";
 	const details: PullTranscriptDetails = {
@@ -166,6 +169,7 @@ export function renderPrimaryTranscriptSlice(
 		waitedMs,
 		sinceIndexOutOfBounds: normalized.outOfBounds,
 		omittedAdvisorAdviceCount: view.omittedAdvisorAdviceCount,
+		displayItems,
 	};
 	const flags = [
 		`[${start}, ${end})`,
@@ -268,66 +272,4 @@ function createOmittedAdviceMarker(message: AgentMessage): AgentMessage | undefi
 		},
 		timestamp: message.timestamp,
 	} as AgentMessage;
-}
-
-function redactMessage<T extends AgentMessage>(message: T): T {
-	const cloned = structuredClone(message) as AgentMessage;
-	if (cloned.role === "user") {
-		cloned.content = redactContent(cloned.content);
-	} else if (cloned.role === "assistant") {
-		cloned.content = cloned.content.map((block) => {
-			if (block.type === "text") {
-				return { ...block, text: redactText(block.text) };
-			}
-			if (block.type === "thinking") {
-				return { ...block, thinking: redactText(block.thinking) };
-			}
-			return { ...block, arguments: redactUnknown(block.arguments) as ToolCall["arguments"] };
-		});
-	} else if (cloned.role === "toolResult") {
-		cloned.content = cloned.content.map((part) =>
-			part.type === "text" ? { ...part, text: redactText(part.text) } : part,
-		);
-		cloned.details = redactUnknown(cloned.details);
-	} else if (cloned.role === "custom") {
-		cloned.content = redactContent(cloned.content);
-		cloned.details = redactUnknown(cloned.details);
-	} else if (cloned.role === "bashExecution") {
-		cloned.command = redactText(cloned.command);
-		cloned.output = redactText(cloned.output);
-	} else if (cloned.role === "pythonExecution") {
-		cloned.code = redactText(cloned.code);
-		cloned.output = redactText(cloned.output);
-	}
-	return cloned as T;
-}
-
-function redactContent(content: string | (TextContent | ImageContent)[]): string | (TextContent | ImageContent)[] {
-	if (typeof content === "string") {
-		return redactText(content);
-	}
-	return content.map((part) => (part.type === "text" ? { ...part, text: redactText(part.text) } : part));
-}
-
-function redactUnknown(value: unknown): unknown {
-	if (typeof value === "string") {
-		return redactText(value);
-	}
-	if (Array.isArray(value)) {
-		return value.map((item) => redactUnknown(item));
-	}
-	if (value && typeof value === "object") {
-		const entries = Object.entries(value).map(([key, nested]) => [key, redactUnknown(nested)]);
-		return Object.fromEntries(entries);
-	}
-	return value;
-}
-
-function redactText(text: string): string {
-	return text
-		.replace(/\bsk-[A-Za-z0-9_-]{16,}\b/g, "[REDACTED_OPENAI_KEY]")
-		.replace(/\bgithub_pat_[A-Za-z0-9_]{20,}\b/g, "[REDACTED_GITHUB_TOKEN]")
-		.replace(/\bgh[pousr]_[A-Za-z0-9_]{20,}\b/g, "[REDACTED_GITHUB_TOKEN]")
-		.replace(/\bAKIA[0-9A-Z]{16}\b/g, "[REDACTED_AWS_KEY]")
-		.replace(/((?:api[_-]?key|token|secret|password)\s*[:=]\s*)(["']?)[^\s"',;]+/gi, "$1$2[REDACTED]");
 }

@@ -1,15 +1,12 @@
-import type { AgentSessionEvent, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import type { Focusable, OverlayHandle, TUI } from "@earendil-works/pi-tui";
 import {
-	Container,
-	Input,
-	Key,
-	matchesKey,
-	truncateToWidth,
-	visibleWidth,
-	wrapTextWithAnsi,
-} from "@earendil-works/pi-tui";
-import type { AdviceDeliveryResult, AdvisorContextUsage, AskContext, TranscriptLine, WatchRunState } from "./types";
+	keyText,
+	type AgentSessionEvent,
+	type ExtensionContext,
+	type KeybindingsManager,
+} from "@earendil-works/pi-coding-agent";
+import type { Component, Focusable, OverlayHandle, TUI } from "@earendil-works/pi-tui";
+import { Container, Input, Key, matchesKey, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import type { AdviceDeliveryResult, AdvisorContextUsage, AskContext, WatchRunState } from "./types";
 import {
 	appendAskContext,
 	appendTranscriptNotice,
@@ -31,6 +28,7 @@ export class AdvisorOverlayState {
 	private status = "idle";
 	private watchRunState: WatchRunState = "idle";
 	private contextUsage: AdvisorContextUsage | undefined;
+	private pullBlocksExpanded = false;
 
 	setStatus(status: string): void {
 		this.status = status;
@@ -79,6 +77,10 @@ export class AdvisorOverlayState {
 		this.contextUsage = usage;
 	}
 
+	togglePullBlocksExpanded(): void {
+		this.pullBlocksExpanded = !this.pullBlocksExpanded;
+	}
+
 	applyAgentEvent(event: AgentSessionEvent): void {
 		if (event.type === "tool_execution_start") {
 			this.status = event.toolName === "pull_transcript" ? "pulling" : `running ${event.toolName}`;
@@ -102,12 +104,14 @@ export class AdvisorOverlayState {
 		status: string;
 		watchRunState: WatchRunState;
 		contextUsage: AdvisorContextUsage | undefined;
+		pullBlocksExpanded: boolean;
 		transcriptState: AdvisorTranscriptState;
 	} {
 		return {
 			status: this.status,
 			watchRunState: this.watchRunState,
 			contextUsage: this.contextUsage,
+			pullBlocksExpanded: this.pullBlocksExpanded,
 			transcriptState: {
 				...this.transcriptState,
 				entries: this.transcriptState.entries.map((entry) => ({ ...entry })),
@@ -121,6 +125,7 @@ export class AdvisorOverlayState {
 		this.status = "idle";
 		this.watchRunState = "idle";
 		this.contextUsage = undefined;
+		this.pullBlocksExpanded = false;
 	}
 
 	isPulling(): boolean {
@@ -147,9 +152,11 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 	private readonly tui: TUI;
 	private readonly theme: ExtensionContext["ui"]["theme"];
 	private readonly state: AdvisorOverlayState;
+	private readonly keybindings: Pick<KeybindingsManager, "getKeys" | "matches"> | undefined;
+	private readonly expandKeyText: string | null;
 	private readonly onSubmitCallback: (value: string) => void;
 	private readonly onDismissCallback: () => void;
-	private transcriptLines: TranscriptLine[] = [];
+	private transcriptComponent: Component;
 	private transcriptScrollOffset = 0;
 	private transcriptViewportHeight = 8;
 	private followTranscript = true;
@@ -175,6 +182,7 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 		tui: TUI,
 		theme: ExtensionContext["ui"]["theme"],
 		state: AdvisorOverlayState,
+		keybindings?: Pick<KeybindingsManager, "getKeys" | "matches">,
 		onSubmit: (value: string) => void = () => {},
 		onDismiss: () => void = () => {},
 	) {
@@ -182,6 +190,10 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 		this.tui = tui;
 		this.theme = theme;
 		this.state = state;
+		this.keybindings = keybindings;
+		this.expandKeyText = keybindings
+			? keybindings.getKeys("app.tools.expand").join("/") || null
+			: keyText("app.tools.expand") || "ctrl+o";
 		this.onSubmitCallback = onSubmit;
 		this.onDismissCallback = onDismiss;
 		this.input.onSubmit = (value) => {
@@ -193,6 +205,7 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 				this.onDismissCallback();
 			}
 		};
+		this.transcriptComponent = buildAdvisorOverlayTranscript([], this.theme, false, this.expandKeyText);
 		this.refresh();
 	}
 
@@ -203,7 +216,12 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 	refresh(): void {
 		const snapshot = this.state.snapshot();
 		this.headerTextValue = `Advisor · ${snapshot.status} · ${formatContextUsage(snapshot.contextUsage)}`;
-		this.transcriptLines = buildAdvisorOverlayTranscript(snapshot.transcriptState.entries, this.theme);
+		this.transcriptComponent = buildAdvisorOverlayTranscript(
+			snapshot.transcriptState.entries,
+			this.theme,
+			snapshot.pullBlocksExpanded,
+			this.expandKeyText,
+		);
 		this.tui.requestRender();
 	}
 
@@ -221,6 +239,12 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 		}
 		if (this.focused && matchesKey(data, Key.escape)) {
 			this.onDismissCallback();
+			return;
+		}
+		if (this.keybindings?.matches(data, "app.tools.expand") || (!this.keybindings && matchesKey(data, Key.ctrl("o")))) {
+			this.state.togglePullBlocksExpanded();
+			this.followTranscript = true;
+			this.refresh();
 			return;
 		}
 		const mouseScrollDelta = this.getMouseScrollDelta(data);
@@ -242,12 +266,12 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 	}
 
 	override render(width: number): string[] {
-		const dialogWidth = Math.max(36, width);
-		const innerWidth = Math.max(34, dialogWidth - 2);
+		const dialogWidth = Math.max(3, width);
+		const innerWidth = Math.max(1, dialogWidth - 2);
 		const dialogHeight = this.getDialogHeight();
-		const transcriptHeight = Math.max(8, dialogHeight - ADVISOR_OVERLAY_CHROME_LINES);
+		const transcriptHeight = Math.max(0, dialogHeight - ADVISOR_OVERLAY_CHROME_LINES);
 		this.transcriptViewportHeight = transcriptHeight;
-		const transcriptLines = this.wrapTranscript(innerWidth);
+		const transcriptLines = this.transcriptComponent.render(innerWidth);
 
 		const maxScroll = Math.max(0, transcriptLines.length - transcriptHeight);
 		if (this.followTranscript) {
@@ -295,15 +319,9 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 		return this.input.getValue();
 	}
 
-	private frameLine(line: TranscriptLine, innerWidth: number): string {
-		const text = typeof line === "string" ? line : line.text;
-		const bg = typeof line === "string" ? undefined : line.bg;
-		const truncated = truncateToWidth(text, innerWidth, "");
+	private frameLine(line: string, innerWidth: number): string {
+		const truncated = truncateToWidth(line, innerWidth, "");
 		const padding = Math.max(0, innerWidth - visibleWidth(truncated));
-		if (bg) {
-			const fullContent = `${truncated}${" ".repeat(padding)}`;
-			return `${this.theme.fg("border", "│")}${this.theme.bg(bg, fullContent)}${this.theme.fg("border", "│")}`;
-		}
 		return `${this.theme.fg("border", "│")}${truncated}${" ".repeat(padding)}${this.theme.fg("border", "│")}`;
 	}
 
@@ -323,35 +341,9 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 		);
 	}
 
-	private wrapTranscript(innerWidth: number): TranscriptLine[] {
-		const wrapped: TranscriptLine[] = [];
-		for (const line of this.transcriptLines) {
-			const text = typeof line === "string" ? line : line.text;
-			const bg = typeof line === "string" ? undefined : line.bg;
-			if (!text) {
-				wrapped.push("");
-				continue;
-			}
-			const indent = text.match(/^\s+/)?.[0] ?? "";
-			if (!indent) {
-				for (const t of wrapTextWithAnsi(text, Math.max(1, innerWidth))) {
-					wrapped.push(bg ? { text: t, bg } : t);
-				}
-				continue;
-			}
-			const availableWidth = Math.max(1, innerWidth - visibleWidth(indent));
-			const bodyLines = wrapTextWithAnsi(text.slice(indent.length), availableWidth);
-			for (const bodyLine of bodyLines) {
-				const fullLine = `${indent}${bodyLine}`;
-				wrapped.push(bg ? { text: fullLine, bg } : fullLine);
-			}
-		}
-		return wrapped;
-	}
-
 	private getDialogHeight(): number {
 		const terminalRows = process.stdout.rows ?? 30;
-		return Math.max(12, terminalRows);
+		return Math.max(4, terminalRows);
 	}
 
 	private getMouseScrollDelta(data: string): number | null {
@@ -424,12 +416,13 @@ export class AdvisorOverlayController {
 		}
 		void ctx.ui
 			.custom<void>(
-				async (tui, theme, _keybindings, done) => {
+				async (tui, theme, keybindings, done) => {
 					this.finish = done;
 					this.component = new AdvisorOverlayComponent(
 						tui,
 						theme,
 						this.state,
+						keybindings,
 						(value) => this.callbacks?.onSubmit(value),
 						() => this.callbacks?.onDismiss(),
 					);

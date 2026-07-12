@@ -66,31 +66,80 @@ const scenarios: TuiVisualScenario[] = [
 	{
 		id: "ask-advisor-overlay",
 		title: "Ask Advisor Overlay",
-		description:
-			"Ask Advisor opens the top-center overlay with the user message, actual context, Pull, and advisor output.",
-		options: { advisorModelConfigured: true, width: 100, height: 30 },
+		description: "Ask Advisor opens the top-center overlay with Pi-aligned Context and a collapsed Pull block.",
+		options: { advisorModelConfigured: true, script: "overlay-pull-collapse", width: 100, height: 30 },
 		captures: ["whole", "overlay"],
 		checklist: [
 			"Whole TUI shows the overlay anchored at top-center with the dedicated input row.",
 			"Overlay does not cover the primary input/status area in a way that makes it unreadable.",
 			"User message uses the Primary transcript's foreground and a background that reaches both panel edges.",
-			"Overlay panel includes the user message, actual Context text, one-line Pull, and advisor output in order.",
-			"Prompt, Tool, and Advisor badges are absent while Context remains labeled.",
-			"Pull shows its returned range without arguments or a separate result line.",
+			"Context uses one custom-message block with its item count and user:/agent: prefixes.",
+			"Pull uses one tool-success block with its range, eight-item count, first five items, and expansion hint.",
+			"Tool calls and results are merged, while Prompt, Tool, and Advisor badges remain absent.",
 			"Advisor completion text is visible without breaking panel borders.",
 		],
 		async run(pi) {
-			await pi.submit("E2E_PRIMARY_SENTINEL: review the current Advisor scenario.");
+			await pi.submit("PRIMARY_CHAT_USER_1");
 			await pi.waitForScreen(
-				(screen) => screen.includes("E2E_PRIMARY_RESPONSE"),
+				(screen) => screen.includes("PRIMARY_CHAT_AGENT_4"),
 				10_000,
-				"Primary work before Ask Advisor",
+				"the fourth Primary chat item before Ask Advisor",
 			);
-			await pi.submit("/advisor Review the primary transcript.");
+			await pi.submit("PRIMARY_CHAT_USER_5 E2E_PRIMARY_SENTINEL");
 			await pi.waitForScreen(
-				(screen) => screen.includes("Advisor · idle") && screen.includes("E2E_SECOND_OPINION"),
+				(screen) => screen.includes("PRIMARY_CHAT_AGENT_6"),
+				10_000,
+				"the sixth Primary chat item before Ask Advisor",
+			);
+			await pi.submit("PRIMARY_CHAT_USER_7");
+			await pi.waitForScreen(
+				(screen) => screen.includes("PRIMARY_CHAT_AGENT_8"),
+				10_000,
+				"the eighth Primary chat item before Ask Advisor",
+			);
+			await pi.submit("/advisor Review all Primary chat items.");
+			await pi.waitForScreen(
+				(screen) =>
+					screen.includes("Advisor · idle") &&
+					screen.includes("Pull [0, 8) → 8 msgs") &&
+					screen.includes("... (3 more, ctrl+o to expand)"),
 				20_000,
-				"Ask Advisor overlay completion",
+				"collapsed Ask Advisor Pull block",
+			);
+		},
+	},
+	{
+		id: "expanded-pull-overlay",
+		title: "Expanded Pull Overlay",
+		description: "The configured Pi tool expansion action reveals all structured Primary chat items.",
+		options: { advisorModelConfigured: true, script: "overlay-pull-collapse", width: 100, height: 30 },
+		captures: ["overlay"],
+		checklist: [
+			"The expanded Pull remains a single tool-success block.",
+			"All eight user, agent, and merged tool items appear in source order.",
+			"The collapsed expansion hint is absent after Ctrl+O.",
+		],
+		async run(pi) {
+			await pi.submit("PRIMARY_CHAT_USER_1");
+			await pi.waitForScreen((screen) => screen.includes("PRIMARY_CHAT_AGENT_4"), 10_000, "four Primary items");
+			await pi.submit("PRIMARY_CHAT_USER_5 E2E_PRIMARY_SENTINEL");
+			await pi.waitForScreen((screen) => screen.includes("PRIMARY_CHAT_AGENT_6"), 10_000, "six Primary items");
+			await pi.submit("PRIMARY_CHAT_USER_7");
+			await pi.waitForScreen((screen) => screen.includes("PRIMARY_CHAT_AGENT_8"), 10_000, "eight Primary items");
+			await pi.submit("/advisor Review all Primary chat items.");
+			await pi.waitForScreen(
+				(screen) => screen.includes("... (3 more, ctrl+o to expand)"),
+				20_000,
+				"collapsed Pull before expansion",
+			);
+			pi.sendRawInput("\x0f");
+			await pi.waitForScreen(
+				() => {
+					const overlay = pi.captureAdvisorOverlayPlainText();
+					return overlay.includes("agent: PRIMARY_CHAT_AGENT_6") && !overlay.includes("more, ctrl+o to expand");
+				},
+				10_000,
+				"expanded Pull block",
 			);
 		},
 	},
@@ -191,7 +240,7 @@ const scenarios: TuiVisualScenario[] = [
 		options: { advisorModelConfigured: true, script: "watch-wait", width: 100, height: 24 },
 		captures: ["overlay"],
 		checklist: [
-			"The in-progress Pull remains a single compact line.",
+			"The in-progress Pull is a full-width toolPendingBg block.",
 			"Elapsed time appears only after the three-second threshold.",
 			"The running Watch Run keeps the overlay border and Primary input area intact.",
 		],

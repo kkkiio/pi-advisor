@@ -1,9 +1,6 @@
 import type { AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { Model } from "@earendil-works/pi-ai";
 
-/** A transcript line for the Advisor overlay. If bg is set, the background extends full-width. */
-export type TranscriptLine = string | { text: string; bg: "userMessageBg" };
-
 export const ADVISOR_ADVICE_CUSTOM_TYPE = "advisor:advice";
 export const ADVISOR_ASK_CONTEXT_CUSTOM_TYPE = "advisor:ask-context";
 export const ADVISOR_OMITTED_CUSTOM_TYPE = "advisor:omitted";
@@ -78,6 +75,12 @@ export interface PullTranscriptDetails {
 	waitedMs: number;
 	sinceIndexOutOfBounds: boolean;
 	omittedAdvisorAdviceCount: number;
+	displayItems: PullTranscriptDisplayItem[];
+}
+
+export interface PullTranscriptDisplayItem {
+	kind: "user" | "agent" | "tool";
+	text: string;
 }
 
 export interface PullTranscriptResult {

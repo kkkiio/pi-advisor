@@ -1,41 +1,41 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`Advisor overlay visual snapshots > overlay-ask-advisor renders a stable bounded overlay 1`] = `
-"╭ Advisor · idle · ctx 2.1%/128k ────────────────╮
-│Review the primary transcript.                  │
-│                                                │
-│Context                                         │
-│User → Primary                                  │
-│Review the cache design.                        │
-│                                                │
-│Primary                                         │
-│The cache now owns request deduplication.       │
-│                                                │
-│Pull [0,12) · 4.2s                              │
-│                                                │
-│E2E_SECOND_OPINION: primary_transcript=seen     │
-│                                                │
-│                                                │
-│                                                │
-│                                                │
-│                                                │
-│                                                │
-│                                                │
-│                                                │
-│                                                │
-│                                                │
-│                                                │
-│                                                │
-│                                                │
-│                                                │
-├────────────────────────────────────────────────┤
-│[7m [27m                                               │
-╰────────────────────────────────────────────────╯"
+"╭ Advisor · idle · ctx 2.1%/128k ────────────────────────────────────────────╮
+│ Review the primary transcript.                                             │
+│                                                                            │
+│ Context → 1 user + 2 agent msgs                                            │
+│ user: Review the cache design.                                             │
+│ agent: The cache now owns request deduplication.                           │
+│ agent: The retry path still refreshes independently.                       │
+│                                                                            │
+│ Checking the Primary transcript for cache races...                         │
+│                                                                            │
+│ Pull [0, 12) → 8 msgs · 4.2s                                               │
+│ user: Review the cache design.                                             │
+│ agent: The cache owns request deduplication.                               │
+│ → read src/cache.ts ⇒ ok · 120 lines                                       │
+│ → grep refreshToken ⇒ ok · 12 matches                                      │
+│ → write src/cache-refresh.ts ⇒ ok · 85 lines                               │
+│ ... (3 more, ctrl+o to expand)                                             │
+│                                                                            │
+│ E2E_SECOND_OPINION: primary_transcript=seen                                │
+│                                                                            │
+│                                                                            │
+│                                                                            │
+│                                                                            │
+│                                                                            │
+│                                                                            │
+│                                                                            │
+│                                                                            │
+├────────────────────────────────────────────────────────────────────────────┤
+│[7m [27m                                                                           │
+╰────────────────────────────────────────────────────────────────────────────╯"
 `;
 
 exports[`Advisor overlay visual snapshots > overlay-empty renders a stable bounded overlay 1`] = `
 "╭ Advisor · idle · ctx ?/128k ───────────────────╮
-│No Advisor chat yet.                            │
+│ No Advisor chat yet.                           │
 │                                                │
 │                                                │
 │                                                │
@@ -52,9 +52,30 @@ exports[`Advisor overlay visual snapshots > overlay-empty renders a stable bound
 ╰────────────────────────────────────────────────╯"
 `;
 
+exports[`Advisor overlay visual snapshots > overlay-expanded-pull renders a stable bounded overlay 1`] = `
+"╭ Advisor · idle · ctx 2.2%/128k ────────────────────────────────────────────╮
+│ Pull [0, 12) → 8 msgs · 4.2s                                               │
+│ user: Review the cache design.                                             │
+│ agent: The cache owns request deduplication.                               │
+│ → read src/cache.ts ⇒ ok · 120 lines                                       │
+│ → grep refreshToken ⇒ ok · 12 matches                                      │
+│ → write src/cache-refresh.ts ⇒ ok · 85 lines                               │
+│ agent: Adding pending refresh deduplication.                               │
+│ → edit src/cache-refresh.ts ⇒ ok · diff applied                            │
+│ → bash! npm test ⇒ ok · 42 lines                                           │
+│                                                                            │
+│                                                                            │
+│                                                                            │
+│                                                                            │
+│                                                                            │
+├────────────────────────────────────────────────────────────────────────────┤
+│[7m [27m                                                                           │
+╰────────────────────────────────────────────────────────────────────────────╯"
+`;
+
 exports[`Advisor overlay visual snapshots > overlay-focused-input renders a stable bounded overlay 1`] = `
 "╭ Advisor · idle · ctx ?/128k ───────────────────╮
-│No Advisor chat yet.                            │
+│ No Advisor chat yet.                           │
 │                                                │
 │                                                │
 │                                                │
@@ -73,23 +94,23 @@ exports[`Advisor overlay visual snapshots > overlay-focused-input renders a stab
 
 exports[`Advisor overlay visual snapshots > overlay-long-content-small-terminal renders a stable bounded overlay 1`] = `
 "╭ Advisor · idle · ctx 13.3%/128k ─────────╮
-│Check whether this very long prompt wraps │
-│without breaking the panel border or      │
-│hiding the input area.                    │
+│ Check whether this very long prompt      │
+│ wraps without breaking the panel border  │
+│ or hiding the input area.                │
 │                                          │
-│Context                                   │
-│User → Primary                            │
-│Inspect the                               │
-│super-long-token-without-natural-breaks-ab│
-│cdefghijklmnopqrstuvwxyz-0123456789 in the│
-│cache design.                             │
+│ Context → 1 user + 1 agent msg           │
+│ user: Inspect the                        │
+│ super-long-token-without-natural-breaks- │
+│ abcdefghijklmnopqrstuvwxyz-0123456789 in │
+│ the cache design.                        │
+│ agent: The Primary response remains      │
+│ visible while wrapping inside the narrow │
+│ Context block.                           │
 │                                          │
-│Primary                                   │
-│The Primary response remains visible while│
-│wrapping inside the narrow Context block. │
+│ The narrow overlay wraps the Primary     │
+│ context safely without widening.         │
 │                                          │
-│The narrow overlay wraps the Primary      │
-│context safely without widening.          │
+│                                          │
 ├──────────────────────────────────────────┤
 │[7m [27m                                         │
 ╰──────────────────────────────────────────╯"
@@ -97,11 +118,11 @@ exports[`Advisor overlay visual snapshots > overlay-long-content-small-terminal 
 
 exports[`Advisor overlay visual snapshots > overlay-repeated-ask renders a stable bounded overlay 1`] = `
 "╭ Advisor · idle · ctx 2.5%/128k ────────────────╮
-│Explain the same Primary response from another  │
-│angle.                                          │
+│ Explain the same Primary response from another │
+│ angle.                                         │
 │                                                │
-│The repeated Ask reuses the existing Advisor    │
-│Transcript.                                     │
+│ The repeated Ask reuses the existing Advisor   │
+│ Transcript.                                    │
 │                                                │
 │                                                │
 │                                                │
@@ -116,7 +137,7 @@ exports[`Advisor overlay visual snapshots > overlay-repeated-ask renders a stabl
 
 exports[`Advisor overlay visual snapshots > overlay-reset renders a stable bounded overlay 1`] = `
 "╭ Advisor · reset · ctx 0.0%/128k ───────────────╮
-│No Advisor chat yet.                            │
+│ No Advisor chat yet.                           │
 │                                                │
 │                                                │
 │                                                │
@@ -133,23 +154,56 @@ exports[`Advisor overlay visual snapshots > overlay-reset renders a stable bound
 ╰────────────────────────────────────────────────╯"
 `;
 
-exports[`Advisor overlay visual snapshots > overlay-simplified-tools renders a stable bounded overlay 1`] = `
-"╭ Advisor · idle · ctx 3.4%/128k ────────────────────────╮
-│Review the delivery plan.                               │
-│                                                        │
-│Hint Use the SDK path.                                  │
-│                                                        │
-│Concern Keep delivery after validation.                 │
-│                                                        │
-│read {"path":"src/cache.ts"} ok                         │
-│                                                        │
-│The delivery plan is ready.                             │
-│                                                        │
-│                                                        │
-│                                                        │
-│                                                        │
-│                                                        │
-├────────────────────────────────────────────────────────┤
-│[7m [27m                                                       │
-╰────────────────────────────────────────────────────────╯"
+exports[`Advisor overlay visual snapshots > overlay-tiny-terminal renders a stable bounded overlay 1`] = `
+"╭ Advisor · idle · ctx[0m─╮
+│ No Advisor chat yet. │
+│                      │
+│                      │
+├──────────────────────┤
+│[7m [27m                     │
+╰──────────────────────╯"
+`;
+
+exports[`Advisor overlay visual snapshots > overlay-tool-and-advice-blocks renders a stable bounded overlay 1`] = `
+"╭ Advisor · idle · ctx 3.4%/128k ──────────────────────────────────────────────────────────────╮
+│ Review the delivery plan.                                                                    │
+│                                                                                              │
+│ grep {"pattern":"pendingRefresh"} ⇒ pending                                                  │
+│                                                                                              │
+│ read {"path":"src/cache.ts"} ⇒ ok · 2 lines                                                  │
+│                                                                                              │
+│ write {"path":"src/cache.ts"} ⇒ error · 2 lines — permission denied cannot write             │
+│                                                                                              │
+│ Hint: Use the SDK path.                                                                      │
+│                                                                                              │
+│ Concern: Keep delivery after validation.                                                     │
+│                                                                                              │
+│ The delivery plan is ready.                                                                  │
+│                                                                                              │
+│                                                                                              │
+│                                                                                              │
+│                                                                                              │
+│                                                                                              │
+├──────────────────────────────────────────────────────────────────────────────────────────────┤
+│[7m [27m                                                                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────╯"
+`;
+
+exports[`Advisor overlay visual snapshots > overlay-unbound-pull-expansion renders a stable bounded overlay 1`] = `
+"╭ Advisor · idle · ctx 2.2%/128k ────────────────────────────────────────────╮
+│ Pull [0, 12) → 8 msgs · 4.2s                                               │
+│ user: Review the cache design.                                             │
+│ agent: The cache owns request deduplication.                               │
+│ → read src/cache.ts ⇒ ok · 120 lines                                       │
+│ → grep refreshToken ⇒ ok · 12 matches                                      │
+│ → write src/cache-refresh.ts ⇒ ok · 85 lines                               │
+│ ... (3 more)                                                               │
+│                                                                            │
+│                                                                            │
+│                                                                            │
+│                                                                            │
+│                                                                            │
+├────────────────────────────────────────────────────────────────────────────┤
+│[7m [27m                                                                           │
+╰────────────────────────────────────────────────────────────────────────────╯"
 `;

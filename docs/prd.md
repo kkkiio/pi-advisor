@@ -136,10 +136,10 @@ Overlay 的 UI 内容约定和渲染示例见 [`docs/ui.html`](ui.html)。
 
 **区块格式**：Overlay 内容使用带背景色的 Block，与 Pi 的 tool call/result block 视觉一致。背景色覆盖整行即 block 边界，不额外缩进。不使用 emoji 图标。
 
-| Block | Header | 背景色 | 说明 |
-|-------|--------|--------|------|
-| Context | `Context → 1 user + 2 agent msgs` | `customMessageBg` + `customMessageLabel`/`customMessageText` | Ask Advisor 附带 Ask Context 时出现，始终完整显示 |
-| Pull | `Pull [0,12) → 8 msgs · 1.2s` | `toolSuccessBg` + `toolTitle`/`toolOutput` | `pull_transcript` 返回，默认显示前 5 条，Ctrl+O 展开全部 |
+| Block   | Header                            | 背景色                                                       | 说明                                                     |
+| ------- | --------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------- |
+| Context | `Context → 1 user + 2 agent msgs` | `customMessageBg` + `customMessageLabel`/`customMessageText` | Ask Advisor 附带 Ask Context 时出现，始终完整显示        |
+| Pull    | `Pull [0, 12) → 8 msgs · 1.2s`    | `toolSuccessBg` + `toolTitle`/`toolOutput`                   | `pull_transcript` 返回，默认显示前 5 条，Ctrl+O 展开全部 |
 
 Block 内部消息行使用文本前缀：`user:`（用户）、`agent:`（Primary 回复）、`→ tool_name(args) ⇒ ok · N lines`（工具调用合并结果）。
 

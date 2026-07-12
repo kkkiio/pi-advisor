@@ -7,7 +7,8 @@ import { advisorExtensionPath, fauxProviderExtensionPath, resolvePiBin } from ".
 export interface TuiPiOptions {
 	advisorModelConfigured?: boolean;
 	color?: boolean;
-	script?: "default" | "readme" | "watch-wait";
+	expandToolsKey?: string;
+	script?: "default" | "overlay-pull-collapse" | "readme" | "watch-wait";
 	width?: number;
 	height?: number;
 }
@@ -63,6 +64,13 @@ export class TuiPi {
 			)}\n`,
 			"utf8",
 		);
+		if (options.expandToolsKey) {
+			await writeFile(
+				join(agentDir, "keybindings.json"),
+				`${JSON.stringify({ "app.tools.expand": options.expandToolsKey }, null, 2)}\n`,
+				"utf8",
+			);
+		}
 		if (options.advisorModelConfigured) {
 			await writeFile(
 				join(agentDir, "advisor.json"),

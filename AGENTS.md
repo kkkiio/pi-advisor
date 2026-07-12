@@ -9,7 +9,7 @@
 - **Second Opinion** — Advisor 针对 Ask Advisor 直接呈现给用户的独立审查回答。
 - **Watch Run** — Advisor 持续旁观当前 Primary Agent 任务的一次异步审查运行。
 - **Pull** — Advisor 主动读取 Primary Agent 工作进展的动作。
-- **Primary Transcript View** — 经过来源过滤和脱敏、专供 Advisor Pull 与 Ask Context 使用的 Primary transcript 视图。
+- **Primary Transcript View** — 经过来源过滤、专供 Advisor Pull 与 Ask Context 使用的 Primary transcript 视图。
 - **Advice** — Advisor 送达 Primary Agent 的具体指导信息。
 - **Hint** — 通过 Steer 尽快送达 Primary Agent 的加速型 Advice。
 - **Concern** — 通过 Follow-up 在当前工作完成后处理的风险型 Advice。
@@ -22,7 +22,7 @@
 When changing Advisor runtime code under `extensions/`, read the relevant living engineering documents before editing:
 
 - Read `docs/engineering/advisor-runtime.md`, `docs/engineering/pull-transcript.md`, and `docs/engineering/advice-delivery.md` when changing session lifecycle, tools, Watch Run, Pull, or Advice Delivery.
-- Read `docs/engineering/primary-transcript-view.md` and `docs/engineering/ask-context.md` when changing transcript filtering, serialization, indexing, redaction, or Ask Context.
+- Read `docs/engineering/primary-transcript-view.md` and `docs/engineering/ask-context.md` when changing transcript filtering, serialization, indexing, or Ask Context.
 - Read `docs/engineering/overlay.md` when changing Overlay state, focus, input, commands, scrolling, or notifications.
 - Use the Pull model; do not push Primary transcript deltas into Advisor turns.
 - Keep one Advisor instance shared by Ask Advisor and Watch Run.
@@ -77,7 +77,7 @@ This package provides a Pi extension that runs a session-persistent Advisor besi
 │       ├── advisor-runtime.md        # Independent shared Advisor session, tools, lifecycle, abort boundaries
 │       ├── pull-transcript.md        # Pull model, cursor contract, waiting, Primary loop state
 │       ├── advice-delivery.md        # Hint/Concern routing, provenance, abort protection
-│       ├── primary-transcript-view.md # Source filtering, indexing, omitted markers, redaction
+│       ├── primary-transcript-view.md # Source filtering, indexing, omitted markers
 │       ├── ask-context.md            # Ask Context injection, deduplication, message boundaries
 │       └── overlay.md                # Overlay visibility, focus, input, events, notifications
 ├── extensions/
@@ -86,7 +86,7 @@ This package provides a Pi extension that runs a session-persistent Advisor besi
 │       ├── constants.ts              # Custom IDs, names, defaults, and system prompt
 │       ├── settings.ts               # User-level Advisor model and thinking settings
 │       ├── session.ts                # Advisor session lifecycle, Ask Advisor, Watch Run, Pull runtime
-│       ├── primary-transcript.ts     # Primary Transcript View filtering, indexing, redaction, rendering
+│       ├── primary-transcript.ts     # Primary Transcript View filtering, indexing, rendering
 │       ├── transcript-state.ts       # Advisor Overlay transcript projection
 │       ├── messages.ts               # Pi message-role type bridge
 │       ├── session-history-format.ts # Markdown serialization for Primary Transcript View
