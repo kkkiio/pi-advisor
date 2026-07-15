@@ -12,11 +12,8 @@
     "tui"
   ],
   "files": [
-    "CONTEXT.md",
     "extensions",
-    "docs",
-    "README.md",
-    "LICENSE"
+    "docs/assets/advisor-overview.png"
   ],
   "publishConfig": {
     "access": "public"
@@ -38,7 +35,8 @@
   "pi": {
     "extensions": [
       "./extensions/advisor.ts"
-    ]
+    ],
+    "image": "https://raw.githubusercontent.com/kkkiio/pi-advisor/main/docs/assets/advisor-overview.png"
   },
   "peerDependencies": {
     "@earendil-works/pi-agent-core": "^0.80.6",

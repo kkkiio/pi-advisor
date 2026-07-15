@@ -17,7 +17,7 @@ Advisor 从 Primary Agent 当前启用的工具名中继承工具，移除 `writ
 ## Lifecycle and Abort Boundaries
 
 - Primary Agent 与 Advisor 分别维护运行和中断状态。
-- Primary Agent 被中断时，Advisor 实例和 Advisor Transcript 保留；Watch Run 通过 Primary Transcript View 观察 `aborted` 状态并自行收尾。
+- Primary Agent 被中断时，Advisor 实例和 Advisor Transcript 保留；Watch Run 通过 Pull 观察 `aborted` 状态并自行收尾。
 - `/advisor:watch-off` 取消当前 Watch Run，必要时中断 Advisor 当前调用，但保留实例和 transcript。
 - `/advisor:new` 取消 Watch Run、销毁当前实例、清空 Advisor UI 状态，并打开一个新的 Advisor 对话入口。
 - Model 或 thinking level 变化后重建 Advisor 实例，使新配置对后续调用生效。

@@ -47,7 +47,7 @@ Message behavior depends on Advisor's current state:
 - **Advisor is idle**: Start a new Ask Advisor run. The first Ask after the Primary Agent enters a new user turn automatically includes **Ask Context**: the Primary user text message and any currently visible Primary assistant text that follows it, including streaming text but excluding thinking, tool calls, tool results, and custom messages. Subsequent Asks within the same Primary user turn do not repeat the Ask Context.
 - **Advisor is running** (during Ask Advisor or Watch Run): Steer the active run with the message. Only the user's input is sent; Ask Context is not included.
 
-Every Ask started while Advisor is idle tells Advisor the current position in the Primary Transcript and whether the Primary Agent is running. When a question requires more history, tool activity, or newer progress, Advisor can Pull the Primary Transcript View itself, so the user does not need to copy context manually.
+Every Ask started while Advisor is idle tells Advisor the current position in the Primary Transcript and whether the Primary Agent is running. When a question requires more history, tool activity, or newer progress, Advisor can Pull the Primary Transcript itself, so the user does not need to copy context manually.
 
 The Primary context sent to Advisor appears in a `Context` block in the Advisor Overlay. Its compact header avoids duplicate message counts; expanding the block reveals the exact `<primary-context>` payload. When no new Ask Context text is attached, a position-only XML payload records the transcript position and Primary Agent state without repeating prior text.
 

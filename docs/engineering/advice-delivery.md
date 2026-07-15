@@ -21,7 +21,7 @@ Advisor 只在 Watch Run 期间主动调用 `advise`。Watch Run 之外，只有
 }
 ```
 
-Primary Transcript View 根据 provenance 过滤 Advice 原文，避免 Advisor 在后续 Pull 中重新读取并解释自己的建议。View 可以保留不含正文的 omitted marker，说明 Primary Agent 后续行为可能受到 Advisor 影响。
+Primary Transcript 根据 provenance 排除 Advice 原文，避免 Advisor 在后续 Pull 中重新读取并解释自己的建议。内容中可以保留不含正文的 omitted marker，说明 Primary Agent 后续行为可能受到 Advisor 影响。
 
 ## Primary Abort Protection
 

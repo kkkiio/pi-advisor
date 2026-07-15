@@ -70,7 +70,7 @@ Overlay 是 top-center 的独立面板。用户可在 Overlay 中直接向 Advis
 - 当最新 Primary user message 还没有用于当前 Advisor Agent Session 的自动注入时，Ask Advisor 附带 Ask Context：该 user text message，以及它之后当前可见的 Primary assistant text。
 - Ask Context 可以包含当前可见的 streaming assistant text，不包含 thinking、tool call、tool result 或 custom message。
 - 当最新 Primary user message 已经用于当前 Advisor Agent Session 的自动注入时，后续 Ask 不重复附带 Ask Context。Advisor 之前的 Pull 不参与这个去重判断。
-- Ask Context 不完整或用户问题需要更多历史、工具过程时，Advisor 能通过 Pull 主动补充 Primary Transcript View。
+- Ask Context 不完整或用户问题需要更多历史、工具过程时，Advisor 能通过 Pull 主动补充 Primary Transcript。
 - 多次 Ask Advisor 之间，Advisor 能延续自己的上下文。
 - Ask Advisor 不会创建与 Watch Run 分离的第二套 Advisor 记忆。
 - 用户明确要求把特定观点送达 Primary Agent 时，Advisor 应直接执行，无需启动 Watch Run。

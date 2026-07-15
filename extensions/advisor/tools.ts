@@ -7,7 +7,7 @@ const pullTranscriptSchema = Type.Object({
 	since_index: Type.Optional(
 		Type.Number({
 			description:
-				"Primary Transcript View start index. Omit to start at 0. Pass the previous <primary-transcript> end attribute for incremental follow-up. Pass -N to start at max(0, total + since_index), for example -20 to read the 20 most recent entries.",
+				"Primary Transcript start index. Omit to start at 0. Pass the previous <primary-transcript> end attribute for incremental follow-up. Pass -N to start at max(0, total + since_index), for example -20 to read the 20 most recent entries.",
 		}),
 	),
 	timeout_ms: Type.Optional(
@@ -32,7 +32,7 @@ export function createAdvisorTools(runtime: AdvisorRuntimePort): ToolDefinition[
 		name: "pull_transcript",
 		label: "Pull Primary Transcript",
 		description:
-			"Read a Primary Transcript View delta. For incremental follow-up, pass since_index from the previous <primary-transcript> end attribute. For recent context, pass a negative since_index such as -20 to read the 20 most recent entries. Use timeout_ms to wait for new primary progress during Watch Run.",
+			"Read a Primary Transcript delta. For incremental follow-up, pass since_index from the previous <primary-transcript> end attribute. For recent context, pass a negative since_index such as -20 to read the 20 most recent entries. Use timeout_ms to wait for new primary progress during Watch Run.",
 		promptSnippet: "pull_transcript: read Primary Agent progress as an XML-wrapped filtered markdown transcript view.",
 		parameters: pullTranscriptSchema,
 		executionMode: "sequential",

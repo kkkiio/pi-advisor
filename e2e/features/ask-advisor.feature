@@ -1,5 +1,5 @@
 Feature: Ask Advisor
-  Scenario: Ask Advisor pulls Primary Transcript View, then hands off the latest Second Opinion
+  Scenario: Ask Advisor pulls Primary Transcript, then hands off the latest Second Opinion
     Given Advisor has a configured model
     And the Primary Agent has recent work for Advisor to review
     When the user asks Advisor "Review the primary transcript."
