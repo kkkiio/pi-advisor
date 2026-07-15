@@ -158,6 +158,7 @@
 				font-style: italic;
 			}
 			.blk-line.payload {
+				color: var(--text);
 				font: inherit;
 				white-space: pre-wrap;
 				overflow-wrap: anywhere;
@@ -188,9 +189,9 @@
 					</div>
 				</div>
 
-				<!-- Context block — customMessageBg. The header carries no duplicate counts. Expanded payload metadata lives on one XML root element. -->
+				<!-- Context block — customMessageBg. The header counts injected Primary messages. Expanded payload metadata lives on one XML root element. -->
 				<div class="blk context">
-					<div class="blk-line"><span class="hd">Context</span></div>
+					<div class="blk-line"><span class="hd">Context</span> · 3 msgs</div>
 					<!-- prettier-ignore -->
 					<pre class="blk-line payload">&lt;primary-context end="12" state="idle"&gt;
 **user**:

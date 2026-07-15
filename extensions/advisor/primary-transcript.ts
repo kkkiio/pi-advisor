@@ -12,7 +12,7 @@ import type {
 	PullTranscriptRequest,
 	PullWaitResult,
 } from "./types";
-import { formatSessionHistoryMarkdown } from "./session-history-format";
+import { escapeXmlText, formatSessionHistoryMarkdown } from "./session-history-format";
 
 const DEFAULT_PULL_COUNT = 100;
 const MAX_PULL_COUNT = 200;
@@ -186,7 +186,7 @@ export function renderPrimaryTranscriptSlice(
 		attributes.push(`omitted-advisor-advice="${view.omittedAdvisorAdviceCount}"`);
 	}
 	return {
-		text: `<primary-transcript ${attributes.join(" ")}>\n${body}\n</primary-transcript>\n`,
+		text: `<primary-transcript ${attributes.join(" ")}>\n${escapeXmlText(body)}\n</primary-transcript>\n`,
 		details,
 	};
 }

@@ -67,7 +67,7 @@ const scenarios: TuiVisualScenario[] = [
 		id: "ask-advisor-overlay",
 		title: "Ask Advisor Overlay",
 		description: "Ask Advisor opens the top-center overlay with Pi-aligned Context and a collapsed Pull block.",
-		options: { advisorModelConfigured: true, script: "overlay-pull-collapse", width: 100, height: 30 },
+		options: { advisorModelConfigured: true, script: "visual-overlay-pull-collapse", width: 100, height: 30 },
 		captures: ["whole", "overlay"],
 		checklist: [
 			"Whole TUI shows the overlay anchored at top-center with the dedicated input row.",
@@ -79,25 +79,25 @@ const scenarios: TuiVisualScenario[] = [
 			"Advisor completion text is visible without breaking panel borders.",
 		],
 		async run(pi) {
-			await pi.submit("PRIMARY_CHAT_USER_1");
+			await pi.submit("先检查 Pull 的游标推进逻辑。");
 			await pi.waitForScreen(
-				(screen) => screen.includes("PRIMARY_CHAT_AGENT_4"),
+				(screen) => screen.includes("游标会在每次 Pull 成功后推进到 transcript 末尾。"),
 				10_000,
 				"the fourth Primary chat item before Ask Advisor",
 			);
-			await pi.submit("PRIMARY_CHAT_USER_5 E2E_PRIMARY_SENTINEL");
+			await pi.submit("接着补上等待期间的超时处理。");
 			await pi.waitForScreen(
-				(screen) => screen.includes("PRIMARY_CHAT_AGENT_6"),
+				(screen) => screen.includes("等待超时会返回当前游标"),
 				10_000,
 				"the sixth Primary chat item before Ask Advisor",
 			);
-			await pi.submit("PRIMARY_CHAT_USER_7");
+			await pi.submit("最后补齐游标越界场景。");
 			await pi.waitForScreen(
-				(screen) => screen.includes("PRIMARY_CHAT_AGENT_8"),
+				(screen) => screen.includes("下一次 Pull 会从当前末尾继续"),
 				10_000,
 				"the eighth Primary chat item before Ask Advisor",
 			);
-			await pi.submit("/advisor Review all Primary chat items.");
+			await pi.submit("/advisor 帮我检查这次 Pull 改动，重点看会不会漏消息。");
 			await pi.waitForScreen(
 				(screen) =>
 					screen.includes("Advisor · idle") &&
@@ -112,7 +112,7 @@ const scenarios: TuiVisualScenario[] = [
 		id: "expanded-pull-overlay",
 		title: "Expanded Primary Context Payloads",
 		description: "The configured Pi tool expansion action reveals the exact Ask Context and Pull payloads.",
-		options: { advisorModelConfigured: true, script: "overlay-pull-collapse", width: 100, height: 48 },
+		options: { advisorModelConfigured: true, script: "visual-overlay-pull-collapse", width: 100, height: 48 },
 		captures: ["overlay"],
 		checklist: [
 			"Expanded Context remains one custom-message block and exposes the exact primary-context XML payload.",
@@ -121,13 +121,21 @@ const scenarios: TuiVisualScenario[] = [
 			"The collapsed expansion hint is absent after Ctrl+O.",
 		],
 		async run(pi) {
-			await pi.submit("PRIMARY_CHAT_USER_1");
-			await pi.waitForScreen((screen) => screen.includes("PRIMARY_CHAT_AGENT_4"), 10_000, "four Primary items");
-			await pi.submit("PRIMARY_CHAT_USER_5 E2E_PRIMARY_SENTINEL");
-			await pi.waitForScreen((screen) => screen.includes("PRIMARY_CHAT_AGENT_6"), 10_000, "six Primary items");
-			await pi.submit("PRIMARY_CHAT_USER_7");
-			await pi.waitForScreen((screen) => screen.includes("PRIMARY_CHAT_AGENT_8"), 10_000, "eight Primary items");
-			await pi.submit("/advisor Review all Primary chat items.");
+			await pi.submit("先检查 Pull 的游标推进逻辑。");
+			await pi.waitForScreen(
+				(screen) => screen.includes("游标会在每次 Pull 成功后推进到 transcript 末尾。"),
+				10_000,
+				"four Primary items",
+			);
+			await pi.submit("接着补上等待期间的超时处理。");
+			await pi.waitForScreen((screen) => screen.includes("等待超时会返回当前游标"), 10_000, "six Primary items");
+			await pi.submit("最后补齐游标越界场景。");
+			await pi.waitForScreen(
+				(screen) => screen.includes("下一次 Pull 会从当前末尾继续"),
+				10_000,
+				"eight Primary items",
+			);
+			await pi.submit("/advisor 帮我检查这次 Pull 改动，重点看会不会漏消息。");
 			await pi.waitForScreen(
 				(screen) => screen.includes("... (3 more lines, ctrl+o to expand)"),
 				20_000,
@@ -135,8 +143,8 @@ const scenarios: TuiVisualScenario[] = [
 			);
 			pi.sendRawInput("\x0f");
 			await pi.waitForScreen(
-				() => {
-					const overlay = pi.captureAdvisorOverlayPlainText();
+				(screen) => {
+					const overlay = screen;
 					return (
 						overlay.includes('<primary-context end="8" state="idle">') &&
 						overlay.includes('<primary-transcript start="0" end="8"') &&
@@ -154,7 +162,7 @@ const scenarios: TuiVisualScenario[] = [
 		id: "position-only-context",
 		title: "Repeated Ask Position Context",
 		description: "A repeated Ask with no new Primary text keeps a compact position-only Context block.",
-		options: { advisorModelConfigured: true, width: 100, height: 34 },
+		options: { advisorModelConfigured: true, script: "visual-natural", width: 100, height: 34 },
 		captures: ["overlay"],
 		checklist: [
 			"The first Ask records the Primary user and agent text in its Context block.",
@@ -162,21 +170,21 @@ const scenarios: TuiVisualScenario[] = [
 			"The position-only block remains visually distinct without dominating the repeated Ask transcript.",
 		],
 		async run(pi) {
-			await pi.submit("E2E_PRIMARY_SENTINEL: review this response twice.");
+			await pi.submit("Pull 的游标调整已经完成，请从两个角度帮我检查。");
 			await pi.waitForScreen(
-				(screen) => screen.includes("E2E_PRIMARY_RESPONSE"),
+				(screen) => screen.includes("Primary 已完成 Pull 游标调整"),
 				10_000,
 				"Primary work before repeated Ask Advisor requests",
 			);
-			await pi.submit("/advisor Review the primary response once.");
+			await pi.submit("/advisor 先检查会不会漏消息。");
 			await pi.waitForScreen(
-				(screen) => screen.includes("Advisor · idle") && screen.includes("E2E_SECOND_OPINION"),
+				(screen) => screen.includes("Advisor · idle") && screen.includes("实现方向合理"),
 				20_000,
 				"first Ask Advisor completion",
 			);
-			await pi.submit("Review the same primary response again.");
+			await pi.submit("再从超时恢复的角度解释一次。");
 			await pi.waitForScreen(
-				(screen) => screen.includes("Advisor · idle") && screen.includes("Context"),
+				(screen) => screen.includes("Advisor · idle") && screen.includes("Context · 0 msgs"),
 				20_000,
 				"position-only Context after the repeated Ask",
 			);
@@ -196,15 +204,15 @@ const scenarios: TuiVisualScenario[] = [
 		async run(pi) {
 			await pi.submit("/advisor");
 			await pi.waitForScreen((screen) => screen.includes("Advisor ·"), 10_000, "focused Advisor Overlay");
-			await pi.submit("Review this draft", []);
+			await pi.submit("帮我审查这个方案", []);
 			await pi.waitForScreen(
-				(screen) => screen.includes("Advisor ·") && screen.includes("Review this draft"),
+				(screen) => screen.includes("Advisor ·") && screen.includes("帮我审查这个方案"),
 				10_000,
 				"focused Advisor Overlay draft",
 			);
 			await pi.waitForAnsiScreen(
 				(screen) => {
-					const inputLine = screen.split("\n").find((line) => line.includes("Review this draft"));
+					const inputLine = screen.split("\n").find((line) => line.includes("帮我审查这个方案"));
 					return inputLine?.includes("\x1b[7m") ?? false;
 				},
 				2_000,
@@ -216,7 +224,7 @@ const scenarios: TuiVisualScenario[] = [
 		id: "leave-return-overlay",
 		title: "Leave And Return To Overlay",
 		description: "The preserved Advisor transcript returns after Alt+/ closes and reopens the overlay.",
-		options: { advisorModelConfigured: true, width: 100, height: 30 },
+		options: { advisorModelConfigured: true, script: "visual-natural", width: 100, height: 30 },
 		captures: ["whole", "overlay"],
 		checklist: [
 			"Leaving the Overlay returns to Primary without losing the Advisor transcript.",
@@ -224,15 +232,15 @@ const scenarios: TuiVisualScenario[] = [
 			"Restored overlay still contains the previous Advisor output.",
 		],
 		async run(pi) {
-			await pi.submit("E2E_PRIMARY_SENTINEL: preserve this context while leaving the overlay.");
+			await pi.submit("请保留这段 Pull 游标调整的上下文，我稍后会回来继续审查。");
 			await pi.waitForScreen(
-				(screen) => screen.includes("E2E_PRIMARY_RESPONSE"),
+				(screen) => screen.includes("Primary 已完成 Pull 游标调整"),
 				10_000,
 				"Primary work before leaving and returning",
 			);
-			await pi.submit("/advisor Review the primary transcript.");
+			await pi.submit("/advisor 检查这次游标调整。");
 			await pi.waitForScreen(
-				(screen) => screen.includes("Advisor · idle") && screen.includes("E2E_SECOND_OPINION"),
+				(screen) => screen.includes("Advisor · idle") && screen.includes("实现方向合理"),
 				20_000,
 				"Ask Advisor overlay completion before leaving",
 			);
@@ -240,7 +248,7 @@ const scenarios: TuiVisualScenario[] = [
 			await pi.waitForScreen((screen) => !screen.includes("Advisor ·"), 10_000, "Advisor overlay closed");
 			pi.sendRawInput("\x1b[47;3u");
 			await pi.waitForScreen(
-				(screen) => screen.includes("Advisor ·") && screen.includes("E2E_SECOND_OPINION"),
+				(screen) => screen.includes("Advisor ·") && screen.includes("实现方向合理"),
 				10_000,
 				"Advisor overlay restored",
 			);
@@ -250,7 +258,7 @@ const scenarios: TuiVisualScenario[] = [
 		id: "small-terminal-overlay",
 		title: "Small Terminal Overlay",
 		description: "Ask Advisor remains readable when the terminal is narrower and shorter.",
-		options: { advisorModelConfigured: true, width: 82, height: 24 },
+		options: { advisorModelConfigured: true, script: "visual-natural", width: 82, height: 24 },
 		captures: ["whole", "overlay"],
 		checklist: [
 			"Overlay remains a bounded top-center panel at the smaller terminal size.",
@@ -258,15 +266,15 @@ const scenarios: TuiVisualScenario[] = [
 			"Context and Advisor text wrap without corrupting adjacent lines.",
 		],
 		async run(pi) {
-			await pi.submit("E2E_PRIMARY_SENTINEL: verify the narrow Context block.");
+			await pi.submit("请确认窄窗口中的 Context 仍能完整显示 Pull 游标信息。");
 			await pi.waitForScreen(
-				(screen) => screen.includes("E2E_PRIMARY_RESPONSE"),
+				(screen) => screen.includes("Primary 已完成 Pull 游标调整"),
 				10_000,
 				"Primary work before small-terminal Ask",
 			);
-			await pi.submit("/advisor Review the primary transcript.");
+			await pi.submit("/advisor 检查窄窗口里的上下文和结论是否清楚。");
 			await pi.waitForScreen(
-				(screen) => screen.includes("Advisor · idle") && screen.includes("E2E_SECOND_OPINION"),
+				(screen) => screen.includes("Advisor · idle") && screen.includes("实现方向合理"),
 				20_000,
 				"Small terminal Advisor overlay completion",
 			);

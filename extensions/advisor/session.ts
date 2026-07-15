@@ -31,6 +31,7 @@ import {
 	renderPrimaryTranscriptSlice,
 	selectAskContext,
 } from "./primary-transcript";
+import { escapeXmlText } from "./session-history-format";
 import {
 	ADVISOR_DEFAULT_THINKING,
 	ADVISOR_THINKING_LEVELS,
@@ -175,9 +176,13 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 		const view = buildPrimaryTranscriptView(ctx, this.primaryStreamingAssistant);
 		const askContext = selectAskContext(view, this.lastInjectedPrimaryUserIndex);
 		const primaryContextContent = askContext
-			? `<primary-context end="${view.messages.length}" state="${this.primaryLoopState}">\n**user**:\n${askContext.userText}${
-					askContext.assistantTexts.length > 0 ? `\n\n**primary**:\n${askContext.assistantTexts.join("\n\n")}` : ""
-				}\n</primary-context>`
+			? `<primary-context end="${view.messages.length}" state="${this.primaryLoopState}">\n${escapeXmlText(
+					`**user**:\n${askContext.userText}${
+						askContext.assistantTexts.length > 0
+							? `\n\n**primary**:\n${askContext.assistantTexts.join("\n\n")}`
+							: ""
+					}`,
+				)}\n</primary-context>`
 			: `<primary-context end="${view.messages.length}" state="${this.primaryLoopState}" />`;
 		const messageStartIndex = session.state.messages.length;
 		const askCompletion = (async () => {

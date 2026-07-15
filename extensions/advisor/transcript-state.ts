@@ -176,9 +176,19 @@ export function buildAdvisorOverlayTranscript(
 				transcript.addChild(new Spacer(1));
 			}
 			const box = new Box(1, 1, (text) => theme.bg("customMessageBg", text));
-			box.addChild(new Text(theme.fg("customMessageLabel", theme.bold("Context")), 0, 0));
+			const messageCount = entry.userText === null ? 0 : 1 + entry.assistantTexts.length;
+			box.addChild(
+				new Text(
+					`${theme.fg("customMessageLabel", theme.bold("Context"))} ${theme.fg(
+						"customMessageText",
+						`· ${messageCount} ${messageCount === 1 ? "msg" : "msgs"}`,
+					)}`,
+					0,
+					0,
+				),
+			);
 			if (primaryContextExpanded) {
-				box.addChild(new Text(theme.fg("customMessageText", entry.content), 0, 0));
+				box.addChild(new Text(theme.fg("text", entry.content), 0, 0));
 			} else if (entry.userText !== null) {
 				const items: PullTranscriptDisplayItem[] = [
 					{ kind: "user", text: entry.userText },
@@ -233,7 +243,7 @@ export function buildAdvisorOverlayTranscript(
 				),
 			);
 			if (summary.kind === "pull" && primaryContextExpanded && summary.content !== undefined) {
-				box.addChild(new Text(theme.fg("toolOutput", summary.content), 0, 0));
+				box.addChild(new Text(theme.fg("text", summary.content), 0, 0));
 			} else if (summary.kind === "pull" && summary.items) {
 				box.addChild(new PrimaryTranscriptPreview(summary.items, theme, "pull", expandKeyText));
 			}
@@ -275,7 +285,6 @@ class PrimaryTranscriptPreview implements Component {
 		if (this.cachedLines !== undefined && this.cachedWidth === width) {
 			return this.cachedLines;
 		}
-		const contentColor = this.variant === "context" ? "customMessageText" : "toolOutput";
 		const styledText = this.items
 			.map((item) => {
 				if (this.variant === "pull" && item.kind === "tool") {
@@ -284,7 +293,7 @@ class PrimaryTranscriptPreview implements Component {
 					const output = match?.[2] ?? item.text;
 					return `${this.theme.fg("toolTitle", title)}${this.theme.fg("toolOutput", output)}`;
 				}
-				return `${this.theme.fg("dim", `${item.kind}:`)} ${this.theme.fg(contentColor, item.text)}`;
+				return `${this.theme.fg("dim", `${item.kind}:`)} ${this.theme.fg("text", item.text)}`;
 			})
 			.join("\n");
 		const visualLines = new Text(styledText, 0, 0).render(width);
@@ -599,7 +608,9 @@ function formatToolSummary(
 		return {
 			kind: "pull",
 			title: "Pull",
-			output: `[${start}, ${end}) → ${items.length} msgs · ${(waitedMs / 1_000).toFixed(1)}s`,
+			output: `[${start}, ${end}) → ${items.length} ${items.length === 1 ? "msg" : "msgs"} · ${(
+				waitedMs / 1_000
+			).toFixed(1)}s`,
 			status: "success",
 			items,
 			content: toolResult.rawContent ?? "",

@@ -68,6 +68,7 @@ function scriptedResponse(
 			`${JSON.stringify({
 				latestQuestionText,
 				latestRequestText: [latestContextText, latestQuestionText].filter(Boolean).join("\n\n"),
+				latestPullTranscriptText: toolResultText(context, "pull_transcript"),
 				askContextMessageCount,
 				messageCount: context.messages.length,
 				toolNames: context.tools?.map((tool) => tool.name) ?? [],
@@ -76,6 +77,24 @@ function scriptedResponse(
 		);
 	}
 	if (model.id === primaryModelId) {
+		if (script === "visual-overlay-pull-collapse") {
+			const request = latestUserMessage ? contentText(latestUserMessage.content) : "";
+			if (request.includes("先检查 Pull 的游标推进逻辑") && !hasToolResult(context, "read")) {
+				return fauxAssistantMessage(
+					[fauxText("我先确认项目里的测试约定。"), fauxToolCall("read", { path: "README.md" })],
+					{ stopReason: "toolUse" },
+				);
+			}
+			if (request.includes("先检查 Pull 的游标推进逻辑")) {
+				return fauxAssistantMessage("游标会在每次 Pull 成功后推进到 transcript 末尾。");
+			}
+			if (request.includes("接着补上等待期间的超时处理")) {
+				return fauxAssistantMessage("等待超时会返回当前游标，不会跳过后续消息。");
+			}
+			if (request.includes("最后补齐游标越界场景")) {
+				return fauxAssistantMessage("越界场景已经覆盖，下一次 Pull 会从当前末尾继续。");
+			}
+		}
 		if (script === "overlay-pull-collapse") {
 			const request = latestUserMessage ? contentText(latestUserMessage.content) : "";
 			if (request.includes("PRIMARY_CHAT_USER_1") && !hasToolResult(context, "read")) {
@@ -97,6 +116,9 @@ function scriptedResponse(
 			return fauxAssistantMessage(
 				fauxText("Implemented request deduplication and eviction of failed in-flight entries."),
 			);
+		}
+		if (script === "visual-natural") {
+			return fauxAssistantMessage("Primary 已完成 Pull 游标调整，并补充了等待和越界场景。");
 		}
 		if (script === "ask-context" && !hasToolResult(context, "read")) {
 			return fauxAssistantMessage(
@@ -163,6 +185,14 @@ function scriptedResponse(
 			return fauxAssistantMessage(
 				"The direction is sound. One concern: a failed request may delete a newer in-flight entry. Guard eviction by entry identity before committing.",
 			);
+		}
+		if (script === "visual-overlay-pull-collapse") {
+			return fauxAssistantMessage(
+				"整体时序是连贯的；建议再覆盖等待期间 Primary 正好结束、但没有产生新消息的边界情况。",
+			);
+		}
+		if (script === "visual-natural") {
+			return fauxAssistantMessage("实现方向合理。重点确认游标只在成功读取后推进，并保留超时后的当前位置。");
 		}
 		const primaryTranscriptState = toolResultText(context, "pull_transcript").includes("E2E_PRIMARY_SENTINEL")
 			? "seen"

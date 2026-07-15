@@ -4,29 +4,29 @@ exports[`Advisor overlay visual snapshots > overlay-ask-advisor renders a stable
 {
   "screen": "╭ Advisor · idle · ctx 2.1%/128k ────────────────────────────────────────────╮
 │                                                                            │
-│ Review the primary transcript.                                             │
+│ 帮我检查这次 Pull 改动，重点看会不会漏消息。                               │
 │                                                                            │
 │                                                                            │
 │                                                                            │
-│ Context                                                                    │
-│ user: Review the cache design.                                             │
-│ agent: The cache now owns request deduplication.                           │
-│ agent: The retry path still refreshes independently.                       │
+│ Context · 3 msgs                                                           │
+│ user: 给 Pull 增加等待新消息的能力，并补齐游标越界处理。                   │
+│ agent: 等待分支已经接入。                                                  │
+│ agent: 游标越界时会从当前 transcript 末尾继续。                            │
 │                                                                            │
 │                                                                            │
-│ Checking the Primary transcript for cache races...                         │
+│ 我在对照游标推进、等待唤醒和越界恢复的时序。                               │
 │                                                                            │
 │                                                                            │
 │ Pull [0, 12) → 8 msgs · 4.2s                                               │
-│ user: Review the cache design.                                             │
-│ agent: The cache owns request deduplication.                               │
-│ → read src/cache.ts ⇒ ok · 120 lines                                       │
-│ → grep refreshToken ⇒ ok · 12 matches                                      │
-│ → write src/cache-refresh.ts ⇒ ok · 85 lines                               │
+│ user: 给 Pull 增加等待新消息的能力，并补齐游标越界处理。                   │
+│ agent: 我先检查 Pull 的游标推进和等待逻辑。                                │
+│ → read extensions/advisor/session.ts ⇒ ok · 640 lines                      │
+│ → grep waitForPrimaryTranscript ⇒ ok · 8 matches                           │
+│ → edit extensions/advisor/session.ts ⇒ ok · diff applied                   │
 │ ... (3 more lines, ctrl+o to expand)                                       │
 │                                                                            │
 │                                                                            │
-│ E2E_SECOND_OPINION: primary_transcript=seen                                │
+│ 游标推进整体合理；还需要覆盖等待期间 Primary 结束但没有新消息的场景。      │
 │                                                                            │
 │                                                                            │
 ├────────────────────────────────────────────────────────────────────────────┤
@@ -38,7 +38,7 @@ exports[`Advisor overlay visual snapshots > overlay-ask-advisor renders a stable
         "color": "userMessageBg",
         "lines": [
           "",
-          " Review the primary transcript.",
+          " 帮我检查这次 Pull 改动，重点看会不会漏消息。",
           "",
         ],
       },
@@ -46,10 +46,10 @@ exports[`Advisor overlay visual snapshots > overlay-ask-advisor renders a stable
         "color": "customMessageBg",
         "lines": [
           "",
-          " Context",
-          " user: Review the cache design.",
-          " agent: The cache now owns request deduplication.",
-          " agent: The retry path still refreshes independently.",
+          " Context · 3 msgs",
+          " user: 给 Pull 增加等待新消息的能力，并补齐游标越界处理。",
+          " agent: 等待分支已经接入。",
+          " agent: 游标越界时会从当前 transcript 末尾继续。",
           "",
         ],
       },
@@ -58,11 +58,11 @@ exports[`Advisor overlay visual snapshots > overlay-ask-advisor renders a stable
         "lines": [
           "",
           " Pull [0, 12) → 8 msgs · 4.2s",
-          " user: Review the cache design.",
-          " agent: The cache owns request deduplication.",
-          " → read src/cache.ts ⇒ ok · 120 lines",
-          " → grep refreshToken ⇒ ok · 12 matches",
-          " → write src/cache-refresh.ts ⇒ ok · 85 lines",
+          " user: 给 Pull 增加等待新消息的能力，并补齐游标越界处理。",
+          " agent: 我先检查 Pull 的游标推进和等待逻辑。",
+          " → read extensions/advisor/session.ts ⇒ ok · 640 lines",
+          " → grep waitForPrimaryTranscript ⇒ ok · 8 matches",
+          " → edit extensions/advisor/session.ts ⇒ ok · diff applied",
           " ... (3 more lines, ctrl+o to expand)",
           "",
         ],
@@ -76,12 +76,12 @@ exports[`Advisor overlay visual snapshots > overlay-context-preview renders a st
 {
   "screen": "╭ Advisor · idle · ctx 2.4%/128k ────────────────────────────────────────────╮
 │                                                                            │
-│ Context                                                                    │
-│ user: Review the complete migration.                                       │
-│ agent: Inspecting the old schema.                                          │
-│ agent: Reading the migration runner.                                       │
-│ agent: Updating the transaction boundary.                                  │
-│ agent: Adding rollback coverage.                                           │
+│ Context · 7 msgs                                                           │
+│ user: 帮我检查数据库迁移是否可以安全回滚。                                 │
+│ agent: 我先核对旧表结构。                                                  │
+│ agent: 接着检查迁移入口。                                                  │
+│ agent: 事务边界已经调整。                                                  │
+│ agent: 现在补充回滚场景。                                                  │
 │ ... (2 more lines, ctrl+o to expand)                                       │
 │                                                                            │
 │                                                                            │
@@ -96,12 +96,12 @@ exports[`Advisor overlay visual snapshots > overlay-context-preview renders a st
         "color": "customMessageBg",
         "lines": [
           "",
-          " Context",
-          " user: Review the complete migration.",
-          " agent: Inspecting the old schema.",
-          " agent: Reading the migration runner.",
-          " agent: Updating the transaction boundary.",
-          " agent: Adding rollback coverage.",
+          " Context · 7 msgs",
+          " user: 帮我检查数据库迁移是否可以安全回滚。",
+          " agent: 我先核对旧表结构。",
+          " agent: 接着检查迁移入口。",
+          " agent: 事务边界已经调整。",
+          " agent: 现在补充回滚场景。",
           " ... (2 more lines, ctrl+o to expand)",
           "",
         ],
@@ -143,24 +143,24 @@ exports[`Advisor overlay visual snapshots > overlay-expanded-pull renders a stab
 │ <primary-transcript start="0" end="12" total="12" state="idle"             │
 │ wait="new_messages" waited-ms="4200">                                      │
 │ **user**:                                                                  │
-│ Review the cache design.                                                   │
+│ 给 Pull 增加等待新消息的能力，并补齐游标越界处理。                         │
 │                                                                            │
 │ **agent**:                                                                 │
-│ The cache owns request deduplication.                                      │
-│ // inspect the cache implementation before reviewing                       │
-│ → read(src/cache.ts) ⇒ ok · 120 lines                                      │
-│ → grep(refreshToken) ⇒ ok · 12 lines                                       │
-│ → write(src/cache-refresh.ts) ⇒ ok · 85 lines                              │
-│ Adding pending refresh deduplication.                                      │
-│ → edit(src/cache-refresh.ts) ⇒ ok · 1 line                                 │
+│ 我先检查 Pull 的游标推进和等待逻辑。                                       │
+│ // inspect cursor advancement and wake-up ordering before editing          │
+│ → read(extensions/advisor/session.ts) ⇒ ok · 640 lines                     │
+│ → grep(waitForPrimaryTranscript) ⇒ ok · 8 lines                            │
+│ → edit(extensions/advisor/session.ts) ⇒ ok · 1 line                        │
 │ \`\`\`diff                                                                    │
-│ --- a/src/cache-refresh.ts                                                 │
-│ +++ b/src/cache-refresh.ts                                                 │
+│ --- a/extensions/advisor/session.ts                                        │
+│ +++ b/extensions/advisor/session.ts                                        │
 │ @@ -1 +1 @@                                                                │
-│ -const pending = false;                                                    │
-│ +const pending = true;                                                     │
+│ -const shouldWait = false;                                                 │
+│ +const shouldWait = timeoutMs > 0;                                         │
 │ \`\`\`                                                                        │
-│ → bash(npm test) ⇒ ok · 42 lines                                           │
+│ 等待分支已经接入，接下来补充越界场景。                                     │
+│ → edit(e2e/features/pull-transcript.feature) ⇒ ok · 1 line                 │
+│ → bash(just test-e2e) ⇒ ok · 29 scenarios                                  │
 │ </primary-transcript>                                                      │
 │                                                                            │
 │                                                                            │
@@ -177,24 +177,24 @@ exports[`Advisor overlay visual snapshots > overlay-expanded-pull renders a stab
           " <primary-transcript start="0" end="12" total="12" state="idle"",
           " wait="new_messages" waited-ms="4200">",
           " **user**:",
-          " Review the cache design.",
+          " 给 Pull 增加等待新消息的能力，并补齐游标越界处理。",
           "",
           " **agent**:",
-          " The cache owns request deduplication.",
-          " // inspect the cache implementation before reviewing",
-          " → read(src/cache.ts) ⇒ ok · 120 lines",
-          " → grep(refreshToken) ⇒ ok · 12 lines",
-          " → write(src/cache-refresh.ts) ⇒ ok · 85 lines",
-          " Adding pending refresh deduplication.",
-          " → edit(src/cache-refresh.ts) ⇒ ok · 1 line",
+          " 我先检查 Pull 的游标推进和等待逻辑。",
+          " // inspect cursor advancement and wake-up ordering before editing",
+          " → read(extensions/advisor/session.ts) ⇒ ok · 640 lines",
+          " → grep(waitForPrimaryTranscript) ⇒ ok · 8 lines",
+          " → edit(extensions/advisor/session.ts) ⇒ ok · 1 line",
           " \`\`\`diff",
-          " --- a/src/cache-refresh.ts",
-          " +++ b/src/cache-refresh.ts",
+          " --- a/extensions/advisor/session.ts",
+          " +++ b/extensions/advisor/session.ts",
           " @@ -1 +1 @@",
-          " -const pending = false;",
-          " +const pending = true;",
+          " -const shouldWait = false;",
+          " +const shouldWait = timeoutMs > 0;",
           " \`\`\`",
-          " → bash(npm test) ⇒ ok · 42 lines",
+          " 等待分支已经接入，接下来补充越界场景。",
+          " → edit(e2e/features/pull-transcript.feature) ⇒ ok · 1 line",
+          " → bash(just test-e2e) ⇒ ok · 29 scenarios",
           " </primary-transcript>",
           "",
           "",
@@ -221,7 +221,7 @@ exports[`Advisor overlay visual snapshots > overlay-focused-input renders a stab
 │                                                │
 │                                                │
 ├────────────────────────────────────────────────┤
-│[7mR[27meview this draft                               │
+│[7m帮[27m我审查这个方案                                │
 ╰────────────────────────────────────────────────╯",
   "styles": {
     "fullWidthBackgroundBlocks": [],
@@ -231,24 +231,24 @@ exports[`Advisor overlay visual snapshots > overlay-focused-input renders a stab
 
 exports[`Advisor overlay visual snapshots > overlay-long-content-small-terminal renders a stable bounded overlay 1`] = `
 {
-  "screen": "╭ Advisor · idle · ctx 13.3%/128k · ↑1 ↓0 ─╮
-│ Check whether this very long prompt      │
-│ wraps without breaking the panel border  │
-│ or hiding the input area.                │
+  "screen": "╭ Advisor · idle · ctx 13.3%/128k ─────────╮
+│                                          │
+│ 再看一下窄窗口里的显示，长标识符换行以后 │
+│ 会不会把边框撑开，或者挡住下面的输入框？ │
 │                                          │
 │                                          │
 │                                          │
-│ Context                                  │
-│ user: Inspect the                        │
-│ super-long-token-without-natural-breaks- │
-│ abcdefghijklmnopqrstuvwxyz-0123456789 in │
-│ the cache design.                        │
-│ agent: The Primary response remains      │
-│ ... (2 more lines, ctrl+o to expand)     │
+│ Context · 2 msgs                         │
+│ user: 请确认                             │
+│ primaryTranscriptCursorByAdvisorSessionA │
+│ ndWorkspace 在窄窗口中能正常换行。       │
+│ agent: 我保留这个完整标识符，用它验证    │
+│ Context 在窄宽度下的折行，同时确认截断提 │
+│ ... (1 more lines, ctrl+o to expand)     │
 │                                          │
 │                                          │
-│ The narrow overlay wraps the Primary     │
-│ context safely without widening.         │
+│ Context 会在面板内换行，右侧边框和输入区 │
+│ 域都保持完整。                           │
 ├──────────────────────────────────────────┤
 │[7m [27m                                         │
 ╰──────────────────────────────────────────╯",
@@ -258,9 +258,8 @@ exports[`Advisor overlay visual snapshots > overlay-long-content-small-terminal 
         "color": "userMessageBg",
         "lines": [
           "",
-          " Check whether this very long prompt",
-          " wraps without breaking the panel border",
-          " or hiding the input area.",
+          " 再看一下窄窗口里的显示，长标识符换行以后",
+          " 会不会把边框撑开，或者挡住下面的输入框？",
           "",
         ],
       },
@@ -268,13 +267,13 @@ exports[`Advisor overlay visual snapshots > overlay-long-content-small-terminal 
         "color": "customMessageBg",
         "lines": [
           "",
-          " Context",
-          " user: Inspect the",
-          " super-long-token-without-natural-breaks-",
-          " abcdefghijklmnopqrstuvwxyz-0123456789 in",
-          " the cache design.",
-          " agent: The Primary response remains",
-          " ... (2 more lines, ctrl+o to expand)",
+          " Context · 2 msgs",
+          " user: 请确认",
+          " primaryTranscriptCursorByAdvisorSessionA",
+          " ndWorkspace 在窄窗口中能正常换行。",
+          " agent: 我保留这个完整标识符，用它验证",
+          " Context 在窄宽度下的折行，同时确认截断提",
+          " ... (1 more lines, ctrl+o to expand)",
           "",
         ],
       },
@@ -291,7 +290,7 @@ exports[`Advisor overlay visual snapshots > overlay-real-plan-review-preview ren
 │                                                                            │
 │                                                                            │
 │                                                                            │
-│ Context                                                                    │
+│ Context · 4 msgs                                                           │
 │ user: 我想给 Advisor 增加一个导出当前对话为 Markdown 的命令。先帮我做个实  │
 │ 现计划，不用改代码。                                                       │
 │ agent: Let me first了解一下项目结构和 Advisor 是什么。                     │
@@ -301,7 +300,7 @@ exports[`Advisor overlay visual snapshots > overlay-real-plan-review-preview ren
 │                                                                            │
 │                                                                            │
 │                                                                            │
-│ Pull [36, 37) → 1 msgs · 0.0s                                              │
+│ Pull [36, 37) → 1 msg · 0.0s                                               │
 │ agent: 好的，我已经全面了解了项目结构和 Advisor 的架构。以下是我的实现计划 │
 │ ：                                                                         │
 │                                                                            │
@@ -327,7 +326,7 @@ exports[`Advisor overlay visual snapshots > overlay-real-plan-review-preview ren
         "color": "customMessageBg",
         "lines": [
           "",
-          " Context",
+          " Context · 4 msgs",
           " user: 我想给 Advisor 增加一个导出当前对话为 Markdown 的命令。先帮我做个实",
           " 现计划，不用改代码。",
           " agent: Let me first了解一下项目结构和 Advisor 是什么。",
@@ -341,7 +340,7 @@ exports[`Advisor overlay visual snapshots > overlay-real-plan-review-preview ren
         "color": "toolSuccessBg",
         "lines": [
           "",
-          " Pull [36, 37) → 1 msgs · 0.0s",
+          " Pull [36, 37) → 1 msg · 0.0s",
           " agent: 好的，我已经全面了解了项目结构和 Advisor 的架构。以下是我的实现计划",
           " ：",
           "",
@@ -360,16 +359,16 @@ exports[`Advisor overlay visual snapshots > overlay-repeated-ask renders a stabl
 {
   "screen": "╭ Advisor · idle · ctx 2.5%/128k ────────────────╮
 │                                                │
-│ Explain the same Primary response from another │
-│ angle.                                         │
+│ 同一个结论能换个角度解释吗？                   │
 │                                                │
 │                                                │
 │                                                │
-│ Context                                        │
+│ Context · 0 msgs                               │
 │                                                │
 │                                                │
-│ The repeated Ask reuses the existing Advisor   │
-│ Transcript.                                    │
+│ 可以。关键是 Advisor 会复用已有上下文，不会重  │
+│ 复注入相同的 Primary 内容。                    │
+│                                                │
 │                                                │
 ├────────────────────────────────────────────────┤
 │[7m [27m                                               │
@@ -380,8 +379,7 @@ exports[`Advisor overlay visual snapshots > overlay-repeated-ask renders a stabl
         "color": "userMessageBg",
         "lines": [
           "",
-          " Explain the same Primary response from another",
-          " angle.",
+          " 同一个结论能换个角度解释吗？",
           "",
         ],
       },
@@ -389,7 +387,7 @@ exports[`Advisor overlay visual snapshots > overlay-repeated-ask renders a stabl
         "color": "customMessageBg",
         "lines": [
           "",
-          " Context",
+          " Context · 0 msgs",
           "",
         ],
       },
@@ -441,31 +439,31 @@ exports[`Advisor overlay visual snapshots > overlay-tool-and-advice-blocks rende
 {
   "screen": "╭ Advisor · idle · ctx 3.4%/128k ──────────────────────────────────────────────────────────────╮
 │                                                                                              │
-│ Review the delivery plan.                                                                    │
+│ 帮我审查 Pull 的错误处理和 Advice 送达顺序。                                                 │
 │                                                                                              │
 │                                                                                              │
 │                                                                                              │
-│ grep {"pattern":"pendingRefresh"} ⇒ pending                                                  │
+│ grep {"pattern":"resolvePullCursor"} ⇒ pending                                               │
 │                                                                                              │
 │                                                                                              │
 │                                                                                              │
-│ read {"path":"src/cache.ts"} ⇒ ok · 2 lines                                                  │
+│ read {"path":"extensions/advisor/session.ts"} ⇒ ok · 2 lines                                 │
 │                                                                                              │
 │                                                                                              │
 │                                                                                              │
-│ write {"path":"src/cache.ts"} ⇒ error · 2 lines — permission denied cannot write             │
+│ write {"path":"extensions/advisor/session.ts"} ⇒ error · 2 lines — EACCES: permission denied │
+│ 无法写入 session.ts                                                                          │
 │                                                                                              │
 │                                                                                              │
 │                                                                                              │
-│ Hint: Use the SDK path.                                                                      │
+│ Hint: 先校验游标，再进入等待分支。                                                           │
 │                                                                                              │
 │                                                                                              │
 │                                                                                              │
-│ Concern: Keep delivery after validation.                                                     │
+│ Concern: 写入失败时不要继续发送完成通知。                                                    │
 │                                                                                              │
 │                                                                                              │
-│ The delivery plan is ready.                                                                  │
-│                                                                                              │
+│ 主要风险已经标注，建议补完错误路径后再提交。                                                 │
 │                                                                                              │
 │                                                                                              │
 │                                                                                              │
@@ -479,7 +477,7 @@ exports[`Advisor overlay visual snapshots > overlay-tool-and-advice-blocks rende
         "color": "userMessageBg",
         "lines": [
           "",
-          " Review the delivery plan.",
+          " 帮我审查 Pull 的错误处理和 Advice 送达顺序。",
           "",
         ],
       },
@@ -487,7 +485,7 @@ exports[`Advisor overlay visual snapshots > overlay-tool-and-advice-blocks rende
         "color": "toolPendingBg",
         "lines": [
           "",
-          " grep {"pattern":"pendingRefresh"} ⇒ pending",
+          " grep {"pattern":"resolvePullCursor"} ⇒ pending",
           "",
         ],
       },
@@ -495,7 +493,7 @@ exports[`Advisor overlay visual snapshots > overlay-tool-and-advice-blocks rende
         "color": "toolSuccessBg",
         "lines": [
           "",
-          " read {"path":"src/cache.ts"} ⇒ ok · 2 lines",
+          " read {"path":"extensions/advisor/session.ts"} ⇒ ok · 2 lines",
           "",
         ],
       },
@@ -503,7 +501,8 @@ exports[`Advisor overlay visual snapshots > overlay-tool-and-advice-blocks rende
         "color": "toolErrorBg",
         "lines": [
           "",
-          " write {"path":"src/cache.ts"} ⇒ error · 2 lines — permission denied cannot write",
+          " write {"path":"extensions/advisor/session.ts"} ⇒ error · 2 lines — EACCES: permission denied",
+          " 无法写入 session.ts",
           "",
         ],
       },
@@ -511,7 +510,7 @@ exports[`Advisor overlay visual snapshots > overlay-tool-and-advice-blocks rende
         "color": "toolErrorBg",
         "lines": [
           "",
-          " Hint: Use the SDK path.",
+          " Hint: 先校验游标，再进入等待分支。",
           "",
         ],
       },
@@ -519,7 +518,7 @@ exports[`Advisor overlay visual snapshots > overlay-tool-and-advice-blocks rende
         "color": "toolErrorBg",
         "lines": [
           "",
-          " Concern: Keep delivery after validation.",
+          " Concern: 写入失败时不要继续发送完成通知。",
           "",
         ],
       },
@@ -533,11 +532,11 @@ exports[`Advisor overlay visual snapshots > overlay-unbound-pull-expansion rende
   "screen": "╭ Advisor · idle · ctx 2.2%/128k ────────────────────────────────────────────╮
 │                                                                            │
 │ Pull [0, 12) → 8 msgs · 4.2s                                               │
-│ user: Review the cache design.                                             │
-│ agent: The cache owns request deduplication.                               │
-│ → read src/cache.ts ⇒ ok · 120 lines                                       │
-│ → grep refreshToken ⇒ ok · 12 matches                                      │
-│ → write src/cache-refresh.ts ⇒ ok · 85 lines                               │
+│ user: 给 Pull 增加等待新消息的能力，并补齐游标越界处理。                   │
+│ agent: 我先检查 Pull 的游标推进和等待逻辑。                                │
+│ → read extensions/advisor/session.ts ⇒ ok · 640 lines                      │
+│ → grep waitForPrimaryTranscript ⇒ ok · 8 matches                           │
+│ → edit extensions/advisor/session.ts ⇒ ok · diff applied                   │
 │ ... (3 more lines)                                                         │
 │                                                                            │
 │                                                                            │
@@ -553,11 +552,11 @@ exports[`Advisor overlay visual snapshots > overlay-unbound-pull-expansion rende
         "lines": [
           "",
           " Pull [0, 12) → 8 msgs · 4.2s",
-          " user: Review the cache design.",
-          " agent: The cache owns request deduplication.",
-          " → read src/cache.ts ⇒ ok · 120 lines",
-          " → grep refreshToken ⇒ ok · 12 matches",
-          " → write src/cache-refresh.ts ⇒ ok · 85 lines",
+          " user: 给 Pull 增加等待新消息的能力，并补齐游标越界处理。",
+          " agent: 我先检查 Pull 的游标推进和等待逻辑。",
+          " → read extensions/advisor/session.ts ⇒ ok · 640 lines",
+          " → grep waitForPrimaryTranscript ⇒ ok · 8 matches",
+          " → edit extensions/advisor/session.ts ⇒ ok · diff applied",
           " ... (3 more lines)",
           "",
         ],

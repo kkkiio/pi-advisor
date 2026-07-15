@@ -34,7 +34,7 @@ Overlay Component 直接服从 Pi 传入的实际宽度与终端可用高度。T
 
 Overlay 订阅 Advisor `AgentSessionEvent`，把 thinking、text、tool calls、tool results 和 notices 增量投影到 UI state。Ask Advisor 与 Watch Run 使用同一个 Overlay 和同一份 Advisor Transcript。
 
-折叠的 Pull Block 使用 `pull_transcript` tool result details 中的 display items，不解析返回给 Advisor 模型的 markdown。Display item 与 markdown 由同一次 Primary Transcript slice 序列化产生，tool call 与 tool result 合并为一个 item，因此 Pull header 的 `N msgs` 表示 Overlay 最终展示的逻辑条目数。Context header 只显示 `Context`，避免重复已在预览中可见的数量信息。展开的 Pull Block 直接呈现保留的完整 `<primary-transcript>` tool-result text；展开的 Context Block 直接呈现发送给 Advisor 的完整 `<primary-context>` hidden custom message。两者使用 `Text` 保留模型实际收到的 XML 边界、markdown marker 和正文字符。
+折叠的 Pull Block 使用 `pull_transcript` tool result details 中的 display items，不解析返回给 Advisor 模型的 markdown。Display item 与 markdown 由同一次 Primary Transcript slice 序列化产生，tool call 与 tool result 合并为一个 item，因此 Pull header 的 `N msgs` 表示 Overlay 最终展示的逻辑条目数。Context header 的 `N msgs` 表示本次注入的 Primary user 与 agent 消息数；没有新的 Primary 内容时显示 `Context · 0 msgs`，说明空 Block 是 position-only Context。Context 与 Pull 中的 Primary user/agent 正文统一使用 `text`，role prefix 使用 `dim`；Pull 中真正的工具行继续使用 `toolTitle` 与 `toolOutput`。展开的 Pull Block 直接呈现保留的完整 `<primary-transcript>` tool-result text；展开的 Context Block 直接呈现发送给 Advisor 的完整 `<primary-context>` hidden custom message。两种原始 payload 统一使用 `text`，并通过各自的背景与标题颜色表达 Context 和 Pull 语义，同时保留模型实际收到的 XML 边界、markdown marker 和正文字符。
 
 Advisor 正在 streaming 时，新消息通过 Steer 排队。Ask Context 注入与 `session.prompt()` 之间的短暂启动窗口使用 transient guard：如果新的提交遇到尚未进入 streaming 的活动 Ask 或 Watch Run，把输入恢复到 Overlay draft，避免丢失输入，不引入额外消息队列状态机。
 

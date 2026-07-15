@@ -19,6 +19,8 @@ Primary Transcript 是 Primary Agent 提供给 Advisor 的内容契约。Runtime
 
 Ask Context 只保留 text，不包含 tool call、tool result、custom message 或状态摘要。包含文本时，Advisor 收到：
 
+正文作为 XML text node 转义后写入外层；Primary 原文里的 `<`、`>`、`&`、`'` 和 `"` 不会改变 payload 边界。
+
 ```text
 <primary-context end="12" state="idle">
 **user**:
@@ -38,6 +40,8 @@ Ask Context 只保留 text，不包含 tool call、tool result、custom message 
 ## Pull Transcript Projection
 
 Pull Transcript 把选定的 `[start, end)` 消息范围渲染成紧凑 markdown：
+
+- 完整 markdown body 作为 XML text node 转义后写入 `<primary-transcript>`；正文里的 XML 字面量不会改变 transcript 边界。
 
 - user、developer 和 assistant text 分别使用 `**user**:`、`**developer**:` 和 `**agent**:` role marker；连续同角色消息复用同一个 marker。
 - tool call 与对应 result 合并成一条 `→ tool(args) ⇒ status` 摘要，保留工具意图、成功/错误状态和输出行数，不附带完整 tool output。
