@@ -56,6 +56,11 @@ When changing Advisor behavior, cover it through BDD E2E or visual tests. Do not
 - Use deterministic Overlay snapshots for stable TUI layout checks. Use generated HTML artifacts for visual review against `docs/prd.md`.
 - Do not use whole-TUI exact text snapshots as the default E2E oracle.
 - Run the visual test flow when changing Advisor Overlay layout or TUI visual behavior; skip it for non-visual changes.
+- When full E2E coverage is required, push the branch and prefer the GitHub Actions result. During local development, run targeted Cucumber scenarios; run the full local E2E suite only when debugging CI or when the user explicitly requests it.
+
+### Pull Request Review Policy
+
+When addressing actionable pull request review threads, commit and push each completed fix after its local checks pass, then resolve the addressed GitHub review threads. Do not resolve a thread when its fix has not been pushed successfully.
 
 ## Project Structure Guide
 
@@ -112,14 +117,27 @@ This package provides a Pi extension that runs a session-persistent Advisor besi
 
 ## Operation Guide
 
-Before committing or handing work back, run the submit-ready verification flow:
+Before committing or handing work back, run the local submit-ready verification flow:
 
 ```bash
 just fmt
 just check
 just test
-just test-e2e
 ```
+
+While developing E2E behavior, run the relevant scenarios locally:
+
+```bash
+npm run test:e2e -- --name "<scenario>"
+```
+
+After pushing a change that requires full E2E coverage, use GitHub Actions as the primary full-suite result:
+
+```bash
+gh pr checks --watch
+```
+
+Run `just test-e2e` locally only when debugging a CI failure or when the user explicitly requests the full local suite.
 
 When changing Advisor Overlay layout or TUI visual behavior, also run:
 

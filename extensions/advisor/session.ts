@@ -178,9 +178,7 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 		const primaryContextContent = askContext
 			? `<primary-context end="${view.messages.length}" state="${this.primaryLoopState}">\n${escapeXmlText(
 					`**user**:\n${askContext.userText}${
-						askContext.assistantTexts.length > 0
-							? `\n\n**primary**:\n${askContext.assistantTexts.join("\n\n")}`
-							: ""
+						askContext.assistantTexts.length > 0 ? `\n\n**primary**:\n${askContext.assistantTexts.join("\n\n")}` : ""
 					}`,
 				)}\n</primary-context>`
 			: `<primary-context end="${view.messages.length}" state="${this.primaryLoopState}" />`;
