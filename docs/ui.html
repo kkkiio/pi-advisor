@@ -76,6 +76,9 @@
 			.ov-body {
 				padding: 4px 0;
 			}
+			.ov-body > * + * {
+				margin-top: 1.6em;
+			}
 
 			/* default text line — no background, default/text color */
 			.ov-line {
@@ -91,10 +94,10 @@
 
 			/* ── blocks: background is the boundary, body lines not indented ── */
 			.blk {
-				margin: 2px 0;
+				padding: 1.6em 0;
 			}
 			.blk-line {
-				padding: 1px 14px;
+				padding: 0 14px;
 			}
 
 			.blk.user-msg {
@@ -154,6 +157,11 @@
 				color: var(--text-dim);
 				font-style: italic;
 			}
+			.blk-line.payload {
+				font: inherit;
+				white-space: pre-wrap;
+				overflow-wrap: anywhere;
+			}
 
 			.ov-sep {
 				border-top: 1px solid var(--border);
@@ -180,20 +188,19 @@
 					</div>
 				</div>
 
-				<!-- Context block — customMessageBg -->
+				<!-- Context block — customMessageBg. The header carries no duplicate counts. Expanded payload metadata lives on one XML root element. -->
 				<div class="blk context">
-					<div class="blk-line"><span class="hd">Context</span> → 1 user + 2 agent msgs</div>
-					<div class="blk-line">
-						<span class="pfx">user:</span> 请帮我重构 auth 模块的 token 刷新逻辑，尤其是处理并发请求时的竞态条件
-					</div>
-					<div class="blk-line">
-						<span class="pfx">agent:</span> Let me first read the current auth module structure to understand the
-						existing token refresh flow.
-					</div>
-					<div class="blk-line">
-						<span class="pfx">agent:</span> The key issue is the retry interceptor — it fires on every 401 without
-						deduplication.
-					</div>
+					<div class="blk-line"><span class="hd">Context</span></div>
+					<!-- prettier-ignore -->
+					<pre class="blk-line payload">&lt;primary-context end="12" state="idle"&gt;
+**user**:
+请帮我重构 auth 模块的 token 刷新逻辑，尤其是处理并发请求时的竞态条件
+
+**primary**:
+Let me first read the current auth module structure to understand the existing token refresh flow.
+
+The key issue is the retry interceptor — it fires on every 401 without deduplication.
+&lt;/primary-context&gt;</pre>
 				</div>
 
 				<!-- streaming thinking — thinkingText + italic, no background -->
@@ -201,20 +208,20 @@
 					Let me check what the primary agent has done so far, then pull the recent transcript...
 				</div>
 
-				<!-- Pull block — toolSuccessBg -->
+				<!-- Pull block — toolSuccessBg. Expanded payload moves status metadata into one XML root element. -->
 				<div class="blk pull">
 					<div class="blk-line"><span class="hd">Pull</span> [0, 12) → 8 msgs · 1.2s</div>
-					<div class="blk-line">
-						<span class="pfx">user:</span> 请帮我重构 auth 模块的 token 刷新逻辑，尤其是处理并发请求时的竞态条件
-					</div>
-					<div class="blk-line">
-						<span class="pfx">agent:</span> Let me first read the current auth module structure to understand the
-						existing token refresh flow.
-					</div>
-					<div class="blk-line"><span class="arrow">→ read</span> /src/auth.ts:1-200 ⇒ ok · 200 lines</div>
-					<div class="blk-line"><span class="arrow">→ grep</span> refreshToken @ /src/**/*.ts ⇒ ok · 12 matches</div>
-					<div class="blk-line"><span class="arrow">→ write</span> /src/auth-refresh.ts ⇒ ok · 85 lines</div>
-					<div class="blk-line dim">... (3 more, Ctrl+O to expand)</div>
+					<!-- prettier-ignore -->
+					<pre class="blk-line payload">&lt;primary-transcript start="0" end="12" total="12" state="idle" wait="new_messages" waited-ms="1200"&gt;
+**user**:
+请帮我重构 auth 模块的 token 刷新逻辑，尤其是处理并发请求时的竞态条件
+
+**agent**:
+Let me first read the current auth module structure to understand the existing token refresh flow.
+→ read(/src/auth.ts:1-200) ⇒ ok · 200 lines
+→ grep(refreshToken @ /src/**/*.ts) ⇒ ok · 12 matches
+→ write(/src/auth-refresh.ts) ⇒ ok · 85 lines
+&lt;/primary-transcript&gt;</pre>
 				</div>
 
 				<!-- thinking -->

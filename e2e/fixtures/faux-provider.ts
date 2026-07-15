@@ -56,14 +56,12 @@ function scriptedResponse(
 	const latestUserMessage = [...context.messages].reverse().find((message) => message.role === "user");
 	const latestContextMessage = [...context.messages]
 		.reverse()
-		.find(
-			(message) => message.role === "user" && contentText(message.content).includes("Primary Transcript position:"),
-		);
+		.find((message) => message.role === "user" && contentText(message.content).includes("<primary-context "));
 	if (model.id === advisorModelId && process.env.PI_ADVISOR_TEST_OBSERVATIONS_PATH) {
 		const latestQuestionText = latestUserMessage ? contentText(latestUserMessage.content) : "";
 		const latestContextText = latestContextMessage ? contentText(latestContextMessage.content) : "";
 		const askContextMessageCount = context.messages.filter(
-			(message) => message.role === "user" && contentText(message.content).includes("Primary Transcript position:"),
+			(message) => message.role === "user" && contentText(message.content).includes("<primary-context "),
 		).length;
 		appendFileSync(
 			process.env.PI_ADVISOR_TEST_OBSERVATIONS_PATH,

@@ -57,14 +57,14 @@ Feature: Advisor Overlay
     When the Primary conversation gains eight chat items
     And the user asks Advisor from the main input "Review all Primary chat items."
     Then Advisor Overlay should show a completed Second Opinion
-    And Context should summarize one user and one agent message
+    And Context should preview one user and one agent message
     And Pull should summarize all eight Primary chat items
-    And Pull should show the first five Primary chat items
-    And Pull should offer to expand the remaining three items with Ctrl+X
+    And Pull should show the first five Primary chat lines
+    And Pull should offer to expand the remaining three lines with Ctrl+X
     When the user presses Ctrl+X in Advisor Overlay
-    Then Pull should show all eight Primary chat items
+    Then Context and Pull should reveal the exact payloads without losing the current transcript position
     When the user presses Ctrl+X in Advisor Overlay
-    Then Pull should return to its five-item preview
+    Then Pull should return to its five-line preview
 
   Scenario: Context and Pull preserve Primary chat text
     Given Advisor is configured in the interactive terminal

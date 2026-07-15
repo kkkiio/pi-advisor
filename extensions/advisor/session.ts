@@ -174,16 +174,16 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 		this.overlay.state.recordUserMessage(question);
 		const view = buildPrimaryTranscriptView(ctx, this.primaryStreamingAssistant);
 		const askContext = selectAskContext(view, this.lastInjectedPrimaryUserIndex);
-		const askContextSection = askContext
-			? `\n\nAsk Context:\n\n**user**:\n${askContext.userText}${
+		const primaryContextContent = askContext
+			? `<primary-context end="${view.messages.length}" state="${this.primaryLoopState}">\n**user**:\n${askContext.userText}${
 					askContext.assistantTexts.length > 0 ? `\n\n**primary**:\n${askContext.assistantTexts.join("\n\n")}` : ""
-				}`
-			: "";
+				}\n</primary-context>`
+			: `<primary-context end="${view.messages.length}" state="${this.primaryLoopState}" />`;
 		const messageStartIndex = session.state.messages.length;
 		const askCompletion = (async () => {
 			await session.sendCustomMessage({
 				customType: ADVISOR_ASK_CONTEXT_CUSTOM_TYPE,
-				content: `Primary Transcript position:\nprimary_transcript_end_index=${view.messages.length}\nprimary_agent_loop_state=${this.primaryLoopState}${askContextSection}`,
+				content: primaryContextContent,
 				display: false,
 				details: {
 					primaryTranscriptEndIndex: view.messages.length,
@@ -191,9 +191,14 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 					primaryUserMessageIndex: askContext?.primaryUserMessageIndex,
 				},
 			});
+			this.overlay.state.recordContext({
+				primaryTranscriptEndIndex: view.messages.length,
+				primaryAgentLoopState: this.primaryLoopState,
+				askContext,
+				text: primaryContextContent,
+			});
 			if (askContext) {
 				this.lastInjectedPrimaryUserIndex = askContext.primaryUserMessageIndex;
-				this.overlay.state.recordContext(askContext);
 			}
 			this.overlay.state.setStatus("ask started");
 			this.overlay.refresh();
@@ -566,7 +571,7 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 				displayItems: [],
 			};
 			return {
-				text: `[0, 0) primary_agent_loop_state=${this.primaryLoopState} wait_result=timeout waited_ms=0 total=0\n\n(no primary context)\n`,
+				text: `<primary-transcript start="0" end="0" total="0" state="${this.primaryLoopState}" wait="timeout" waited-ms="0">\n(no primary context)\n</primary-transcript>\n`,
 				details,
 			};
 		}

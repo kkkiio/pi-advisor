@@ -33,7 +33,7 @@ Marker 只保留时间线因果信息，不包含 Advice 原文。Advisor 已在
 
 `pull_transcript` 的 `[start, end)` 与 `since_index` 都基于过滤后的 View，过滤 Advisor 内容不会造成 cursor 跳动。Compaction 或 tree 切换导致 cursor 越界时，从当前 View index 0 恢复。
 
-Pull 的 markdown 与 Overlay display items 必须从同一个已过滤的 View slice 同步生成。Overlay 不从 markdown 反向推断消息边界；display item 计数按最终逻辑条目计算，其中 tool call 与对应 result 合并为一个条目。
+Pull 的 XML 外层、markdown 内容与 Overlay display items 必须从同一个已过滤的 View slice 同步生成。Overlay 不从 markdown 反向推断消息边界；display item 计数按最终逻辑条目计算，其中 tool call 与对应 result 合并为一个条目。Overlay 展开 Pull 时直接呈现 Advisor 收到的同一份 XML tool-result text。
 
 ## Alternatives Considered
 

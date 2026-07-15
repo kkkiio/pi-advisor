@@ -4,7 +4,7 @@
 
 Advisor 使用 Pull 模型读取 Primary Agent 的工作进展。Runtime 不按 Primary turn 主动推送 transcript delta；Advisor 根据当前任务、Primary Agent loop state 和已有 cursor，自行决定何时调用 `pull_transcript`。
 
-`pull_transcript` 读取经过来源过滤的 Primary Transcript View，并把选定范围序列化成 markdown tool result。Advisor 模型通过 tool output 阅读 Primary Agent 的 user message、assistant output、thinking、tool calls 和 tool results。
+`pull_transcript` 读取经过来源过滤的 Primary Transcript View，并把选定范围序列化成 XML 包裹的 markdown tool result。Advisor 模型通过 tool output 阅读 Primary Agent 的 user message、assistant output、thinking、tool calls 和 tool results。
 
 ## Tool Contract
 
@@ -12,28 +12,30 @@ Advisor 使用 Pull 模型读取 Primary Agent 的工作进展。Runtime 不按 
 pull_transcript(since_index?, timeout_ms?, count?)
 ```
 
-- `since_index` 是 Primary Transcript View 的绝对索引。返回 header 使用 `[start, end)` 左闭右开范围，`end` 可直接作为下一次 Pull 的 cursor。
+- `since_index` 是 Primary Transcript View 的绝对索引。返回 `<primary-transcript>` 的 `start` 和 `end` 属性使用左闭右开范围，`end` 可直接作为下一次 Pull 的 cursor。
 - 负数 `since_index` 从 View 尾部定位；例如 `-20` 表示读取最近 20 条记录。
 - 不传 `since_index` 时从 View 开头读取，适合 Watch Run 首次建立上下文。
 - `count` 限制本次最大返回条数，默认 100。
 - `timeout_ms` 默认 0；非零时等待新记录、Primary loop state 变化、Watch Run 取消或超时，最大等待 20 秒。
-- `wait_result` 为 `new_messages`、`state_changed`、`watch_cancelled` 或 `timeout`。
-- `primary_agent_loop_state` 为 `running`、`idle` 或 `aborted`，描述完整 agent loop，注意跟单个 turn 和 token streaming 区分。
+- `wait` 属性为 `new_messages`、`state_changed`、`watch_cancelled` 或 `timeout`。
+- `state` 属性为 `running`、`idle` 或 `aborted`，描述完整 agent loop，注意跟单个 turn 和 token streaming 区分。
 
 Overlay 的 `Pulling… Ns` 从 `tool_execution_start` 开始计时。模型流式生成 tool call arguments 的时间不属于 Pull 等待时间；完成态使用 result details 的 `waitedMs`。
 
-返回值以状态 header 开始，随后是 markdown transcript：
+返回值使用 `<primary-transcript>` 根元素携带状态属性，元素内是 markdown transcript：
 
 ```text
-[5, 11) primary_agent_loop_state=running wait_result=new_messages waited_ms=842
-
+<primary-transcript start="5" end="11" total="11" state="running" wait="new_messages" waited-ms="842">
 **agent**:
 我先看一下现有的 auth 模块。
+</primary-transcript>
 ```
 
 Tool result details 同时携带供 Advisor Overlay 使用的结构化 display items。它们与 markdown 从同一个过滤后 slice 生成，使用 `user`、`agent` 和 `tool` 三种类型；tool call 与对应 result 合并为一个 item。Display items 不替代 markdown tool output，也不改变 `[start, end)` cursor 语义。
 
-如果 compaction 或 tree 切换使 `since_index` 超过当前 View 长度，Pull 从 View index 0 恢复读取，继续受 `count` 限制，并在 header 中注明 cursor 越界。
+Overlay transcript projection 同时保留 `pull_transcript` 的完整 tool-result text。折叠状态读取 details 中最多 5 个 display item；通过 `app.tools.expand` 展开后使用等宽文本逐字呈现完整 tool-result text，包括 XML 边界与状态属性、role marker、tool intent、Primary Context 和 edit diff。Overlay 不从 markdown 反向推断折叠条目。
+
+如果 compaction 或 tree 切换使 `since_index` 超过当前 View 长度，Pull 从 View index 0 恢复读取，继续受 `count` 限制，并在根元素上设置 `since-index-out-of-bounds="true"`。
 
 ## Runtime Integration
 

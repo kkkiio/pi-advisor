@@ -74,7 +74,7 @@ const scenarios: TuiVisualScenario[] = [
 			"Overlay does not cover the primary input/status area in a way that makes it unreadable.",
 			"User message uses the Primary transcript's foreground and a background that reaches both panel edges.",
 			"Context uses one custom-message block with its item count and user:/agent: prefixes.",
-			"Pull uses one tool-success block with its range, eight-item count, first five items, and expansion hint.",
+			"Pull uses one tool-success block with its range, eight-item count, five-line preview, and expansion hint.",
 			"Tool calls and results are merged, while Prompt, Tool, and Advisor badges remain absent.",
 			"Advisor completion text is visible without breaking panel borders.",
 		],
@@ -102,7 +102,7 @@ const scenarios: TuiVisualScenario[] = [
 				(screen) =>
 					screen.includes("Advisor · idle") &&
 					screen.includes("Pull [0, 8) → 8 msgs") &&
-					screen.includes("... (3 more, ctrl+o to expand)"),
+					screen.includes("... (3 more lines, ctrl+o to expand)"),
 				20_000,
 				"collapsed Ask Advisor Pull block",
 			);
@@ -110,13 +110,14 @@ const scenarios: TuiVisualScenario[] = [
 	},
 	{
 		id: "expanded-pull-overlay",
-		title: "Expanded Pull Overlay",
-		description: "The configured Pi tool expansion action reveals all structured Primary chat items.",
-		options: { advisorModelConfigured: true, script: "overlay-pull-collapse", width: 100, height: 30 },
+		title: "Expanded Primary Context Payloads",
+		description: "The configured Pi tool expansion action reveals the exact Ask Context and Pull payloads.",
+		options: { advisorModelConfigured: true, script: "overlay-pull-collapse", width: 100, height: 48 },
 		captures: ["overlay"],
 		checklist: [
-			"The expanded Pull remains a single tool-success block.",
-			"All eight user, agent, and merged tool items appear in source order.",
+			"Expanded Context remains one custom-message block and exposes the exact primary-context XML payload.",
+			"Expanded Pull remains one tool-success block and exposes the exact primary-transcript XML payload.",
+			"Literal markdown role markers remain visible for diagnosis instead of being interpreted as presentation markup.",
 			"The collapsed expansion hint is absent after Ctrl+O.",
 		],
 		async run(pi) {
@@ -128,7 +129,7 @@ const scenarios: TuiVisualScenario[] = [
 			await pi.waitForScreen((screen) => screen.includes("PRIMARY_CHAT_AGENT_8"), 10_000, "eight Primary items");
 			await pi.submit("/advisor Review all Primary chat items.");
 			await pi.waitForScreen(
-				(screen) => screen.includes("... (3 more, ctrl+o to expand)"),
+				(screen) => screen.includes("... (3 more lines, ctrl+o to expand)"),
 				20_000,
 				"collapsed Pull before expansion",
 			);
@@ -136,10 +137,48 @@ const scenarios: TuiVisualScenario[] = [
 			await pi.waitForScreen(
 				() => {
 					const overlay = pi.captureAdvisorOverlayPlainText();
-					return overlay.includes("agent: PRIMARY_CHAT_AGENT_6") && !overlay.includes("more, ctrl+o to expand");
+					return (
+						overlay.includes('<primary-context end="8" state="idle">') &&
+						overlay.includes('<primary-transcript start="0" end="8"') &&
+						overlay.includes('wait="new_messages"') &&
+						overlay.includes("**user**:") &&
+						!overlay.includes("more, ctrl+o to expand")
+					);
 				},
 				10_000,
-				"expanded Pull block",
+				"expanded Primary context payloads",
+			);
+		},
+	},
+	{
+		id: "position-only-context",
+		title: "Repeated Ask Position Context",
+		description: "A repeated Ask with no new Primary text keeps a compact position-only Context block.",
+		options: { advisorModelConfigured: true, width: 100, height: 34 },
+		captures: ["overlay"],
+		checklist: [
+			"The first Ask records the Primary user and agent text in its Context block.",
+			"The repeated Ask records one compact position-only Context line because Primary produced no new text.",
+			"The position-only block remains visually distinct without dominating the repeated Ask transcript.",
+		],
+		async run(pi) {
+			await pi.submit("E2E_PRIMARY_SENTINEL: review this response twice.");
+			await pi.waitForScreen(
+				(screen) => screen.includes("E2E_PRIMARY_RESPONSE"),
+				10_000,
+				"Primary work before repeated Ask Advisor requests",
+			);
+			await pi.submit("/advisor Review the primary response once.");
+			await pi.waitForScreen(
+				(screen) => screen.includes("Advisor · idle") && screen.includes("E2E_SECOND_OPINION"),
+				20_000,
+				"first Ask Advisor completion",
+			);
+			await pi.submit("Review the same primary response again.");
+			await pi.waitForScreen(
+				(screen) => screen.includes("Advisor · idle") && screen.includes("Context"),
+				20_000,
+				"position-only Context after the repeated Ask",
 			);
 		},
 	},

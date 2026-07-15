@@ -2,14 +2,19 @@
 
 exports[`Advisor overlay visual snapshots > overlay-ask-advisor renders a stable bounded overlay 1`] = `
 "╭ Advisor · idle · ctx 2.1%/128k ────────────────────────────────────────────╮
+│                                                                            │
 │ Review the primary transcript.                                             │
 │                                                                            │
-│ Context → 1 user + 2 agent msgs                                            │
+│                                                                            │
+│                                                                            │
+│ Context                                                                    │
 │ user: Review the cache design.                                             │
 │ agent: The cache now owns request deduplication.                           │
 │ agent: The retry path still refreshes independently.                       │
 │                                                                            │
+│                                                                            │
 │ Checking the Primary transcript for cache races...                         │
+│                                                                            │
 │                                                                            │
 │ Pull [0, 12) → 8 msgs · 4.2s                                               │
 │ user: Review the cache design.                                             │
@@ -17,13 +22,27 @@ exports[`Advisor overlay visual snapshots > overlay-ask-advisor renders a stable
 │ → read src/cache.ts ⇒ ok · 120 lines                                       │
 │ → grep refreshToken ⇒ ok · 12 matches                                      │
 │ → write src/cache-refresh.ts ⇒ ok · 85 lines                               │
-│ ... (3 more, ctrl+o to expand)                                             │
+│ ... (3 more lines, ctrl+o to expand)                                       │
+│                                                                            │
 │                                                                            │
 │ E2E_SECOND_OPINION: primary_transcript=seen                                │
 │                                                                            │
 │                                                                            │
+├────────────────────────────────────────────────────────────────────────────┤
+│[7m [27m                                                                           │
+╰────────────────────────────────────────────────────────────────────────────╯"
+`;
+
+exports[`Advisor overlay visual snapshots > overlay-context-preview renders a stable bounded overlay 1`] = `
+"╭ Advisor · idle · ctx 2.4%/128k ────────────────────────────────────────────╮
 │                                                                            │
-│                                                                            │
+│ Context                                                                    │
+│ user: Review the complete migration.                                       │
+│ agent: Inspecting the old schema.                                          │
+│ agent: Reading the migration runner.                                       │
+│ agent: Updating the transaction boundary.                                  │
+│ agent: Adding rollback coverage.                                           │
+│ ... (2 more lines, ctrl+o to expand)                                       │
 │                                                                            │
 │                                                                            │
 │                                                                            │
@@ -54,18 +73,30 @@ exports[`Advisor overlay visual snapshots > overlay-empty renders a stable bound
 
 exports[`Advisor overlay visual snapshots > overlay-expanded-pull renders a stable bounded overlay 1`] = `
 "╭ Advisor · idle · ctx 2.2%/128k ────────────────────────────────────────────╮
+│                                                                            │
 │ Pull [0, 12) → 8 msgs · 4.2s                                               │
-│ user: Review the cache design.                                             │
-│ agent: The cache owns request deduplication.                               │
-│ → read src/cache.ts ⇒ ok · 120 lines                                       │
-│ → grep refreshToken ⇒ ok · 12 matches                                      │
-│ → write src/cache-refresh.ts ⇒ ok · 85 lines                               │
-│ agent: Adding pending refresh deduplication.                               │
-│ → edit src/cache-refresh.ts ⇒ ok · diff applied                            │
-│ → bash! npm test ⇒ ok · 42 lines                                           │
+│ <primary-transcript start="0" end="12" total="12" state="idle"             │
+│ wait="new_messages" waited-ms="4200">                                      │
+│ **user**:                                                                  │
+│ Review the cache design.                                                   │
 │                                                                            │
-│                                                                            │
-│                                                                            │
+│ **agent**:                                                                 │
+│ The cache owns request deduplication.                                      │
+│ // inspect the cache implementation before reviewing                       │
+│ → read(src/cache.ts) ⇒ ok · 120 lines                                      │
+│ → grep(refreshToken) ⇒ ok · 12 lines                                       │
+│ → write(src/cache-refresh.ts) ⇒ ok · 85 lines                              │
+│ Adding pending refresh deduplication.                                      │
+│ → edit(src/cache-refresh.ts) ⇒ ok · 1 line                                 │
+│ \`\`\`diff                                                                    │
+│ --- a/src/cache-refresh.ts                                                 │
+│ +++ b/src/cache-refresh.ts                                                 │
+│ @@ -1 +1 @@                                                                │
+│ -const pending = false;                                                    │
+│ +const pending = true;                                                     │
+│ \`\`\`                                                                        │
+│ → bash(npm test) ⇒ ok · 42 lines                                           │
+│ </primary-transcript>                                                      │
 │                                                                            │
 │                                                                            │
 ├────────────────────────────────────────────────────────────────────────────┤
@@ -93,42 +124,73 @@ exports[`Advisor overlay visual snapshots > overlay-focused-input renders a stab
 `;
 
 exports[`Advisor overlay visual snapshots > overlay-long-content-small-terminal renders a stable bounded overlay 1`] = `
-"╭ Advisor · idle · ctx 13.3%/128k ─────────╮
+"╭ Advisor · idle · ctx 13.3%/128k · ↑1 ↓0 ─╮
 │ Check whether this very long prompt      │
 │ wraps without breaking the panel border  │
 │ or hiding the input area.                │
 │                                          │
-│ Context → 1 user + 1 agent msg           │
+│                                          │
+│                                          │
+│ Context                                  │
 │ user: Inspect the                        │
 │ super-long-token-without-natural-breaks- │
 │ abcdefghijklmnopqrstuvwxyz-0123456789 in │
 │ the cache design.                        │
 │ agent: The Primary response remains      │
-│ visible while wrapping inside the narrow │
-│ Context block.                           │
+│ ... (2 more lines, ctrl+o to expand)     │
+│                                          │
 │                                          │
 │ The narrow overlay wraps the Primary     │
 │ context safely without widening.         │
-│                                          │
-│                                          │
 ├──────────────────────────────────────────┤
 │[7m [27m                                         │
 ╰──────────────────────────────────────────╯"
 `;
 
+exports[`Advisor overlay visual snapshots > overlay-real-plan-review-preview renders a stable bounded overlay 1`] = `
+"╭ Advisor · idle · ctx 10.7%/372k ───────────────────────────────────────────╮
+│                                                                            │
+│ 帮我审查一下这个计划，看看有没有遗漏。                                     │
+│                                                                            │
+│                                                                            │
+│                                                                            │
+│ Context                                                                    │
+│ user: 我想给 Advisor 增加一个导出当前对话为 Markdown 的命令。先帮我做个实  │
+│ 现计划，不用改代码。                                                       │
+│ agent: Let me first了解一下项目结构和 Advisor 是什么。                     │
+│ agent: Now let me看看 pi 扩展文档，了解 ExtensionAPI 的接口，特别是在文件  │
+│ 写入等方面有什么可用能力。                                                 │
+│ ... (223 more lines, ctrl+o to expand)                                     │
+│                                                                            │
+│                                                                            │
+│                                                                            │
+│ Pull [36, 37) → 1 msgs · 0.0s                                              │
+│ agent: 好的，我已经全面了解了项目结构和 Advisor 的架构。以下是我的实现计划 │
+│ ：                                                                         │
+│                                                                            │
+│ ---                                                                        │
+│                                                                            │
+│ ... (218 more lines, ctrl+o to expand)                                     │
+│                                                                            │
+│                                                                            │
+├────────────────────────────────────────────────────────────────────────────┤
+│[7m [27m                                                                           │
+╰────────────────────────────────────────────────────────────────────────────╯"
+`;
+
 exports[`Advisor overlay visual snapshots > overlay-repeated-ask renders a stable bounded overlay 1`] = `
 "╭ Advisor · idle · ctx 2.5%/128k ────────────────╮
+│                                                │
 │ Explain the same Primary response from another │
 │ angle.                                         │
 │                                                │
+│                                                │
+│                                                │
+│ Context                                        │
+│                                                │
+│                                                │
 │ The repeated Ask reuses the existing Advisor   │
 │ Transcript.                                    │
-│                                                │
-│                                                │
-│                                                │
-│                                                │
-│                                                │
-│                                                │
 │                                                │
 ├────────────────────────────────────────────────┤
 │[7m [27m                                               │
@@ -166,17 +228,29 @@ exports[`Advisor overlay visual snapshots > overlay-tiny-terminal renders a stab
 
 exports[`Advisor overlay visual snapshots > overlay-tool-and-advice-blocks renders a stable bounded overlay 1`] = `
 "╭ Advisor · idle · ctx 3.4%/128k ──────────────────────────────────────────────────────────────╮
+│                                                                                              │
 │ Review the delivery plan.                                                                    │
+│                                                                                              │
+│                                                                                              │
 │                                                                                              │
 │ grep {"pattern":"pendingRefresh"} ⇒ pending                                                  │
 │                                                                                              │
+│                                                                                              │
+│                                                                                              │
 │ read {"path":"src/cache.ts"} ⇒ ok · 2 lines                                                  │
+│                                                                                              │
+│                                                                                              │
 │                                                                                              │
 │ write {"path":"src/cache.ts"} ⇒ error · 2 lines — permission denied cannot write             │
 │                                                                                              │
+│                                                                                              │
+│                                                                                              │
 │ Hint: Use the SDK path.                                                                      │
 │                                                                                              │
+│                                                                                              │
+│                                                                                              │
 │ Concern: Keep delivery after validation.                                                     │
+│                                                                                              │
 │                                                                                              │
 │ The delivery plan is ready.                                                                  │
 │                                                                                              │
@@ -191,14 +265,14 @@ exports[`Advisor overlay visual snapshots > overlay-tool-and-advice-blocks rende
 
 exports[`Advisor overlay visual snapshots > overlay-unbound-pull-expansion renders a stable bounded overlay 1`] = `
 "╭ Advisor · idle · ctx 2.2%/128k ────────────────────────────────────────────╮
+│                                                                            │
 │ Pull [0, 12) → 8 msgs · 4.2s                                               │
 │ user: Review the cache design.                                             │
 │ agent: The cache owns request deduplication.                               │
 │ → read src/cache.ts ⇒ ok · 120 lines                                       │
 │ → grep refreshToken ⇒ ok · 12 matches                                      │
 │ → write src/cache-refresh.ts ⇒ ok · 85 lines                               │
-│ ... (3 more)                                                               │
-│                                                                            │
+│ ... (3 more lines)                                                         │
 │                                                                            │
 │                                                                            │
 │                                                                            │

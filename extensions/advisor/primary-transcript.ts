@@ -171,21 +171,22 @@ export function renderPrimaryTranscriptSlice(
 		omittedAdvisorAdviceCount: view.omittedAdvisorAdviceCount,
 		displayItems,
 	};
-	const flags = [
-		`[${start}, ${end})`,
-		`primary_agent_loop_state=${state}`,
-		`wait_result=${waitResult}`,
-		`waited_ms=${waitedMs}`,
-		`total=${view.messages.length}`,
+	const attributes = [
+		`start="${start}"`,
+		`end="${end}"`,
+		`total="${view.messages.length}"`,
+		`state="${state}"`,
+		`wait="${waitResult}"`,
+		`waited-ms="${waitedMs}"`,
 	];
 	if (normalized.outOfBounds) {
-		flags.push("since_index_out_of_bounds=true");
+		attributes.push('since-index-out-of-bounds="true"');
 	}
 	if (view.omittedAdvisorAdviceCount > 0) {
-		flags.push(`omitted_advisor_advice=${view.omittedAdvisorAdviceCount}`);
+		attributes.push(`omitted-advisor-advice="${view.omittedAdvisorAdviceCount}"`);
 	}
 	return {
-		text: `${flags.join(" ")}\n\n${body}\n`,
+		text: `<primary-transcript ${attributes.join(" ")}>\n${body}\n</primary-transcript>\n`,
 		details,
 	};
 }

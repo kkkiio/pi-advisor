@@ -419,8 +419,8 @@ Then(
 			throw new Error("No Advisor provider observation was captured for the latest Ask.");
 		}
 
-		expect(observation.latestRequestText).toMatch(/primary_transcript_end_index=\d+/);
-		expect(observation.latestRequestText).toContain(`primary_agent_loop_state=${state}`);
+		expect(observation.latestRequestText).toMatch(/<primary-context\b[^>]*\bend="\d+"/);
+		expect(observation.latestRequestText).toContain(`state="${state}"`);
 	},
 );
 
@@ -432,7 +432,8 @@ Then(
 			throw new Error("No Advisor provider observation was captured for the latest Ask.");
 		}
 
-		expect(observation.latestRequestText).toContain("Ask Context:");
+		expect(observation.latestRequestText).toContain("<primary-context ");
+		expect(observation.latestRequestText).toContain("**user**:");
 		expect(observation.latestRequestText).toContain(userText);
 		expect(observation.latestRequestText).toContain(assistantText);
 	},
@@ -456,8 +457,8 @@ Then("the repeated Ask should keep the same Primary Transcript position", functi
 	if (typeof previous !== "string" || typeof current !== "string") {
 		throw new Error("Two Advisor provider observations are required to compare Primary Transcript positions.");
 	}
-	const previousPosition = previous.match(/primary_transcript_end_index=(\d+)/)?.[1];
-	const currentPosition = current.match(/primary_transcript_end_index=(\d+)/)?.[1];
+	const previousPosition = previous.match(/<primary-context\b[^>]*\bend="(\d+)"/)?.[1];
+	const currentPosition = current.match(/<primary-context\b[^>]*\bend="(\d+)"/)?.[1];
 
 	expect(previousPosition).toBeDefined();
 	expect(currentPosition).toBe(previousPosition);
@@ -469,7 +470,8 @@ Then("the repeated Ask should not include Ask Context", function (this: AdvisorE
 		throw new Error("No Advisor provider observation was captured for the latest Ask.");
 	}
 
-	expect(observation.latestRequestText).not.toContain("Ask Context:");
+	expect(observation.latestRequestText).toMatch(/<primary-context\b[^>]*\s\/>/);
+	expect(observation.latestRequestText).not.toContain("**user**:");
 });
 
 Then(

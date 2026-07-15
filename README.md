@@ -49,7 +49,7 @@ Message behavior depends on Advisor's current state:
 
 Every Ask started while Advisor is idle tells Advisor the current position in the Primary Transcript and whether the Primary Agent is running. When a question requires more history, tool activity, or newer progress, Advisor can Pull the Primary Transcript View itself, so the user does not need to copy context manually.
 
-The Ask Context actually sent to Advisor appears in a `Context` block in the Advisor Overlay. When no Ask Context is attached, the Overlay does not show an empty `Context` block.
+The Primary context sent to Advisor appears in a `Context` block in the Advisor Overlay. Its compact header avoids duplicate message counts; expanding the block reveals the exact `<primary-context>` payload. When no new Ask Context text is attached, a position-only XML payload records the transcript position and Primary Agent state without repeating prior text.
 
 Ask Advisor and Watch Run share the same Advisor, and the Advisor Transcript remains continuous between them. Advisor does not have the `write` or `edit` tools; when changes are needed, it delegates them to the Primary Agent through a Second Opinion or Advice.
 
@@ -112,6 +112,7 @@ A separate input box at the bottom of the Overlay accepts messages and control c
 - `Esc`: Close the Overlay and return focus to the Primary input.
 - Closing the Overlay preserves its transcript, active Watch Run, and input draft.
 - Scroll the open Overlay transcript with ↑/↓, PgUp/PgDn, or the mouse wheel.
+- Use Pi's `app.tools.expand` keybinding (Ctrl+O by default) to switch every Context and Pull block between a five-visual-line preview and the complete text payload sent to Advisor.
 - When work finishes while the Overlay is closed, a notification tells you to press `Alt+/` to view it.
 
 After the user interrupts the Primary Agent, Advisor does not automatically wake it.

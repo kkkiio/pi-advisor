@@ -60,6 +60,13 @@ export interface AskContext {
 	assistantTexts: string[];
 }
 
+export interface AskContextPayload {
+	primaryTranscriptEndIndex: number;
+	primaryAgentLoopState: PrimaryAgentLoopState;
+	askContext: AskContext | undefined;
+	text: string;
+}
+
 export interface PullTranscriptRequest {
 	sinceIndex?: number;
 	timeoutMs?: number;

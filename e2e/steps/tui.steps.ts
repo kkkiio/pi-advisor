@@ -207,15 +207,15 @@ Then("Advisor Overlay should show a completed Second Opinion", async function (t
 	expect(screen).toContain("E2E_SECOND_OPINION: primary_transcript=seen");
 });
 
-Then("Context should summarize one user and one agent message", async function (this: AdvisorE2EWorld) {
+Then("Context should preview one user and one agent message", async function (this: AdvisorE2EWorld) {
 	await this.tuiPi.waitForScreen(
-		(candidate) => candidate.includes("Context → 1 user + 1 agent msg"),
+		(candidate) => candidate.includes("Context") && candidate.includes("user: PRIMARY_CHAT_USER_7"),
 		10_000,
-		"Context message summary",
+		"Context message preview",
 	);
 	const overlay = this.tuiPi.captureAdvisorOverlayPlainText();
 
-	expect(overlay).toContain("Context → 1 user + 1 agent msg");
+	expect(overlay).not.toContain("Context →");
 	expect(overlay).toContain("user: PRIMARY_CHAT_USER_7");
 	expect(overlay).toContain("agent: PRIMARY_CHAT_AGENT_8");
 });
@@ -230,7 +230,7 @@ Then("Pull should summarize all eight Primary chat items", async function (this:
 	expect(this.tuiPi.captureAdvisorOverlayPlainText()).toContain("Pull [0, 8) → 8 msgs · 0.0s");
 });
 
-Then("Pull should show the first five Primary chat items", function (this: AdvisorE2EWorld) {
+Then("Pull should show the first five Primary chat lines", function (this: AdvisorE2EWorld) {
 	const overlay = this.tuiPi.captureAdvisorOverlayPlainText();
 
 	expect(overlay).toContain("user: PRIMARY_CHAT_USER_1");
@@ -241,37 +241,52 @@ Then("Pull should show the first five Primary chat items", function (this: Advis
 	expect(overlay).not.toContain("agent: PRIMARY_CHAT_AGENT_6");
 });
 
-Then("Pull should offer to expand the remaining three items with Ctrl+X", function (this: AdvisorE2EWorld) {
+Then("Pull should offer to expand the remaining three lines with Ctrl+X", function (this: AdvisorE2EWorld) {
 	const overlay = this.tuiPi.captureAdvisorOverlayPlainText();
 
-	expect(overlay).toContain("... (3 more, ctrl+x to expand)");
+	expect(overlay).toContain("... (3 more lines, ctrl+x to expand)");
 	expect(overlay.match(/PRIMARY_CHAT_USER_7/g)).toHaveLength(1);
 	expect(overlay.match(/PRIMARY_CHAT_AGENT_8/g)).toHaveLength(1);
 });
 
-Then("Pull should show all eight Primary chat items", async function (this: AdvisorE2EWorld) {
-	await this.tuiPi.waitForScreen(
-		(candidate) => candidate.includes("agent: PRIMARY_CHAT_AGENT_6"),
-		10_000,
-		"expanded Pull chat items",
-	);
-	const overlay = this.tuiPi.captureAdvisorOverlayPlainText();
+Then(
+	"Context and Pull should reveal the exact payloads without losing the current transcript position",
+	async function (this: AdvisorE2EWorld) {
+		await this.tuiPi.waitForScreen(
+			(candidate) => candidate.includes('<primary-transcript start="0" end="8"') && candidate.includes("**user**:"),
+			10_000,
+			"expanded Pull payload",
+		);
+		let overlay = this.tuiPi.captureAdvisorOverlayPlainText();
 
-	expect(overlay).toContain("user: PRIMARY_CHAT_USER_1");
-	expect(overlay).toContain("agent: PRIMARY_CHAT_AGENT_2");
-	expect(overlay).toContain("→ read(README.md) ⇒ ok");
-	expect(overlay).toContain("agent: PRIMARY_CHAT_AGENT_4");
-	expect(overlay).toContain("user: PRIMARY_CHAT_USER_5");
-	expect(overlay).toContain("agent: PRIMARY_CHAT_AGENT_6");
-	expect(overlay.match(/PRIMARY_CHAT_USER_7/g)).toHaveLength(2);
-	expect(overlay.match(/PRIMARY_CHAT_AGENT_8/g)).toHaveLength(2);
-	expect(overlay).not.toContain("... (3 more, ctrl+x to expand)");
-});
+		expect(overlay).toMatch(/Advisor · idle · ctx .* · ↑0 ↓\d+/);
+		expect(overlay).toContain('<primary-context end="8" state="idle">');
+		expect(overlay).toContain("**primary**:");
+		expect(overlay).toContain("</primary-context>");
+		expect(overlay).toContain('state="idle"');
+		expect(overlay).toContain('wait="new_messages"');
+		expect(overlay).toContain("**user**:");
+		expect(overlay).toContain("PRIMARY_CHAT_USER_1");
+		expect(overlay).toContain("→ read(README.md) ⇒ ok");
+		expect(overlay).not.toContain("... (3 more lines, ctrl+x to expand)");
 
-Then("Pull should return to its five-item preview", async function (this: AdvisorE2EWorld) {
+		await this.tuiPi.submit("", ["PageDown"]);
+		await this.tuiPi.waitForScreen(
+			(candidate) => candidate.includes("PRIMARY_CHAT_AGENT_6") && candidate.includes("</primary-transcript>"),
+			10_000,
+			"expanded Pull payload tail",
+		);
+		overlay = this.tuiPi.captureAdvisorOverlayPlainText();
+		expect(overlay).toContain("**agent**:");
+		expect(overlay).toContain("PRIMARY_CHAT_AGENT_6");
+		expect(overlay).toContain("</primary-transcript>");
+	},
+);
+
+Then("Pull should return to its five-line preview", async function (this: AdvisorE2EWorld) {
 	await this.tuiPi.waitForScreen(
 		(candidate) =>
-			!candidate.includes("agent: PRIMARY_CHAT_AGENT_6") && candidate.includes("... (3 more, ctrl+x to expand)"),
+			!candidate.includes("agent: PRIMARY_CHAT_AGENT_6") && candidate.includes("... (3 more lines, ctrl+x to expand)"),
 		10_000,
 		"collapsed Pull chat items",
 	);
@@ -281,19 +296,19 @@ Then("Pull should return to its five-item preview", async function (this: Adviso
 	expect(overlay).not.toContain("agent: PRIMARY_CHAT_AGENT_6");
 	expect(overlay.match(/PRIMARY_CHAT_USER_7/g)).toHaveLength(1);
 	expect(overlay.match(/PRIMARY_CHAT_AGENT_8/g)).toHaveLength(1);
-	expect(overlay).toContain("... (3 more, ctrl+x to expand)");
+	expect(overlay).toContain("... (3 more lines, ctrl+x to expand)");
 });
 
 Then(
 	"Context and Pull should preserve the Primary text {string}",
 	async function (this: AdvisorE2EWorld, text: string) {
 		await this.tuiPi.waitForScreen(
-			(candidate) => candidate.includes("Context → 1 user + 1 agent msg") && candidate.includes("Pull [0, 2)"),
+			(candidate) => candidate.includes("Context") && candidate.includes("Pull [0, 2)"),
 			10_000,
 			"Context and Pull chat items",
 		);
 		const overlay = this.tuiPi.captureAdvisorOverlayPlainText();
-		const contextStart = overlay.indexOf("Context →");
+		const contextStart = overlay.indexOf("Context");
 		const pullStart = overlay.indexOf("Pull [", contextStart);
 		const contextText = overlay.indexOf(text, contextStart);
 		const pullText = overlay.indexOf(text, contextText + 1);

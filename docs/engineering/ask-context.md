@@ -4,10 +4,22 @@
 
 Advisor 空闲时，`/advisor <消息>` 启动一次 Ask Advisor。Runtime 在请求到达时构造 Primary Transcript View 快照，并向 Advisor Session 写入两条边界独立的消息：
 
-1. 隐藏 custom message：包含 `primary_transcript_end_index`、Primary Agent loop state 和可选 Ask Context。
+1. 隐藏 custom message：使用 `<primary-context>` 包含 Primary Transcript 右开边界、Primary Agent loop state 和可选 Ask Context。
 2. User message：只包含用户向 Advisor 提出的原始问题。
 
-`primary_transcript_end_index` 是快照长度，使用 `[0, end)` 右开边界，可直接作为后续 `pull_transcript` 的 `since_index`。
+`end` 属性是快照长度，使用 `[0, end)` 右开边界，可直接作为后续 `pull_transcript` 的 `since_index`。包含 Ask Context 时的 payload 格式为：
+
+```text
+<primary-context end="12" state="idle">
+**user**:
+请审查这个实现计划。
+
+**primary**:
+我会先阅读现有实现。
+</primary-context>
+```
+
+没有新 Ask Context 文本时使用自闭合根元素：`<primary-context end="12" state="idle" />`。
 
 ## Automatic Selection
 
@@ -21,6 +33,8 @@ Runtime 在当前 Advisor Session 内记录最近一次自动注入的 Primary u
 `/advisor:new`、model 变化或 thinking level 变化重建 Advisor Session 时，清空自动注入记录。
 
 Advisor 正在运行时，新的 `/advisor <消息>` 作为 Steer 进入当前 Ask Advisor 或 Watch Run，只包含用户输入，不创建新快照、不附带 Ask Context，也不更新自动注入记录。需要最新 Primary 进展时，Advisor 使用 `pull_transcript`。
+
+每次空闲 Ask 写入 hidden custom message 时，Overlay 同时记录同一个完整文本 payload。Context header 只显示 `Context`；折叠状态使用结构化 Ask Context 生成最多 5 个视觉行的 user/agent 预览，单条长内容换行后仍会截断。没有附带 Ask Context 时保留一个紧凑的 Context Block，通过 `app.tools.expand` 可查看含 position 和 loop state 的自闭合 XML payload。展开后 Context Block 使用等宽文本逐字显示 hidden custom message，便于确认 Advisor 实际收到的 Primary 来源上下文。
 
 ## Alternatives Considered
 

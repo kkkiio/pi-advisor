@@ -17,7 +17,9 @@ These checks render the Advisor Overlay directly from deterministic transcript s
 - required user-visible sections are present;
 - semantic background rows use the expected theme color and span the full panel width, including wrapped rows;
 - Context, Pull, tool, thinking, and Advice content use Pi's foreground, bold, and italic theme semantics;
-- Pull previews show five structured items and expand through the configured `app.tools.expand` action;
+- Context and Pull previews show at most five visual lines and expand through the configured `app.tools.expand` action;
+- expanded Context and Pull blocks preserve the exact text payload sent to Advisor, including literal markdown markers;
+- the real-model fixture in `fixtures/real-plan-review.json` keeps the Primary payload captured from a local DeepSeek V4 Pro and GPT-5.6 Advisor plan review;
 - stable overlay layouts match Vitest snapshots.
 - visible Overlay inputs retain the reverse-video software cursor because an open Overlay always owns focus.
 
