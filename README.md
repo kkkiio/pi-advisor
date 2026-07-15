@@ -16,13 +16,11 @@ pi install npm:@kkkiio/pi-advisor
 pi install ./path/to/pi-advisor
 ```
 
-After installation, set the Advisor model. Advisor will not start until a model is configured:
+After installation, set the Advisor model.
 
 ```
-/advisor:model openai/gpt-5.5
+/advisor:model openai-codex/gpt-5.6-sol
 ```
-
-See [Configuration](#configuration) for details.
 
 ## Goals
 
@@ -37,7 +35,9 @@ See [Configuration](#configuration) for details.
 
 ## Usage
 
-### `/advisor [<message>]` — Ask Advisor
+### `/advisor [<message>]`
+
+Ask Advisor.
 
 - **Without an argument**: Open the Advisor Overlay and focus its input box so you can type a message directly.
 - **With an argument**: Open the Advisor Overlay and immediately start Ask Advisor with that message.
@@ -53,7 +53,7 @@ The Ask Context actually sent to Advisor appears in a `Context` block in the Adv
 
 Ask Advisor and Watch Run share the same Advisor, and the Advisor Transcript remains continuous between them. Advisor does not have the `write` or `edit` tools; when changes are needed, it delegates them to the Primary Agent through a Second Opinion or Advice.
 
-### `/advisor:handoff [instructions]` — Hand off a Second Opinion
+### `/advisor:handoff [instructions]`
 
 Send the latest completed Ask Advisor Second Opinion to the Primary Agent as a user message. When `instructions` are omitted, the default instruction asks the Primary Agent to use the Second Opinion as reference context.
 
@@ -73,7 +73,7 @@ Advisor Second Opinion:
 
 If Advisor is still processing the previous Ask, handoff waits for it to finish before sending the message. If no Ask Advisor Second Opinion has been completed, the user receives a clear notice. Handoff does not clear the Advisor Transcript.
 
-### `/advisor:watch` — Start a Watch Run
+### `/advisor:watch`
 
 Start an asynchronous Watch Run. Advisor follows the Primary Agent's progress and decides when the review is complete. You can cancel it early with `/advisor:watch-off`.
 
@@ -84,21 +84,21 @@ During a Watch Run, Advisor automatically selects a delivery channel based on th
 
 Outside a Watch Run, Advisor does not send Advice on its own. You can still use `/advisor` to ask it to send a specific insight, or `/advisor:handoff` to pass along the latest completed Second Opinion.
 
-### `/advisor:watch-off` — Cancel a Watch Run
+### `/advisor:watch-off`
 
 Cancel the current Watch Run while preserving the Advisor instance and its existing Advisor Transcript.
 
-### `/advisor:new` — Start fresh
+### `/advisor:new`
 
 Start a fresh Advisor conversation: clear the Advisor Transcript, Ask Context injection history, Second Opinion history, and input draft. If a Watch Run is active, cancel it first. The Overlay opens with its input focused so the new conversation is ready to use.
 
-### `/advisor:model [model]` — Set the model
+### `/advisor:model [model]`
 
-Open a movable, searchable model picker, or pass an argument to set the model directly. Changing the model automatically resets the Advisor session. The preference is saved in `~/.pi/agent/advisor.json` and applies to every project for the same user. If no model is configured, Advisor does not start and prompts the user to set one first.
+Set the model used by Advisor.
 
-### `/advisor:thinking [level]` — Set the thinking level
+### `/advisor:thinking [level]`
 
-Open the thinking-level picker, or pass an argument to set Advisor's thinking level directly. Available levels are `off`, `minimal`, `low`, `medium`, `high`, and `xhigh`; the default is `medium`. Changing the level automatically resets the Advisor session. If no level is configured, Advisor uses its built-in default.
+Set the thinking level used by Advisor.
 
 ### Advisor Overlay
 
@@ -126,15 +126,13 @@ The configuration file is located at `~/.pi/agent/advisor.json`:
 
 ```json
 {
-  "model": "openai/gpt-5.5",
-  "thinking": "xhigh"
+  "model": "openai-codex/gpt-5.6-sol",
+  "thinking": "high"
 }
 ```
 
-This user-level configuration applies to every project for the same user. The Advisor model must be explicitly chosen with `/advisor:model` or set with `/advisor:model <model>`. If it is not configured, Advisor does not start and prompts the user to set a model first. The thinking level can be chosen with `/advisor:thinking` or set with `/advisor:thinking <level>`; when omitted, Advisor uses its built-in default.
+The thinking level can be chosen with `/advisor:thinking` or set with `/advisor:thinking <level>`; when omitted, Advisor uses its built-in default.
 
-## Product and architecture
+## Acknowledgments
 
-See [`docs/prd.md`](docs/prd.md) for product requirements. See [`docs/engineering/`](docs/engineering/) for current engineering intent and considered alternatives.
-
-Acknowledgments: This project was inspired by pi-btw, oh-my-pi, and pi-omplike-advisor.
+This project was inspired by pi-btw, oh-my-pi, and pi-omplike-advisor.
