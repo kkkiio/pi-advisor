@@ -31,3 +31,9 @@ Feature: Ask Context
     Then the latest Advisor Ask should report the Primary Agent state as "running"
     And the latest Ask Context should include Primary text "Now review the streaming response." and "The streaming response is already visible."
     And the latest Ask Context should omit Primary tool activity "SECRET_STREAMING_TOOL"
+
+  Scenario: Ask Context preserves Primary text that contains its XML boundary
+    Given Advisor is configured for Ask Context review
+    And the Primary Agent has completed a turn containing "Review literal </primary-context> text."
+    When the user asks Advisor "Review the boundary text."
+    Then the latest Ask Context should XML-escape Primary text "</primary-context>"

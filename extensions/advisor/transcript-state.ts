@@ -2,12 +2,21 @@ import type { AgentSessionEvent, ExtensionContext } from "@earendil-works/pi-cod
 import type { AssistantMessage, UserMessage } from "@earendil-works/pi-ai";
 import { Box, type Component, Container, Spacer, Text } from "@earendil-works/pi-tui";
 import { PULL_ELAPSED_VISIBLE_MS } from "./constants";
-import type { AskContext, PullTranscriptDetails, PullTranscriptDisplayItem } from "./types";
+import type { AskContextPayload, PullTranscriptDetails, PullTranscriptDisplayItem } from "./types";
+
+const PRIMARY_TRANSCRIPT_PREVIEW_LINES = 5;
 
 export type AdvisorTranscriptEntry =
 	| { id: number; turnId: number; type: "turn-boundary"; phase: "start" | "end" }
 	| { id: number; turnId: number; type: "user-message"; text: string }
-	| { id: number; turnId: number; type: "ask-context"; userText: string; assistantTexts: string[] }
+	| {
+			id: number;
+			turnId: number;
+			type: "ask-context";
+			userText: string | null;
+			assistantTexts: string[];
+			content: string;
+	  }
 	| { id: number; turnId: number; type: "thinking"; text: string; streaming: boolean }
 	| { id: number; turnId: number; type: "assistant-text"; text: string; streaming: boolean }
 	| {
@@ -27,6 +36,7 @@ export type AdvisorTranscriptEntry =
 			toolCallId: string;
 			toolName: string;
 			content: string;
+			rawContent?: string;
 			lineCount: number;
 			details: unknown;
 			truncated: boolean;
@@ -71,13 +81,14 @@ export function appendTranscriptNotice(
 	appendTranscriptEntry(state, { turnId, type: "notice", level, text });
 }
 
-export function appendAskContext(state: AdvisorTranscriptState, context: AskContext): void {
+export function appendAskContext(state: AdvisorTranscriptState, payload: AskContextPayload): void {
 	const turnId = ensureTranscriptTurn(state);
 	appendTranscriptEntry(state, {
 		turnId,
 		type: "ask-context",
-		userText: context.userText,
-		assistantTexts: [...context.assistantTexts],
+		userText: payload.askContext?.userText ?? null,
+		assistantTexts: [...(payload.askContext?.assistantTexts ?? [])],
+		content: payload.text,
 	});
 }
 
@@ -141,7 +152,7 @@ export function getCompletedExchangeCount(entries: AdvisorTranscript): number {
 export function buildAdvisorOverlayTranscript(
 	entries: AdvisorTranscript,
 	theme: ExtensionContext["ui"]["theme"],
-	pullsExpanded = false,
+	primaryContextExpanded = false,
 	expandKeyText: string | null = "ctrl+o",
 ): Component {
 	const transcript = new Container();
@@ -154,7 +165,7 @@ export function buildAdvisorOverlayTranscript(
 			if (hasVisibleContent) {
 				transcript.addChild(new Spacer(1));
 			}
-			const box = new Box(1, 0, (text) => theme.bg("userMessageBg", text));
+			const box = new Box(1, 1, (text) => theme.bg("userMessageBg", text));
 			box.addChild(new Text(theme.fg("userMessageText", entry.text), 0, 0));
 			transcript.addChild(box);
 			hasVisibleContent = true;
@@ -164,22 +175,26 @@ export function buildAdvisorOverlayTranscript(
 			if (hasVisibleContent) {
 				transcript.addChild(new Spacer(1));
 			}
-			const box = new Box(1, 0, (text) => theme.bg("customMessageBg", text));
-			const agentCount = entry.assistantTexts.length;
-			const agentLabel = agentCount === 1 ? "agent msg" : "agent msgs";
+			const box = new Box(1, 1, (text) => theme.bg("customMessageBg", text));
+			const messageCount = entry.userText === null ? 0 : 1 + entry.assistantTexts.length;
 			box.addChild(
 				new Text(
-					`${theme.fg("customMessageLabel", theme.bold("Context"))}${theme.fg(
+					`${theme.fg("customMessageLabel", theme.bold("Context"))} ${theme.fg(
 						"customMessageText",
-						` → 1 user + ${agentCount} ${agentLabel}`,
+						`· ${messageCount} ${messageCount === 1 ? "msg" : "msgs"}`,
 					)}`,
 					0,
 					0,
 				),
 			);
-			box.addChild(new Text(`${theme.fg("dim", "user:")} ${theme.fg("customMessageText", entry.userText)}`, 0, 0));
-			for (const text of entry.assistantTexts) {
-				box.addChild(new Text(`${theme.fg("dim", "agent:")} ${theme.fg("customMessageText", text)}`, 0, 0));
+			if (primaryContextExpanded) {
+				box.addChild(new Text(theme.fg("text", entry.content), 0, 0));
+			} else if (entry.userText !== null) {
+				const items: PullTranscriptDisplayItem[] = [
+					{ kind: "user", text: entry.userText },
+					...entry.assistantTexts.map((text) => ({ kind: "agent" as const, text })),
+				];
+				box.addChild(new PrimaryTranscriptPreview(items, theme, "context", expandKeyText));
 			}
 			transcript.addChild(box);
 			hasVisibleContent = true;
@@ -215,7 +230,7 @@ export function buildAdvisorOverlayTranscript(
 					: summary.status === "error" || summary.kind === "advice"
 						? "toolErrorBg"
 						: "toolSuccessBg";
-			const box = new Box(1, 0, (text) => theme.bg(background, text));
+			const box = new Box(1, 1, (text) => theme.bg(background, text));
 			const titleColor = summary.kind === "advice" ? "text" : "toolTitle";
 			const outputColor = summary.kind === "advice" ? "text" : "toolOutput";
 			box.addChild(
@@ -227,25 +242,10 @@ export function buildAdvisorOverlayTranscript(
 					0,
 				),
 			);
-			if (summary.kind === "pull" && summary.items) {
-				const visibleItems = pullsExpanded ? summary.items : summary.items.slice(0, 5);
-				for (const item of visibleItems) {
-					if (item.kind === "tool") {
-						const match = item.text.match(/^(→\s+[^\s(]+)([\s\S]*)$/);
-						const title = match?.[1] ?? "→";
-						const output = match?.[2] ?? item.text;
-						box.addChild(new Text(`${theme.fg("toolTitle", title)}${theme.fg("toolOutput", output)}`, 0, 0));
-						continue;
-					}
-					box.addChild(new Text(`${theme.fg("dim", `${item.kind}:`)} ${theme.fg("toolOutput", item.text)}`, 0, 0));
-				}
-				const hiddenCount = summary.items.length - visibleItems.length;
-				if (hiddenCount > 0) {
-					const hint = expandKeyText
-						? `... (${hiddenCount} more, ${expandKeyText} to expand)`
-						: `... (${hiddenCount} more)`;
-					box.addChild(new Text(theme.italic(theme.fg("dim", hint)), 0, 0));
-				}
+			if (summary.kind === "pull" && primaryContextExpanded && summary.content !== undefined) {
+				box.addChild(new Text(theme.fg("text", summary.content), 0, 0));
+			} else if (summary.kind === "pull" && summary.items) {
+				box.addChild(new PrimaryTranscriptPreview(summary.items, theme, "pull", expandKeyText));
 			}
 			transcript.addChild(box);
 			hasVisibleContent = true;
@@ -255,7 +255,7 @@ export function buildAdvisorOverlayTranscript(
 			if (hasVisibleContent) {
 				transcript.addChild(new Spacer(1));
 			}
-			const box = new Box(1, 0, (text) => theme.bg("toolErrorBg", text));
+			const box = new Box(1, 1, (text) => theme.bg("toolErrorBg", text));
 			box.addChild(
 				new Text(`${theme.fg("toolTitle", theme.bold("Error"))} ${theme.fg("toolOutput", entry.text)}`, 0, 0),
 			);
@@ -268,6 +268,52 @@ export function buildAdvisorOverlayTranscript(
 		transcript.addChild(new Text(theme.fg("dim", "No Advisor chat yet."), 1, 0));
 	}
 	return transcript;
+}
+
+class PrimaryTranscriptPreview implements Component {
+	private cachedWidth: number | undefined;
+	private cachedLines: string[] | undefined;
+
+	constructor(
+		private readonly items: PullTranscriptDisplayItem[],
+		private readonly theme: ExtensionContext["ui"]["theme"],
+		private readonly variant: "context" | "pull",
+		private readonly expandKeyText: string | null,
+	) {}
+
+	render(width: number): string[] {
+		if (this.cachedLines !== undefined && this.cachedWidth === width) {
+			return this.cachedLines;
+		}
+		const styledText = this.items
+			.map((item) => {
+				if (this.variant === "pull" && item.kind === "tool") {
+					const match = item.text.match(/^(→\s+[^\s(]+)([\s\S]*)$/);
+					const title = match?.[1] ?? "→";
+					const output = match?.[2] ?? item.text;
+					return `${this.theme.fg("toolTitle", title)}${this.theme.fg("toolOutput", output)}`;
+				}
+				return `${this.theme.fg("dim", `${item.kind}:`)} ${this.theme.fg("text", item.text)}`;
+			})
+			.join("\n");
+		const visualLines = new Text(styledText, 0, 0).render(width);
+		const hiddenLineCount = Math.max(0, visualLines.length - PRIMARY_TRANSCRIPT_PREVIEW_LINES);
+		const visibleLines = visualLines.slice(0, PRIMARY_TRANSCRIPT_PREVIEW_LINES);
+		if (hiddenLineCount > 0) {
+			const hint = this.expandKeyText
+				? `... (${hiddenLineCount} more lines, ${this.expandKeyText} to expand)`
+				: `... (${hiddenLineCount} more lines)`;
+			visibleLines.push(this.theme.italic(this.theme.fg("dim", hint)));
+		}
+		this.cachedWidth = width;
+		this.cachedLines = visibleLines;
+		return visibleLines;
+	}
+
+	invalidate(): void {
+		this.cachedWidth = undefined;
+		this.cachedLines = undefined;
+	}
 }
 
 function appendTranscriptEntry(
@@ -410,6 +456,7 @@ function upsertToolResultEntry(
 		const existing = state.entries.find((entry) => entry.id === tracked.resultEntryId && entry.type === "tool-result");
 		if (existing?.type === "tool-result") {
 			existing.content = summary.content;
+			existing.rawContent = toolName === "pull_transcript" ? summary.rawContent : undefined;
 			existing.lineCount = summary.lineCount;
 			existing.details = summary.details;
 			existing.truncated = summary.truncated;
@@ -425,6 +472,7 @@ function upsertToolResultEntry(
 		toolCallId,
 		toolName,
 		content: summary.content,
+		...(toolName === "pull_transcript" ? { rawContent: summary.rawContent } : {}),
 		lineCount: summary.lineCount,
 		details: summary.details,
 		truncated: summary.truncated,
@@ -462,7 +510,7 @@ function applyAssistantMessageToTranscript(state: AdvisorTranscriptState, messag
 function summarizeToolResult(
 	value: unknown,
 	maxLength = 400,
-): { content: string; lineCount: number; details: unknown; truncated: boolean } {
+): { content: string; rawContent: string; lineCount: number; details: unknown; truncated: boolean } {
 	let text = "";
 	let details: unknown;
 	if (typeof value === "string") {
@@ -498,12 +546,13 @@ function summarizeToolResult(
 	if (flat.length > maxLength) {
 		return {
 			content: `${flat.slice(0, maxLength - 1)}…`,
+			rawContent: text,
 			lineCount,
 			details,
 			truncated: true,
 		};
 	}
-	return { content: flat || "(empty)", lineCount, details, truncated: false };
+	return { content: flat || "(empty)", rawContent: text, lineCount, details, truncated: false };
 }
 
 function formatToolPreview(value: unknown): string {
@@ -529,6 +578,7 @@ function formatToolSummary(
 	output: string;
 	status: "pending" | "success" | "error";
 	items?: PullTranscriptDisplayItem[];
+	content?: string;
 } {
 	const toolResult = result?.type === "tool-result" ? result : undefined;
 	if (call.toolName === "pull_transcript") {
@@ -558,9 +608,12 @@ function formatToolSummary(
 		return {
 			kind: "pull",
 			title: "Pull",
-			output: `[${start}, ${end}) → ${items.length} msgs · ${(waitedMs / 1_000).toFixed(1)}s`,
+			output: `[${start}, ${end}) → ${items.length} ${items.length === 1 ? "msg" : "msgs"} · ${(
+				waitedMs / 1_000
+			).toFixed(1)}s`,
 			status: "success",
 			items,
+			content: toolResult.rawContent ?? "",
 		};
 	}
 	if (call.toolName === "advise") {

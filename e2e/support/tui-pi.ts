@@ -8,7 +8,8 @@ export interface TuiPiOptions {
 	advisorModelConfigured?: boolean;
 	color?: boolean;
 	expandToolsKey?: string;
-	script?: "default" | "overlay-pull-collapse" | "readme" | "watch-wait";
+	script?:
+		"default" | "overlay-pull-collapse" | "readme" | "visual-natural" | "visual-overlay-pull-collapse" | "watch-wait";
 	width?: number;
 	height?: number;
 }

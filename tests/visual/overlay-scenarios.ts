@@ -1,11 +1,35 @@
+import { readFileSync } from "node:fs";
 import {
 	type AgentSessionEvent,
 	type ExtensionContext,
 	type KeybindingsManager,
 } from "@earendil-works/pi-coding-agent";
 import { CURSOR_MARKER, type TUI, visibleWidth } from "@earendil-works/pi-tui";
+import { parse } from "yaml";
 import { AdvisorOverlayComponent, AdvisorOverlayState } from "../../extensions/advisor/overlay";
 import type { PullTranscriptDetails } from "../../extensions/advisor/types";
+
+interface RealPlanReviewFixture {
+	provenance: {
+		capturedAt: string;
+		piVersion: string;
+		primaryModel: string;
+		primaryThinking: string;
+		advisorModel: string;
+		advisorThinking: string;
+		note: string;
+	};
+	primaryTranscriptEndIndex: number;
+	pullRange: { start: number; end: number; total: number; waitedMs: number };
+	primaryUser: string;
+	primaryAssistantTexts: string[];
+	advisorQuestion: string;
+	advisorResponse: string;
+}
+
+const realPlanReview = parse(
+	readFileSync(new URL("./fixtures/real-plan-review.yaml", import.meta.url), "utf8"),
+) as RealPlanReviewFixture;
 
 export interface OverlayVisualScenario {
 	id: string;
@@ -14,7 +38,6 @@ export interface OverlayVisualScenario {
 	height: number;
 	requiredText: string[];
 	forbiddenText?: string[];
-	expectedFullWidthBackgroundRows?: Array<{ color: string; text: string }>;
 	expectedForegroundText?: Array<{ color: string; text: string }>;
 	expectedItalicText?: string[];
 	expectedBoldText?: string[];
@@ -24,9 +47,15 @@ export interface OverlayVisualScenario {
 	draft?: string;
 }
 
+export interface OverlayVisualSnapshot {
+	screen: string;
+	styles: {
+		fullWidthBackgroundBlocks: Array<{ color: string; lines: string[] }>;
+	};
+}
+
 export interface OverlayVisualRender {
-	text: string;
-	fullWidthBackgroundRows: Array<{ color: string; text: string }>;
+	snapshot: OverlayVisualSnapshot;
 	foregroundText: Array<{ color: string; text: string }>;
 	italicText: string[];
 	boldText: string[];
@@ -45,34 +74,69 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 		sinceIndexOutOfBounds: false,
 		omittedAdvisorAdviceCount: 0,
 		displayItems: [
-			{ kind: "user", text: "Review the cache design." },
-			{ kind: "agent", text: "The cache owns request deduplication." },
-			{ kind: "tool", text: "→ read src/cache.ts ⇒ ok · 120 lines" },
-			{ kind: "tool", text: "→ grep refreshToken ⇒ ok · 12 matches" },
-			{ kind: "tool", text: "→ write src/cache-refresh.ts ⇒ ok · 85 lines" },
-			{ kind: "agent", text: "Adding pending refresh deduplication." },
-			{ kind: "tool", text: "→ edit src/cache-refresh.ts ⇒ ok · diff applied" },
-			{ kind: "tool", text: "→ bash! npm test ⇒ ok · 42 lines" },
+			{ kind: "user", text: "给 Pull 增加等待新消息的能力，并补齐游标越界处理。" },
+			{ kind: "agent", text: "我先检查 Pull 的游标推进和等待逻辑。" },
+			{ kind: "tool", text: "→ read extensions/advisor/session.ts ⇒ ok · 640 lines" },
+			{ kind: "tool", text: "→ grep waitForPrimaryTranscript ⇒ ok · 8 matches" },
+			{ kind: "tool", text: "→ edit extensions/advisor/session.ts ⇒ ok · diff applied" },
+			{ kind: "agent", text: "等待分支已经接入，接下来补充越界场景。" },
+			{ kind: "tool", text: "→ edit e2e/features/pull-transcript.feature ⇒ ok · diff applied" },
+			{ kind: "tool", text: "→ bash! just test-e2e ⇒ ok · 29 scenarios" },
 		],
 	} satisfies PullTranscriptDetails;
+	const pullPayload = `<primary-transcript start="0" end="12" total="12" state="idle" wait="new_messages" waited-ms="4200">
+**user**:
+给 Pull 增加等待新消息的能力，并补齐游标越界处理。
+
+**agent**:
+我先检查 Pull 的游标推进和等待逻辑。
+// inspect cursor advancement and wake-up ordering before editing
+→ read(extensions/advisor/session.ts) ⇒ ok · 640 lines
+→ grep(waitForPrimaryTranscript) ⇒ ok · 8 lines
+→ edit(extensions/advisor/session.ts) ⇒ ok · 1 line
+\`\`\`diff
+--- a/extensions/advisor/session.ts
++++ b/extensions/advisor/session.ts
+@@ -1 +1 @@
+-const shouldWait = false;
++const shouldWait = timeoutMs > 0;
+\`\`\`
+等待分支已经接入，接下来补充越界场景。
+→ edit(e2e/features/pull-transcript.feature) ⇒ ok · 1 line
+→ bash(just test-e2e) ⇒ ok · 29 scenarios
+</primary-transcript>
+`;
 	const pullResult = {
-		content: [{ type: "text", text: "Primary transcript pulled." }],
+		content: [{ type: "text", text: pullPayload }],
 		details: pullDetails,
 	};
 
 	const askAdvisor = new AdvisorOverlayState();
 	askAdvisor.setContextUsage({ tokens: 2_688, contextWindow: 128_000, percent: 2.1 });
-	askAdvisor.recordUserMessage("Review the primary transcript.");
+	askAdvisor.recordUserMessage("帮我检查这次 Pull 改动，重点看会不会漏消息。");
 	askAdvisor.recordContext({
-		primaryUserMessageIndex: 8,
-		userText: "Review the cache design.",
-		assistantTexts: ["The cache now owns request deduplication.", "The retry path still refreshes independently."],
+		primaryTranscriptEndIndex: 12,
+		primaryAgentLoopState: "idle",
+		askContext: {
+			primaryUserMessageIndex: 8,
+			userText: "给 Pull 增加等待新消息的能力，并补齐游标越界处理。",
+			assistantTexts: ["等待分支已经接入。", "游标越界时会从当前 transcript 末尾继续。"],
+		},
+		text: `<primary-context end="12" state="idle">
+**user**:
+给 Pull 增加等待新消息的能力，并补齐游标越界处理。
+
+**primary**:
+等待分支已经接入。
+
+游标越界时会从当前 transcript 末尾继续。
+</primary-context>`,
 	});
 	askAdvisor.applyAgentEvent({
 		type: "message_update",
 		message: {
 			role: "assistant",
-			content: [{ type: "thinking", thinking: "Checking the Primary transcript for cache races..." }],
+			content: [{ type: "thinking", thinking: "我在对照游标推进、等待唤醒和越界恢复的时序。" }],
 			stopReason: "toolUse",
 		},
 	} as AgentSessionEvent);
@@ -93,7 +157,12 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 		type: "message_end",
 		message: {
 			role: "assistant",
-			content: [{ type: "text", text: "E2E_SECOND_OPINION: primary_transcript=seen" }],
+			content: [
+				{
+					type: "text",
+					text: "游标推进整体合理；还需要覆盖等待期间 Primary 结束但没有新消息的场景。",
+				},
+			],
 			stopReason: "stop",
 		},
 	} as AgentSessionEvent);
@@ -115,7 +184,7 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 		isError: false,
 	} as AgentSessionEvent);
 	expandedPull.setStatus("idle");
-	expandedPull.togglePullBlocksExpanded();
+	expandedPull.togglePrimaryContextExpanded();
 	const unboundPull = new AdvisorOverlayState();
 	unboundPull.setContextUsage({ tokens: 2_816, contextWindow: 128_000, percent: 2.2 });
 	unboundPull.applyAgentEvent({
@@ -135,14 +204,22 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 
 	const longContent = new AdvisorOverlayState();
 	longContent.setContextUsage({ tokens: 17_000, contextWindow: 128_000, percent: 13.3 });
-	longContent.recordUserMessage(
-		"Check whether this very long prompt wraps without breaking the panel border or hiding the input area.",
-	);
+	longContent.recordUserMessage("再看一下窄窗口里的显示，长标识符换行以后会不会把边框撑开，或者挡住下面的输入框？");
 	longContent.recordContext({
-		primaryUserMessageIndex: 24,
-		userText:
-			"Inspect the super-long-token-without-natural-breaks-abcdefghijklmnopqrstuvwxyz-0123456789 in the cache design.",
-		assistantTexts: ["The Primary response remains visible while wrapping inside the narrow Context block."],
+		primaryTranscriptEndIndex: 27,
+		primaryAgentLoopState: "idle",
+		askContext: {
+			primaryUserMessageIndex: 24,
+			userText: "请确认 primaryTranscriptCursorByAdvisorSessionAndWorkspace 在窄窗口中能正常换行。",
+			assistantTexts: ["我保留这个完整标识符，用它验证 Context 在窄宽度下的折行，同时确认截断提示不会覆盖右侧边框。"],
+		},
+		text: `<primary-context end="27" state="idle">
+**user**:
+请确认 primaryTranscriptCursorByAdvisorSessionAndWorkspace 在窄窗口中能正常换行。
+
+**primary**:
+我保留这个完整标识符，用它验证 Context 在窄宽度下的折行，同时确认截断提示不会覆盖右侧边框。
+</primary-context>`,
 	});
 	longContent.applyAgentEvent({
 		type: "message_end",
@@ -151,7 +228,7 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 			content: [
 				{
 					type: "text",
-					text: "The narrow overlay wraps the Primary context safely without widening.",
+					text: "Context 会在面板内换行，右侧边框和输入区域都保持完整。",
 				},
 			],
 			stopReason: "stop",
@@ -159,52 +236,153 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 	} as AgentSessionEvent);
 	longContent.setStatus("idle");
 
+	const contextPreview = new AdvisorOverlayState();
+	contextPreview.setContextUsage({ tokens: 3_072, contextWindow: 128_000, percent: 2.4 });
+	contextPreview.recordContext({
+		primaryTranscriptEndIndex: 18,
+		primaryAgentLoopState: "idle",
+		askContext: {
+			primaryUserMessageIndex: 11,
+			userText: "帮我检查数据库迁移是否可以安全回滚。",
+			assistantTexts: [
+				"我先核对旧表结构。",
+				"接着检查迁移入口。",
+				"事务边界已经调整。",
+				"现在补充回滚场景。",
+				"迁移测试正在运行。",
+				"迁移和回滚测试都已通过。",
+			],
+		},
+		text: `<primary-context end="18" state="idle">
+**user**:
+帮我检查数据库迁移是否可以安全回滚。
+
+**primary**:
+我先核对旧表结构。
+
+接着检查迁移入口。
+
+事务边界已经调整。
+
+现在补充回滚场景。
+
+迁移测试正在运行。
+
+迁移和回滚测试都已通过。
+</primary-context>`,
+	});
+	contextPreview.setStatus("idle");
+
 	const repeatedAsk = new AdvisorOverlayState();
 	repeatedAsk.setContextUsage({ tokens: 3_200, contextWindow: 128_000, percent: 2.5 });
-	repeatedAsk.recordUserMessage("Explain the same Primary response from another angle.");
+	repeatedAsk.recordUserMessage("同一个结论能换个角度解释吗？");
+	repeatedAsk.recordContext({
+		primaryTranscriptEndIndex: 12,
+		primaryAgentLoopState: "idle",
+		askContext: undefined,
+		text: `<primary-context end="12" state="idle" />`,
+	});
 	repeatedAsk.applyAgentEvent({
 		type: "message_end",
 		message: {
 			role: "assistant",
-			content: [{ type: "text", text: "The repeated Ask reuses the existing Advisor Transcript." }],
+			content: [
+				{
+					type: "text",
+					text: "可以。关键是 Advisor 会复用已有上下文，不会重复注入相同的 Primary 内容。",
+				},
+			],
 			stopReason: "stop",
 		},
 	} as AgentSessionEvent);
 	repeatedAsk.setStatus("idle");
 
+	const realPlanReviewPreview = new AdvisorOverlayState();
+	realPlanReviewPreview.setContextUsage({ tokens: 39_804, contextWindow: 372_000, percent: 10.7 });
+	realPlanReviewPreview.recordUserMessage(realPlanReview.advisorQuestion);
+	const realAskContextText = `<primary-context end="${realPlanReview.primaryTranscriptEndIndex}" state="idle">
+**user**:
+${realPlanReview.primaryUser}
+
+**primary**:
+${realPlanReview.primaryAssistantTexts.join("\n\n")}
+</primary-context>`;
+	realPlanReviewPreview.recordContext({
+		primaryTranscriptEndIndex: realPlanReview.primaryTranscriptEndIndex,
+		primaryAgentLoopState: "idle",
+		askContext: {
+			primaryUserMessageIndex: 0,
+			userText: realPlanReview.primaryUser,
+			assistantTexts: realPlanReview.primaryAssistantTexts,
+		},
+		text: realAskContextText,
+	});
+	const realPullPayload = `<primary-transcript start="${realPlanReview.pullRange.start}" end="${realPlanReview.pullRange.end}" total="${realPlanReview.pullRange.total}" state="idle" wait="new_messages" waited-ms="${realPlanReview.pullRange.waitedMs}">
+**agent**:
+${realPlanReview.primaryAssistantTexts.at(-1) ?? ""}
+</primary-transcript>
+`;
+	realPlanReviewPreview.applyAgentEvent({
+		type: "tool_execution_start",
+		toolCallId: "real-plan-review-pull",
+		toolName: "pull_transcript",
+		args: { since_index: realPlanReview.pullRange.start, count: 20, timeout_ms: 0 },
+	} as AgentSessionEvent);
+	realPlanReviewPreview.applyAgentEvent({
+		type: "tool_execution_end",
+		toolCallId: "real-plan-review-pull",
+		toolName: "pull_transcript",
+		result: {
+			content: [{ type: "text", text: realPullPayload }],
+			details: {
+				start: realPlanReview.pullRange.start,
+				end: realPlanReview.pullRange.end,
+				total: realPlanReview.pullRange.total,
+				primaryAgentLoopState: "idle",
+				waitResult: "new_messages",
+				waitedMs: realPlanReview.pullRange.waitedMs,
+				sinceIndexOutOfBounds: false,
+				omittedAdvisorAdviceCount: 0,
+				displayItems: [{ kind: "agent", text: realPlanReview.primaryAssistantTexts.at(-1) ?? "" }],
+			} satisfies PullTranscriptDetails,
+		},
+		isError: false,
+	} as AgentSessionEvent);
+	realPlanReviewPreview.setStatus("idle");
+
 	const toolBlocks = new AdvisorOverlayState();
 	toolBlocks.setContextUsage({ tokens: 4_352, contextWindow: 128_000, percent: 3.4 });
-	toolBlocks.recordUserMessage("Review the delivery plan.");
+	toolBlocks.recordUserMessage("帮我审查 Pull 的错误处理和 Advice 送达顺序。");
 	toolBlocks.applyAgentEvent({
 		type: "tool_execution_start",
 		toolCallId: "grep-pending-1",
 		toolName: "grep",
-		args: { pattern: "pendingRefresh" },
+		args: { pattern: "resolvePullCursor" },
 	} as AgentSessionEvent);
 	toolBlocks.applyAgentEvent({
 		type: "tool_execution_start",
 		toolCallId: "read-success-1",
 		toolName: "read",
-		args: { path: "src/cache.ts" },
+		args: { path: "extensions/advisor/session.ts" },
 	} as AgentSessionEvent);
 	toolBlocks.applyAgentEvent({
 		type: "tool_execution_end",
 		toolCallId: "read-success-1",
 		toolName: "read",
-		result: "cache line one\ncache line two",
+		result: "const cursor = resolvePullCursor(request);\nreturn await pullTranscript(cursor);",
 		isError: false,
 	} as AgentSessionEvent);
 	toolBlocks.applyAgentEvent({
 		type: "tool_execution_start",
 		toolCallId: "write-error-1",
 		toolName: "write",
-		args: { path: "src/cache.ts" },
+		args: { path: "extensions/advisor/session.ts" },
 	} as AgentSessionEvent);
 	toolBlocks.applyAgentEvent({
 		type: "tool_execution_end",
 		toolCallId: "write-error-1",
 		toolName: "write",
-		result: "permission denied\ncannot write",
+		result: "EACCES: permission denied\n无法写入 session.ts",
 		isError: true,
 	} as AgentSessionEvent);
 	toolBlocks.applyAgentEvent({
@@ -213,7 +391,7 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 			role: "toolResult",
 			toolCallId: "write-error-1",
 			toolName: "write",
-			content: [{ type: "text", text: "permission denied\ncannot write" }],
+			content: [{ type: "text", text: "EACCES: permission denied\n无法写入 session.ts" }],
 			details: {},
 			isError: true,
 			timestamp: Date.now(),
@@ -223,7 +401,7 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 		type: "tool_execution_start",
 		toolCallId: "advise-hint-1",
 		toolName: "advise",
-		args: { kind: "hint", advice: "Use the SDK path." },
+		args: { kind: "hint", advice: "先校验游标，再进入等待分支。" },
 	} as AgentSessionEvent);
 	toolBlocks.applyAgentEvent({
 		type: "tool_execution_end",
@@ -236,7 +414,7 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 		type: "tool_execution_start",
 		toolCallId: "advise-concern-1",
 		toolName: "advise",
-		args: { kind: "concern", advice: "Keep delivery after validation." },
+		args: { kind: "concern", advice: "写入失败时不要继续发送完成通知。" },
 	} as AgentSessionEvent);
 	toolBlocks.applyAgentEvent({
 		type: "tool_execution_end",
@@ -249,7 +427,7 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 		type: "message_end",
 		message: {
 			role: "assistant",
-			content: [{ type: "text", text: "The delivery plan is ready." }],
+			content: [{ type: "text", text: "主要风险已经标注，建议补完错误路径后再提交。" }],
 			stopReason: "stop",
 		},
 	} as AgentSessionEvent);
@@ -278,14 +456,14 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 			title: "Focused Advisor Overlay Input",
 			width: 50,
 			height: 16,
-			requiredText: ["Advisor · idle · ctx ?/128k", "Review this draft"],
+			requiredText: ["Advisor · idle · ctx ?/128k", "帮我审查这个方案"],
 			checklist: [
 				"Focused Advisor input shows one reverse-video software cursor.",
 				"The draft remains readable around the focused cursor.",
 				"Border geometry stays unchanged when focus adds the cursor marker.",
 			],
 			state: empty,
-			draft: "Review this draft",
+			draft: "帮我审查这个方案",
 		},
 		{
 			id: "overlay-ask-advisor",
@@ -293,54 +471,43 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 			width: 78,
 			height: 30,
 			requiredText: [
-				"Review the primary transcript.",
-				"Context → 1 user + 2 agent msgs",
-				"user: Review the cache design.",
-				"agent: The cache now owns request deduplication.",
-				"agent: The retry path still refreshes independently.",
-				"Checking the Primary transcript for cache races...",
+				"帮我检查这次 Pull 改动，重点看会不会漏消息。",
+				"Context · 3 msgs",
+				"user: 给 Pull 增加等待新消息的能力，并补齐游标越界处理。",
+				"agent: 等待分支已经接入。",
+				"agent: 游标越界时会从当前 transcript 末尾继续。",
+				"我在对照游标推进、等待唤醒和越界恢复的时序。",
 				"Pull [0, 12) → 8 msgs · 4.2s",
-				"... (3 more, ctrl+o to expand)",
-				"E2E_SECOND_OPINION",
+				"... (3 more lines, ctrl+o to expand)",
+				"还需要覆盖等待期间 Primary 结束但没有新消息的场景。",
 			],
 			forbiddenText: [
+				"Context →",
 				"pull_transcript",
 				"result",
 				"total=12",
-				"Adding pending refresh deduplication.",
-				"→ edit src/cache-refresh.ts",
-				"→ bash! npm test",
-			],
-			expectedFullWidthBackgroundRows: [
-				{ color: "userMessageBg", text: " Review the primary transcript." },
-				{ color: "customMessageBg", text: " Context → 1 user + 2 agent msgs" },
-				{ color: "customMessageBg", text: " user: Review the cache design." },
-				{ color: "customMessageBg", text: " agent: The cache now owns request deduplication." },
-				{ color: "customMessageBg", text: " agent: The retry path still refreshes independently." },
-				{ color: "toolSuccessBg", text: " Pull [0, 12) → 8 msgs · 4.2s" },
-				{ color: "toolSuccessBg", text: " user: Review the cache design." },
-				{ color: "toolSuccessBg", text: " agent: The cache owns request deduplication." },
-				{ color: "toolSuccessBg", text: " → read src/cache.ts ⇒ ok · 120 lines" },
-				{ color: "toolSuccessBg", text: " → grep refreshToken ⇒ ok · 12 matches" },
-				{ color: "toolSuccessBg", text: " → write src/cache-refresh.ts ⇒ ok · 85 lines" },
-				{ color: "toolSuccessBg", text: " ... (3 more, ctrl+o to expand)" },
+				"等待分支已经接入，接下来补充越界场景。",
+				"→ edit e2e/features/pull-transcript.feature",
+				"→ bash! just test-e2e",
 			],
 			expectedForegroundText: [
 				{ color: "customMessageLabel", text: "Context" },
-				{ color: "customMessageText", text: " → 1 user + 2 agent msgs" },
+				{ color: "customMessageText", text: "· 3 msgs" },
 				{ color: "dim", text: "user:" },
-				{ color: "customMessageText", text: "Review the cache design." },
+				{ color: "text", text: "给 Pull 增加等待新消息的能力，并补齐游标越界处理。" },
 				{ color: "dim", text: "agent:" },
-				{ color: "customMessageText", text: "The cache now owns request deduplication." },
-				{ color: "customMessageText", text: "The retry path still refreshes independently." },
-				{ color: "thinkingText", text: "Checking the Primary transcript for cache races..." },
+				{ color: "text", text: "等待分支已经接入。" },
+				{ color: "text", text: "游标越界时会从当前 transcript 末尾继续。" },
+				{ color: "text", text: "我先检查 Pull 的游标推进和等待逻辑。" },
+				{ color: "thinkingText", text: "我在对照游标推进、等待唤醒和越界恢复的时序。" },
 			],
-			expectedItalicText: ["Checking the Primary transcript for cache races...", "... (3 more, ctrl+o to expand)"],
+			expectedItalicText: ["我在对照游标推进、等待唤醒和越界恢复的时序。", "... (3 more lines, ctrl+o to expand)"],
 			expectedBoldText: ["Context", "Pull"],
 			checklist: [
-				"Context is one customMessageBg block with a bold Context header and dim user:/agent: prefixes.",
+				"Context is one customMessageBg block whose header reports three injected Primary messages.",
+				"Context and Pull use the same text color for Primary user/agent content while keeping dim role prefixes.",
 				"Thinking uses thinkingText in italic with no background block.",
-				"Collapsed Pull uses toolSuccessBg, shows the first five of eight display items, and ends with the ctrl+o expansion hint.",
+				"Collapsed Pull uses toolSuccessBg, shows at most five visual lines, and ends with the ctrl+o expansion hint.",
 				"Second Opinion text remains visible without exposing Pull arguments or raw result details.",
 			],
 			state: askAdvisor,
@@ -349,36 +516,28 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 			id: "overlay-expanded-pull",
 			title: "Expanded Pull Transcript Block",
 			width: 78,
-			height: 18,
+			height: 30,
 			requiredText: [
 				"Pull [0, 12) → 8 msgs · 4.2s",
-				"user: Review the cache design.",
-				"agent: Adding pending refresh deduplication.",
-				"→ edit src/cache-refresh.ts ⇒ ok · diff applied",
-				"→ bash! npm test ⇒ ok · 42 lines",
+				'<primary-transcript start="0" end="12"',
+				'state="idle"',
+				'wait="new_messages"',
+				"</primary-transcript>",
+				"**user**:",
+				"// inspect cursor advancement and wake-up ordering before editing",
+				"```diff",
+				"+const shouldWait = timeoutMs > 0;",
+				"→ bash(just test-e2e) ⇒ ok · 29 scenarios",
 			],
-			forbiddenText: ["more, ctrl+o to expand", "pull_transcript", "total=12"],
-			expectedFullWidthBackgroundRows: [
-				{ color: "toolSuccessBg", text: " Pull [0, 12) → 8 msgs · 4.2s" },
-				{ color: "toolSuccessBg", text: " user: Review the cache design." },
-				{ color: "toolSuccessBg", text: " agent: The cache owns request deduplication." },
-				{ color: "toolSuccessBg", text: " → read src/cache.ts ⇒ ok · 120 lines" },
-				{ color: "toolSuccessBg", text: " → grep refreshToken ⇒ ok · 12 matches" },
-				{ color: "toolSuccessBg", text: " → write src/cache-refresh.ts ⇒ ok · 85 lines" },
-				{ color: "toolSuccessBg", text: " agent: Adding pending refresh deduplication." },
-				{ color: "toolSuccessBg", text: " → edit src/cache-refresh.ts ⇒ ok · diff applied" },
-				{ color: "toolSuccessBg", text: " → bash! npm test ⇒ ok · 42 lines" },
-			],
+			forbiddenText: ["more, ctrl+o to expand", "pull_transcript"],
 			expectedForegroundText: [
 				{ color: "toolTitle", text: "Pull" },
-				{ color: "dim", text: "agent:" },
-				{ color: "toolTitle", text: "→ edit" },
-				{ color: "toolTitle", text: "→ bash!" },
+				{ color: "text", text: pullPayload },
 			],
 			expectedBoldText: ["Pull"],
 			checklist: [
 				"Expanded Pull keeps the same toolSuccessBg block boundary and header.",
-				"All eight display items are visible in source order.",
+				"The exact tool-result payload is visible, including its status header, role markers, tool intent, and diff fence.",
 				"The collapsed-state expansion hint is absent.",
 			],
 			state: expandedPull,
@@ -388,23 +547,14 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 			title: "Pull With Unbound Expansion Action",
 			width: 78,
 			height: 16,
-			requiredText: ["Pull [0, 12) → 8 msgs · 4.2s", "... (3 more)"],
+			requiredText: ["Pull [0, 12) → 8 msgs · 4.2s", "... (3 more lines)"],
 			forbiddenText: ["to expand", "ctrl+o"],
-			expectedFullWidthBackgroundRows: [
-				{ color: "toolSuccessBg", text: " Pull [0, 12) → 8 msgs · 4.2s" },
-				{ color: "toolSuccessBg", text: " user: Review the cache design." },
-				{ color: "toolSuccessBg", text: " agent: The cache owns request deduplication." },
-				{ color: "toolSuccessBg", text: " → read src/cache.ts ⇒ ok · 120 lines" },
-				{ color: "toolSuccessBg", text: " → grep refreshToken ⇒ ok · 12 matches" },
-				{ color: "toolSuccessBg", text: " → write src/cache-refresh.ts ⇒ ok · 85 lines" },
-				{ color: "toolSuccessBg", text: " ... (3 more)" },
-			],
 			expectedForegroundText: [{ color: "toolTitle", text: "Pull" }],
-			expectedItalicText: ["... (3 more)"],
+			expectedItalicText: ["... (3 more lines)"],
 			expectedBoldText: ["Pull"],
 			checklist: [
 				"The Pull preview remains collapsed when app.tools.expand is unbound.",
-				"The truncation row reports hidden items without advertising an unavailable shortcut.",
+				"The truncation row reports hidden visual lines without advertising an unavailable shortcut.",
 			],
 			state: unboundPull,
 			keybindings: {
@@ -417,20 +567,7 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 			title: "Long Content In A Small Overlay",
 			width: 44,
 			height: 21,
-			requiredText: ["Advisor · idle", "Context", "super-long-token"],
-			expectedFullWidthBackgroundRows: [
-				{ color: "userMessageBg", text: " Check whether this very long prompt" },
-				{ color: "userMessageBg", text: " wraps without breaking the panel border" },
-				{ color: "userMessageBg", text: " or hiding the input area." },
-				{ color: "customMessageBg", text: " Context → 1 user + 1 agent msg" },
-				{ color: "customMessageBg", text: " user: Inspect the" },
-				{ color: "customMessageBg", text: " super-long-token-without-natural-breaks-" },
-				{ color: "customMessageBg", text: " abcdefghijklmnopqrstuvwxyz-0123456789 in" },
-				{ color: "customMessageBg", text: " the cache design." },
-				{ color: "customMessageBg", text: " agent: The Primary response remains" },
-				{ color: "customMessageBg", text: " visible while wrapping inside the narrow" },
-				{ color: "customMessageBg", text: " Context block." },
-			],
+			requiredText: ["Advisor · idle", "Context · 2 msgs", "primaryTranscriptCursor"],
 			expectedForegroundText: [
 				{ color: "customMessageLabel", text: "Context" },
 				{ color: "dim", text: "user:" },
@@ -446,56 +583,90 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 			state: longContent,
 		},
 		{
+			id: "overlay-context-preview",
+			title: "Collapsed Ask Context Preview",
+			width: 78,
+			height: 16,
+			requiredText: [
+				"Context · 7 msgs",
+				"user: 帮我检查数据库迁移是否可以安全回滚。",
+				"agent: 现在补充回滚场景。",
+				"... (2 more lines, ctrl+o to expand)",
+			],
+			forbiddenText: ["Context →", "迁移测试正在运行。", "迁移和回滚测试都已通过。"],
+			expectedForegroundText: [
+				{ color: "customMessageLabel", text: "Context" },
+				{ color: "dim", text: "user:" },
+				{ color: "dim", text: "agent:" },
+			],
+			expectedItalicText: ["... (2 more lines, ctrl+o to expand)"],
+			expectedBoldText: ["Context"],
+			checklist: [
+				"Collapsed Context uses the same five-visual-line preview limit as Pull.",
+				"The compact header reports all seven injected Primary messages.",
+				"The expansion hint reports the two hidden Context visual lines.",
+			],
+			state: contextPreview,
+		},
+		{
 			id: "overlay-repeated-ask",
 			title: "Repeated Ask Without New Context",
 			width: 50,
 			height: 16,
-			requiredText: ["Explain the same Primary response", "reuses the existing"],
-			forbiddenText: ["Context", "User → Primary"],
-			expectedFullWidthBackgroundRows: [
-				{ color: "userMessageBg", text: " Explain the same Primary response from another" },
-				{ color: "userMessageBg", text: " angle." },
-			],
+			requiredText: ["同一个结论能换个角度解释吗？", "Context · 0 msgs", "Advisor 会复用已有上下文"],
+			forbiddenText: ["Context →", "User → Primary"],
 			checklist: [
 				"The repeated Ask remains visible with a full-row background on both wrapped rows.",
-				"No empty Context block or unchanged-context notice consumes panel space.",
+				"A compact Context · 0 msgs block makes the position-only injection explicit without repeating Primary text.",
 				"The advisor answer follows directly.",
 			],
 			state: repeatedAsk,
 		},
 		{
+			id: "overlay-real-plan-review-preview",
+			title: "Real Model Plan Review Preview",
+			width: 78,
+			height: 28,
+			requiredText: [
+				realPlanReview.advisorQuestion,
+				"Context · 4 msgs",
+				"user: 我想给 Advisor 增加一个导出当前对话为 Markdown 的命令。",
+				"more lines, ctrl+o to expand",
+				"Pull [36, 37) → 1 msg · 0.0s",
+			],
+			forbiddenText: ["### 五、文件变更清单", "Context →", "<primary-context", "**agent**:"],
+			expectedBoldText: ["Context", "Pull"],
+			checklist: [
+				"The fixture provenance identifies the local DeepSeek V4 Pro and GPT-5.6 Advisor interaction.",
+				"A multi-thousand-character Primary plan remains bounded to five visual lines in both Context and Pull.",
+				"The complete verbatim Context and Pull payloads remain available in state for Ctrl+O expansion.",
+			],
+			state: realPlanReviewPreview,
+		},
+		{
 			id: "overlay-tool-and-advice-blocks",
 			title: "Tool And Advice Blocks",
 			width: 96,
-			height: 22,
+			height: 34,
 			requiredText: [
-				'grep {"pattern":"pendingRefresh"} ⇒ pending',
-				'read {"path":"src/cache.ts"} ⇒ ok · 2 lines',
-				'write {"path":"src/cache.ts"} ⇒ error · 2 lines — permission denied cannot write',
-				"Hint: Use the SDK path.",
-				"Concern: Keep delivery after validation.",
-				"The delivery plan is ready.",
+				'grep {"pattern":"resolvePullCursor"} ⇒ pending',
+				'read {"path":"extensions/advisor/session.ts"} ⇒ ok · 2 lines',
+				'write {"path":"extensions/advisor/session.ts"} ⇒ error · 2 lines',
+				"EACCES: permission denied",
+				"无法写入 session.ts",
+				"Hint: 先校验游标，再进入等待分支。",
+				"Concern: 写入失败时不要继续发送完成通知。",
+				"主要风险已经标注，建议补完错误路径后再提交。",
 			],
 			forbiddenText: ["Prompt", "Tool ", "↳", "advise hint", "advise concern", "delivered hint"],
-			expectedFullWidthBackgroundRows: [
-				{ color: "userMessageBg", text: " Review the delivery plan." },
-				{ color: "toolPendingBg", text: ' grep {"pattern":"pendingRefresh"} ⇒ pending' },
-				{ color: "toolSuccessBg", text: ' read {"path":"src/cache.ts"} ⇒ ok · 2 lines' },
-				{
-					color: "toolErrorBg",
-					text: ' write {"path":"src/cache.ts"} ⇒ error · 2 lines — permission denied cannot write',
-				},
-				{ color: "toolErrorBg", text: " Hint: Use the SDK path." },
-				{ color: "toolErrorBg", text: " Concern: Keep delivery after validation." },
-			],
 			expectedForegroundText: [
 				{ color: "toolTitle", text: "grep" },
 				{ color: "toolTitle", text: "read" },
 				{ color: "toolTitle", text: "write" },
 				{ color: "text", text: "Hint:" },
 				{ color: "text", text: "Concern:" },
-				{ color: "text", text: "Use the SDK path." },
-				{ color: "text", text: "Keep delivery after validation." },
+				{ color: "text", text: "先校验游标，再进入等待分支。" },
+				{ color: "text", text: "写入失败时不要继续发送完成通知。" },
 			],
 			expectedBoldText: ["grep", "read", "write", "Hint:", "Concern:"],
 			checklist: [
@@ -570,11 +741,33 @@ export function renderOverlayVisualScenario(scenario: OverlayVisualScenario): Ov
 		const component = new AdvisorOverlayComponent(tui, theme, scenario.state, scenario.keybindings);
 		component.focused = true;
 		component.setDraft(scenario.draft ?? "");
-		const text = component.render(scenario.width).join("\n").replaceAll(CURSOR_MARKER, "");
+		const screen = component.render(scenario.width).join("\n").replaceAll(CURSOR_MARKER, "");
 		const fullWidthBackgroundRows = backgroundRows
 			.filter((row) => visibleWidth(row.text) === scenario.width - 2)
 			.map((row) => ({ color: row.color, text: row.text.trimEnd() }));
-		return { text, fullWidthBackgroundRows, foregroundText, italicText, boldText };
+		const fullWidthBackgroundBlocks = fullWidthBackgroundRows.reduce<Array<{ color: string; lines: string[] }>>(
+			(blocks, row, index, rows) => {
+				const previousBlock = blocks.at(-1);
+				const startsNextBlock =
+					row.text === "" &&
+					previousBlock?.lines.at(-1) === "" &&
+					rows[index + 1]?.color === row.color &&
+					rows[index + 1]?.text !== "";
+				if (previousBlock?.color === row.color && !startsNextBlock) {
+					previousBlock.lines.push(row.text);
+				} else {
+					blocks.push({ color: row.color, lines: [row.text] });
+				}
+				return blocks;
+			},
+			[],
+		);
+		return {
+			snapshot: { screen, styles: { fullWidthBackgroundBlocks } },
+			foregroundText,
+			italicText,
+			boldText,
+		};
 	} finally {
 		if (previousRows) {
 			Object.defineProperty(process.stdout, "rows", previousRows);

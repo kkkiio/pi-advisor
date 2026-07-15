@@ -70,7 +70,7 @@ Overlay 是 top-center 的独立面板。用户可在 Overlay 中直接向 Advis
 - 当最新 Primary user message 还没有用于当前 Advisor Agent Session 的自动注入时，Ask Advisor 附带 Ask Context：该 user text message，以及它之后当前可见的 Primary assistant text。
 - Ask Context 可以包含当前可见的 streaming assistant text，不包含 thinking、tool call、tool result 或 custom message。
 - 当最新 Primary user message 已经用于当前 Advisor Agent Session 的自动注入时，后续 Ask 不重复附带 Ask Context。Advisor 之前的 Pull 不参与这个去重判断。
-- Ask Context 不完整或用户问题需要更多历史、工具过程时，Advisor 能通过 Pull 主动补充 Primary Transcript View。
+- Ask Context 不完整或用户问题需要更多历史、工具过程时，Advisor 能通过 Pull 主动补充 Primary Transcript。
 - 多次 Ask Advisor 之间，Advisor 能延续自己的上下文。
 - Ask Advisor 不会创建与 Watch Run 分离的第二套 Advisor 记忆。
 - 用户明确要求把特定观点送达 Primary Agent 时，Advisor 应直接执行，无需启动 Watch Run。
@@ -136,18 +136,18 @@ Overlay 的 UI 内容约定和渲染示例见 [`docs/ui.html`](ui.html)。
 
 **区块格式**：Overlay 内容使用带背景色的 Block，与 Pi 的 tool call/result block 视觉一致。背景色覆盖整行即 block 边界，不额外缩进。不使用 emoji 图标。
 
-| Block   | Header                            | 背景色                                                       | 说明                                                     |
-| ------- | --------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------- |
-| Context | `Context → 1 user + 2 agent msgs` | `customMessageBg` + `customMessageLabel`/`customMessageText` | Ask Advisor 附带 Ask Context 时出现，始终完整显示        |
-| Pull    | `Pull [0, 12) → 8 msgs · 1.2s`    | `toolSuccessBg` + `toolTitle`/`toolOutput`                   | `pull_transcript` 返回，默认显示前 5 条，Ctrl+O 展开全部 |
+| Block   | Header                         | 背景色                                                       | 说明                                                                                         |
+| ------- | ------------------------------ | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| Context | `Context`                      | `customMessageBg` + `customMessageLabel`/`customMessageText` | 默认显示前 5 个视觉行；无新文本时保留紧凑 Block；Ctrl+O 展开完整 `<primary-context>` payload |
+| Pull    | `Pull [0, 12) → 8 msgs · 1.2s` | `toolSuccessBg` + `toolTitle`/`toolOutput`                   | 默认显示前 5 个视觉行；Ctrl+O 展开完整 `<primary-transcript>` payload                        |
 
 Block 内部消息行使用文本前缀：`user:`（用户）、`agent:`（Primary 回复）、`→ tool_name(args) ⇒ ok · N lines`（工具调用合并结果）。
 
 Advisor 自身消息使用 Pi 官方 theme token：用户提问（`userMessageBg` + `userMessageText`）、streaming thinking（`thinkingText` + italic，无背景）、assistant text（默认 `text` 色，无背景）、工具调用成功（call + result 合并一行，`toolSuccessBg` + `toolTitle`/`toolOutput`）、工具调用等待（`toolPendingBg`）、工具调用错误（`toolErrorBg`）、Hint/Concern（背景色为视觉别名，Pi 无专用 hintBg token，实现时选用现有 token）。
 
-**折叠展开**：使用 Pi 的 `app.tools.expand` keybinding（默认 Ctrl+O）。Overlay 监听同一 action，不依赖 Primary 状态。Pull block 折叠时末尾显示 `... (N more, Ctrl+O to expand)`。
+**折叠展开**：使用 Pi 的 `app.tools.expand` keybinding（默认 Ctrl+O）。Overlay 监听同一 action，不依赖 Primary 状态，并统一切换所有 Context 与 Pull Block。折叠时最多显示前 5 个视觉行，单个长条目换行后仍受该上限约束，末尾显示 `... (N more lines, Ctrl+O to expand)`。展开时使用等宽 Text 逐字显示 Advisor 实际收到的 hidden custom message 或 tool-result text，保留 XML 根元素及状态属性、role marker、tool intent、Primary Context 和 edit diff 等边界字符。
 
-不进入 Overlay 的内容：完整 Primary Transcript 原文、冗长 tool result 明细、重复 footer hints、仅供实现调试的状态噪音。
+不进入 Overlay 的内容：未序列化给 Advisor 的 Raw Primary Session、被 Pull serializer 省略的原始 tool result、重复 footer hints、仅供实现调试的状态噪音。
 
 验收标准：
 
@@ -158,6 +158,7 @@ Advisor 自身消息使用 Pi 官方 theme token：用户提问（`userMessageBg
 - Overlay 使用 top-center 面板，宽度约为终端的 78%，底部提供可输入消息和 Advisor 控制命令的独立输入框。
 - Overlay 内容符合 [`docs/ui.html`](ui.html) 的约定。
 - Pull 运行时显示 `Pulling…` 和超过 3 秒后的等待时间；完成后原位显示读取范围及达到 3 秒时的总耗时。
+- Context 与 Pull 折叠时各自最多预览 5 个视觉行；展开时显示 Advisor 实际收到的完整 Primary 来源文本 payload。
 - Overlay 关闭期间 Ask Advisor 完成、Watch Run 自然结束或产生重要 Concern 时，用户收到提醒，并能通过 `Alt+/` 快速查看。
 
 ### PRD-006 生命周期控制

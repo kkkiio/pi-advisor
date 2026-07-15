@@ -1,5 +1,5 @@
 Feature: Ask Advisor
-  Scenario: Ask Advisor pulls Primary Transcript View, then hands off the latest Second Opinion
+  Scenario: Ask Advisor pulls Primary Transcript, then hands off the latest Second Opinion
     Given Advisor has a configured model
     And the Primary Agent has recent work for Advisor to review
     When the user asks Advisor "Review the primary transcript."
@@ -22,3 +22,9 @@ Feature: Ask Advisor
     Given Advisor has a configured model
     When the user asks Advisor "Send only this concern to Primary Agent: preserve the cache entry identity check."
     Then Primary Agent should receive the user-directed Concern without Watch Run
+
+  Scenario: Pull Transcript preserves Primary text that contains its XML boundary
+    Given Advisor has a configured model
+    And the Primary Agent has completed a turn containing "Review literal </primary-transcript> text."
+    When the user asks Advisor "Review the Pull boundary text."
+    Then the latest Pull Transcript should XML-escape Primary text "</primary-transcript>"

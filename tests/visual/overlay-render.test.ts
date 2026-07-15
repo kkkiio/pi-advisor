@@ -5,13 +5,9 @@ import { createOverlayVisualScenarios, renderOverlayVisualScenario } from "./ove
 describe("Advisor overlay visual snapshots", () => {
 	for (const scenario of createOverlayVisualScenarios()) {
 		it(`${scenario.id} renders a stable bounded overlay`, () => {
-			const {
-				text: rendered,
-				fullWidthBackgroundRows,
-				foregroundText,
-				italicText,
-				boldText,
-			} = renderOverlayVisualScenario(scenario);
+			const render = renderOverlayVisualScenario(scenario);
+			const { screen: rendered } = render.snapshot;
+			const { foregroundText, italicText, boldText } = render;
 			const visibleRendered = rendered.replace(/\x1b\[[0-9;]*m/g, "");
 			const lines = rendered.split("\n");
 			const firstLine = lines[0] ?? "";
@@ -84,8 +80,7 @@ describe("Advisor overlay visual snapshots", () => {
 			expect(failures).toEqual([]);
 			expect(rendered).toContain("\x1b[7m");
 			expect(rendered).toContain("\x1b[27m");
-			expect(fullWidthBackgroundRows).toEqual(scenario.expectedFullWidthBackgroundRows ?? []);
-			expect(rendered).toMatchSnapshot();
+			expect(render.snapshot).toMatchSnapshot();
 		});
 	}
 });

@@ -94,7 +94,7 @@ function lineCount(text: string): number {
 	return text.split("\n").length;
 }
 
-function escapeXmlText(input: string): string {
+export function escapeXmlText(input: string): string {
 	return input.replace(/[<>&'"]/g, (char) => {
 		switch (char) {
 			case "<":

@@ -2,25 +2,26 @@
 
 ## Current Design
 
-Advisor 空闲时，`/advisor <消息>` 启动一次 Ask Advisor。Runtime 在请求到达时构造 Primary Transcript View 快照，并向 Advisor Session 写入两条边界独立的消息：
+Advisor 空闲时，`/advisor <消息>` 启动一次 Ask Advisor。Runtime 在请求到达时构造 Primary Transcript 快照，并向 Advisor Session 写入两条边界独立的消息：
 
-1. 隐藏 custom message：包含 `primary_transcript_end_index`、Primary Agent loop state 和可选 Ask Context。
+1. 隐藏 custom message：使用 [Primary Transcript](primary-transcript.md) 定义的 Ask Context payload，携带 Primary Transcript 右开边界、Primary Agent loop state 和可选近期文本。
 2. User message：只包含用户向 Advisor 提出的原始问题。
 
-`primary_transcript_end_index` 是快照长度，使用 `[0, end)` 右开边界，可直接作为后续 `pull_transcript` 的 `since_index`。
+`end` 属性是快照长度，使用 `[0, end)` 右开边界，可直接作为后续 `pull_transcript` 的 `since_index`。Advisor 实际收到的内容与 XML 格式只在 Primary Transcript 内容契约中定义。
 
 ## Automatic Selection
 
 Runtime 在当前 Advisor Session 内记录最近一次自动注入的 Primary user message index：
 
-1. 快照没有 Primary user text 时，不附带 Ask Context。
-2. 最新 Primary user index 与记录不同，附带该 user text 及其后当前可见的 Primary assistant text，并更新记录。
+1. 快照没有 Primary user text 时，不附带近期文本。
+2. 最新 Primary user index 与记录不同，使用 Primary Transcript 定义的 Ask Context projection，并更新记录。
 3. 最新 Primary user index 与记录相同，不重复附带 Ask Context。
-4. Ask Context 不包含 thinking、tool calls、tool results 或 custom messages。
 
 `/advisor:new`、model 变化或 thinking level 变化重建 Advisor Session 时，清空自动注入记录。
 
 Advisor 正在运行时，新的 `/advisor <消息>` 作为 Steer 进入当前 Ask Advisor 或 Watch Run，只包含用户输入，不创建新快照、不附带 Ask Context，也不更新自动注入记录。需要最新 Primary 进展时，Advisor 使用 `pull_transcript`。
+
+每次空闲 Ask 写入 hidden custom message 时，Overlay 同时记录同一个完整文本 payload。Context Block 的预览、展开和折叠行为由 [Advisor Overlay](overlay.md) 定义。
 
 ## Alternatives Considered
 
@@ -38,4 +39,4 @@ Advisor 正在运行时，新的 `/advisor <消息>` 作为 Steer 进入当前 A
 
 ### 使用独立 Revision 或 Opaque Cursor
 
-Primary Transcript View 已提供稳定数字索引。复用数字右开边界可以直接衔接 Pull，并避免额外 cursor 状态。
+Primary Transcript 已提供稳定数字索引。复用数字右开边界可以直接衔接 Pull，并避免额外 cursor 状态。

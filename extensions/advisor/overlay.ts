@@ -6,7 +6,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import type { Component, Focusable, OverlayHandle, TUI } from "@earendil-works/pi-tui";
 import { Container, Input, Key, matchesKey, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import type { AdviceDeliveryResult, AdvisorContextUsage, AskContext, WatchRunState } from "./types";
+import type { AdviceDeliveryResult, AdvisorContextUsage, AskContextPayload, WatchRunState } from "./types";
 import {
 	appendAskContext,
 	appendTranscriptNotice,
@@ -28,7 +28,7 @@ export class AdvisorOverlayState {
 	private status = "idle";
 	private watchRunState: WatchRunState = "idle";
 	private contextUsage: AdvisorContextUsage | undefined;
-	private pullBlocksExpanded = false;
+	private primaryContextExpanded = false;
 
 	setStatus(status: string): void {
 		this.status = status;
@@ -61,8 +61,8 @@ export class AdvisorOverlayState {
 		});
 	}
 
-	recordContext(context: AskContext): void {
-		appendAskContext(this.transcriptState, context);
+	recordContext(payload: AskContextPayload): void {
+		appendAskContext(this.transcriptState, payload);
 	}
 
 	recordAdvice(result: AdviceDeliveryResult): void {
@@ -77,8 +77,8 @@ export class AdvisorOverlayState {
 		this.contextUsage = usage;
 	}
 
-	togglePullBlocksExpanded(): void {
-		this.pullBlocksExpanded = !this.pullBlocksExpanded;
+	togglePrimaryContextExpanded(): void {
+		this.primaryContextExpanded = !this.primaryContextExpanded;
 	}
 
 	applyAgentEvent(event: AgentSessionEvent): void {
@@ -104,14 +104,14 @@ export class AdvisorOverlayState {
 		status: string;
 		watchRunState: WatchRunState;
 		contextUsage: AdvisorContextUsage | undefined;
-		pullBlocksExpanded: boolean;
+		primaryContextExpanded: boolean;
 		transcriptState: AdvisorTranscriptState;
 	} {
 		return {
 			status: this.status,
 			watchRunState: this.watchRunState,
 			contextUsage: this.contextUsage,
-			pullBlocksExpanded: this.pullBlocksExpanded,
+			primaryContextExpanded: this.primaryContextExpanded,
 			transcriptState: {
 				...this.transcriptState,
 				entries: this.transcriptState.entries.map((entry) => ({ ...entry })),
@@ -125,7 +125,7 @@ export class AdvisorOverlayState {
 		this.status = "idle";
 		this.watchRunState = "idle";
 		this.contextUsage = undefined;
-		this.pullBlocksExpanded = false;
+		this.primaryContextExpanded = false;
 	}
 
 	isPulling(): boolean {
@@ -159,6 +159,7 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 	private transcriptComponent: Component;
 	private transcriptScrollOffset = 0;
 	private transcriptViewportHeight = 8;
+	private transcriptRenderWidth = 1;
 	private followTranscript = true;
 	private headerTextValue = "Advisor · idle · ctx ?";
 	private _focused = false;
@@ -219,7 +220,7 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 		this.transcriptComponent = buildAdvisorOverlayTranscript(
 			snapshot.transcriptState.entries,
 			this.theme,
-			snapshot.pullBlocksExpanded,
+			snapshot.primaryContextExpanded,
 			this.expandKeyText,
 		);
 		this.tui.requestRender();
@@ -242,9 +243,33 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 			return;
 		}
 		if (this.keybindings?.matches(data, "app.tools.expand") || (!this.keybindings && matchesKey(data, Key.ctrl("o")))) {
-			this.state.togglePullBlocksExpanded();
-			this.followTranscript = true;
+			const previousLines = this.transcriptComponent
+				.render(this.transcriptRenderWidth)
+				.map((line) => line.replace(/\x1b\[[0-9;]*m/g, ""));
+			const previousOffset = this.transcriptScrollOffset;
+			this.state.togglePrimaryContextExpanded();
 			this.refresh();
+			const nextLines = this.transcriptComponent
+				.render(this.transcriptRenderWidth)
+				.map((line) => line.replace(/\x1b\[[0-9;]*m/g, ""));
+			let nextOffset = previousOffset;
+			for (let index = Math.min(previousOffset, previousLines.length - 1); index >= 0; index--) {
+				const anchor = previousLines[index]?.trimEnd();
+				if (!anchor?.trim()) {
+					continue;
+				}
+				const occurrence = previousLines.slice(0, index + 1).filter((line) => line.trimEnd() === anchor).length;
+				const matches = nextLines
+					.map((line, nextIndex) => (line.trimEnd() === anchor ? nextIndex : -1))
+					.filter((nextIndex) => nextIndex >= 0);
+				if (matches.length >= occurrence) {
+					nextOffset = (matches[occurrence - 1] ?? previousOffset) - (index - previousOffset);
+					break;
+				}
+			}
+			this.followTranscript = false;
+			this.transcriptScrollOffset = Math.max(0, nextOffset);
+			this.tui.requestRender();
 			return;
 		}
 		const mouseScrollDelta = this.getMouseScrollDelta(data);
@@ -271,6 +296,7 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 		const dialogHeight = this.getDialogHeight();
 		const transcriptHeight = Math.max(0, dialogHeight - ADVISOR_OVERLAY_CHROME_LINES);
 		this.transcriptViewportHeight = transcriptHeight;
+		this.transcriptRenderWidth = innerWidth;
 		const transcriptLines = this.transcriptComponent.render(innerWidth);
 
 		const maxScroll = Math.max(0, transcriptLines.length - transcriptHeight);

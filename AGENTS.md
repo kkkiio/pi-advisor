@@ -9,7 +9,7 @@
 - **Second Opinion** — Advisor 针对 Ask Advisor 直接呈现给用户的独立审查回答。
 - **Watch Run** — Advisor 持续旁观当前 Primary Agent 任务的一次异步审查运行。
 - **Pull** — Advisor 主动读取 Primary Agent 工作进展的动作。
-- **Primary Transcript View** — 经过来源过滤、专供 Advisor Pull 与 Ask Context 使用的 Primary transcript 视图。
+- **Primary Transcript** — Primary Agent 提供给 Advisor 的统一内容契约，包含 Ask Context 和 Pull Transcript 两种 projection。
 - **Advice** — Advisor 送达 Primary Agent 的具体指导信息。
 - **Hint** — 通过 Steer 尽快送达 Primary Agent 的加速型 Advice。
 - **Concern** — 通过 Follow-up 在当前工作完成后处理的风险型 Advice。
@@ -21,8 +21,8 @@
 
 When changing Advisor runtime code under `extensions/`, read the relevant living engineering documents before editing:
 
-- Read `docs/engineering/advisor-runtime.md`, `docs/engineering/pull-transcript.md`, and `docs/engineering/advice-delivery.md` when changing session lifecycle, tools, Watch Run, Pull, or Advice Delivery.
-- Read `docs/engineering/primary-transcript-view.md` and `docs/engineering/ask-context.md` when changing transcript filtering, serialization, indexing, or Ask Context.
+- Read `docs/engineering/advisor-runtime.md`, `docs/engineering/pull-transcript-tool.md`, and `docs/engineering/advice-delivery.md` when changing session lifecycle, tools, Watch Run, Pull, or Advice Delivery.
+- Read `docs/engineering/primary-transcript.md` and `docs/engineering/ask-context.md` when changing Advisor-visible Primary content, transcript filtering, serialization, indexing, or Ask Context.
 - Read `docs/engineering/overlay.md` when changing Overlay state, focus, input, commands, scrolling, or notifications.
 - Use the Pull model; do not push Primary transcript deltas into Advisor turns.
 - Keep one Advisor instance shared by Ask Advisor and Watch Run.
@@ -56,6 +56,11 @@ When changing Advisor behavior, cover it through BDD E2E or visual tests. Do not
 - Use deterministic Overlay snapshots for stable TUI layout checks. Use generated HTML artifacts for visual review against `docs/prd.md`.
 - Do not use whole-TUI exact text snapshots as the default E2E oracle.
 - Run the visual test flow when changing Advisor Overlay layout or TUI visual behavior; skip it for non-visual changes.
+- When full E2E coverage is required, push the branch and prefer the GitHub Actions result. During local development, run targeted Cucumber scenarios; run the full local E2E suite only when debugging CI or when the user explicitly requests it.
+
+### Pull Request Review Policy
+
+When addressing actionable pull request review threads, commit and push each completed fix after its local checks pass, then resolve the addressed GitHub review threads. Do not resolve a thread when its fix has not been pushed successfully.
 
 ## Project Structure Guide
 
@@ -68,16 +73,15 @@ This package provides a Pi extension that runs a session-persistent Advisor besi
 ```text
 .
 ├── AGENTS.md                         # Developer-agent rules, terminology, structure, and workflows
-├── CONTEXT.md                        # Extended Advisor domain glossary
 ├── README.md                         # User-facing overview, installation, and usage
 ├── docs/
 │   ├── prd.md                        # Product requirements and user-visible behavior
 │   ├── ui.html                       # Advisor Overlay visual design reference
 │   └── engineering/                  # Current engineering intent — living docs
 │       ├── advisor-runtime.md        # Independent shared Advisor session, tools, lifecycle, abort boundaries
-│       ├── pull-transcript.md        # Pull model, cursor contract, waiting, Primary loop state
+│       ├── pull-transcript-tool.md   # Pull tool, cursor contract, waiting, Primary loop state
 │       ├── advice-delivery.md        # Hint/Concern routing, provenance, abort protection
-│       ├── primary-transcript-view.md # Source filtering, indexing, omitted markers
+│       ├── primary-transcript.md     # Advisor-visible Primary content and payload formats
 │       ├── ask-context.md            # Ask Context injection, deduplication, message boundaries
 │       └── overlay.md                # Overlay visibility, focus, input, events, notifications
 ├── extensions/
@@ -86,10 +90,10 @@ This package provides a Pi extension that runs a session-persistent Advisor besi
 │       ├── constants.ts              # Custom IDs, names, defaults, and system prompt
 │       ├── settings.ts               # User-level Advisor model and thinking settings
 │       ├── session.ts                # Advisor session lifecycle, Ask Advisor, Watch Run, Pull runtime
-│       ├── primary-transcript.ts     # Primary Transcript View filtering, indexing, rendering
+│       ├── primary-transcript.ts     # Primary Transcript filtering, indexing, and projections
 │       ├── transcript-state.ts       # Advisor Overlay transcript projection
 │       ├── messages.ts               # Pi message-role type bridge
-│       ├── session-history-format.ts # Markdown serialization for Primary Transcript View
+│       ├── session-history-format.ts # Markdown serialization for Pull Transcript
 │       ├── tools.ts                  # pull_transcript and advise tool definitions
 │       ├── overlay.ts                # Focused Overlay component and controller
 │       ├── delivery.ts               # Advice channel routing and provenance
@@ -113,14 +117,27 @@ This package provides a Pi extension that runs a session-persistent Advisor besi
 
 ## Operation Guide
 
-Before committing or handing work back, run the submit-ready verification flow:
+Before committing or handing work back, run the local submit-ready verification flow:
 
 ```bash
 just fmt
 just check
 just test
-just test-e2e
 ```
+
+While developing E2E behavior, run the relevant scenarios locally:
+
+```bash
+npm run test:e2e -- --name "<scenario>"
+```
+
+After pushing a change that requires full E2E coverage, use GitHub Actions as the primary full-suite result:
+
+```bash
+gh pr checks --watch
+```
+
+Run `just test-e2e` locally only when debugging a CI failure or when the user explicitly requests the full local suite.
 
 When changing Advisor Overlay layout or TUI visual behavior, also run:
 
