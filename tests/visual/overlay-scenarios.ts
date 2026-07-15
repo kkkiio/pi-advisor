@@ -15,7 +15,6 @@ export interface OverlayVisualScenario {
 	height: number;
 	requiredText: string[];
 	forbiddenText?: string[];
-	expectedFullWidthBackgroundRows?: Array<{ color: string; text: string }>;
 	expectedForegroundText?: Array<{ color: string; text: string }>;
 	expectedItalicText?: string[];
 	expectedBoldText?: string[];
@@ -25,9 +24,15 @@ export interface OverlayVisualScenario {
 	draft?: string;
 }
 
+export interface OverlayVisualSnapshot {
+	screen: string;
+	styles: {
+		fullWidthBackgroundBlocks: Array<{ color: string; lines: string[] }>;
+	};
+}
+
 export interface OverlayVisualRender {
-	text: string;
-	fullWidthBackgroundRows: Array<{ color: string; text: string }>;
+	snapshot: OverlayVisualSnapshot;
 	foregroundText: Array<{ color: string; text: string }>;
 	italicText: string[];
 	boldText: string[];
@@ -455,26 +460,6 @@ ${realPlanReview.primaryAssistantTexts.at(-1) ?? ""}
 				"→ edit src/cache-refresh.ts",
 				"→ bash! npm test",
 			],
-			expectedFullWidthBackgroundRows: [
-				{ color: "userMessageBg", text: "" },
-				{ color: "userMessageBg", text: " Review the primary transcript." },
-				{ color: "userMessageBg", text: "" },
-				{ color: "customMessageBg", text: "" },
-				{ color: "customMessageBg", text: " Context" },
-				{ color: "customMessageBg", text: " user: Review the cache design." },
-				{ color: "customMessageBg", text: " agent: The cache now owns request deduplication." },
-				{ color: "customMessageBg", text: " agent: The retry path still refreshes independently." },
-				{ color: "customMessageBg", text: "" },
-				{ color: "toolSuccessBg", text: "" },
-				{ color: "toolSuccessBg", text: " Pull [0, 12) → 8 msgs · 4.2s" },
-				{ color: "toolSuccessBg", text: " user: Review the cache design." },
-				{ color: "toolSuccessBg", text: " agent: The cache owns request deduplication." },
-				{ color: "toolSuccessBg", text: " → read src/cache.ts ⇒ ok · 120 lines" },
-				{ color: "toolSuccessBg", text: " → grep refreshToken ⇒ ok · 12 matches" },
-				{ color: "toolSuccessBg", text: " → write src/cache-refresh.ts ⇒ ok · 85 lines" },
-				{ color: "toolSuccessBg", text: " ... (3 more lines, ctrl+o to expand)" },
-				{ color: "toolSuccessBg", text: "" },
-			],
 			expectedForegroundText: [
 				{ color: "customMessageLabel", text: "Context" },
 				{ color: "dim", text: "user:" },
@@ -515,37 +500,6 @@ ${realPlanReview.primaryAssistantTexts.at(-1) ?? ""}
 				"→ bash(npm test) ⇒ ok · 42 lines",
 			],
 			forbiddenText: ["more, ctrl+o to expand", "pull_transcript"],
-			expectedFullWidthBackgroundRows: [
-				{ color: "toolSuccessBg", text: "" },
-				{ color: "toolSuccessBg", text: " Pull [0, 12) → 8 msgs · 4.2s" },
-				{
-					color: "toolSuccessBg",
-					text: ' <primary-transcript start="0" end="12" total="12" state="idle"',
-				},
-				{ color: "toolSuccessBg", text: ' wait="new_messages" waited-ms="4200">' },
-				{ color: "toolSuccessBg", text: " **user**:" },
-				{ color: "toolSuccessBg", text: " Review the cache design." },
-				{ color: "toolSuccessBg", text: "" },
-				{ color: "toolSuccessBg", text: " **agent**:" },
-				{ color: "toolSuccessBg", text: " The cache owns request deduplication." },
-				{ color: "toolSuccessBg", text: " // inspect the cache implementation before reviewing" },
-				{ color: "toolSuccessBg", text: " → read(src/cache.ts) ⇒ ok · 120 lines" },
-				{ color: "toolSuccessBg", text: " → grep(refreshToken) ⇒ ok · 12 lines" },
-				{ color: "toolSuccessBg", text: " → write(src/cache-refresh.ts) ⇒ ok · 85 lines" },
-				{ color: "toolSuccessBg", text: " Adding pending refresh deduplication." },
-				{ color: "toolSuccessBg", text: " → edit(src/cache-refresh.ts) ⇒ ok · 1 line" },
-				{ color: "toolSuccessBg", text: " ```diff" },
-				{ color: "toolSuccessBg", text: " --- a/src/cache-refresh.ts" },
-				{ color: "toolSuccessBg", text: " +++ b/src/cache-refresh.ts" },
-				{ color: "toolSuccessBg", text: " @@ -1 +1 @@" },
-				{ color: "toolSuccessBg", text: " -const pending = false;" },
-				{ color: "toolSuccessBg", text: " +const pending = true;" },
-				{ color: "toolSuccessBg", text: " ```" },
-				{ color: "toolSuccessBg", text: " → bash(npm test) ⇒ ok · 42 lines" },
-				{ color: "toolSuccessBg", text: " </primary-transcript>" },
-				{ color: "toolSuccessBg", text: "" },
-				{ color: "toolSuccessBg", text: "" },
-			],
 			expectedForegroundText: [
 				{ color: "toolTitle", text: "Pull" },
 				{ color: "toolOutput", text: pullPayload },
@@ -565,17 +519,6 @@ ${realPlanReview.primaryAssistantTexts.at(-1) ?? ""}
 			height: 16,
 			requiredText: ["Pull [0, 12) → 8 msgs · 4.2s", "... (3 more lines)"],
 			forbiddenText: ["to expand", "ctrl+o"],
-			expectedFullWidthBackgroundRows: [
-				{ color: "toolSuccessBg", text: "" },
-				{ color: "toolSuccessBg", text: " Pull [0, 12) → 8 msgs · 4.2s" },
-				{ color: "toolSuccessBg", text: " user: Review the cache design." },
-				{ color: "toolSuccessBg", text: " agent: The cache owns request deduplication." },
-				{ color: "toolSuccessBg", text: " → read src/cache.ts ⇒ ok · 120 lines" },
-				{ color: "toolSuccessBg", text: " → grep refreshToken ⇒ ok · 12 matches" },
-				{ color: "toolSuccessBg", text: " → write src/cache-refresh.ts ⇒ ok · 85 lines" },
-				{ color: "toolSuccessBg", text: " ... (3 more lines)" },
-				{ color: "toolSuccessBg", text: "" },
-			],
 			expectedForegroundText: [{ color: "toolTitle", text: "Pull" }],
 			expectedItalicText: ["... (3 more lines)"],
 			expectedBoldText: ["Pull"],
@@ -595,22 +538,6 @@ ${realPlanReview.primaryAssistantTexts.at(-1) ?? ""}
 			width: 44,
 			height: 21,
 			requiredText: ["Advisor · idle", "Context", "super-long-token"],
-			expectedFullWidthBackgroundRows: [
-				{ color: "userMessageBg", text: "" },
-				{ color: "userMessageBg", text: " Check whether this very long prompt" },
-				{ color: "userMessageBg", text: " wraps without breaking the panel border" },
-				{ color: "userMessageBg", text: " or hiding the input area." },
-				{ color: "userMessageBg", text: "" },
-				{ color: "customMessageBg", text: "" },
-				{ color: "customMessageBg", text: " Context" },
-				{ color: "customMessageBg", text: " user: Inspect the" },
-				{ color: "customMessageBg", text: " super-long-token-without-natural-breaks-" },
-				{ color: "customMessageBg", text: " abcdefghijklmnopqrstuvwxyz-0123456789 in" },
-				{ color: "customMessageBg", text: " the cache design." },
-				{ color: "customMessageBg", text: " agent: The Primary response remains" },
-				{ color: "customMessageBg", text: " ... (2 more lines, ctrl+o to expand)" },
-				{ color: "customMessageBg", text: "" },
-			],
 			expectedForegroundText: [
 				{ color: "customMessageLabel", text: "Context" },
 				{ color: "dim", text: "user:" },
@@ -637,17 +564,6 @@ ${realPlanReview.primaryAssistantTexts.at(-1) ?? ""}
 				"... (2 more lines, ctrl+o to expand)",
 			],
 			forbiddenText: ["Context →", "Running the migration suite.", "The migration is complete."],
-			expectedFullWidthBackgroundRows: [
-				{ color: "customMessageBg", text: "" },
-				{ color: "customMessageBg", text: " Context" },
-				{ color: "customMessageBg", text: " user: Review the complete migration." },
-				{ color: "customMessageBg", text: " agent: Inspecting the old schema." },
-				{ color: "customMessageBg", text: " agent: Reading the migration runner." },
-				{ color: "customMessageBg", text: " agent: Updating the transaction boundary." },
-				{ color: "customMessageBg", text: " agent: Adding rollback coverage." },
-				{ color: "customMessageBg", text: " ... (2 more lines, ctrl+o to expand)" },
-				{ color: "customMessageBg", text: "" },
-			],
 			expectedForegroundText: [
 				{ color: "customMessageLabel", text: "Context" },
 				{ color: "dim", text: "user:" },
@@ -669,15 +585,6 @@ ${realPlanReview.primaryAssistantTexts.at(-1) ?? ""}
 			height: 16,
 			requiredText: ["Explain the same Primary response", "Context", "reuses the existing"],
 			forbiddenText: ["Context →", "User → Primary"],
-			expectedFullWidthBackgroundRows: [
-				{ color: "userMessageBg", text: "" },
-				{ color: "userMessageBg", text: " Explain the same Primary response from another" },
-				{ color: "userMessageBg", text: " angle." },
-				{ color: "userMessageBg", text: "" },
-				{ color: "customMessageBg", text: "" },
-				{ color: "customMessageBg", text: " Context" },
-				{ color: "customMessageBg", text: "" },
-			],
 			checklist: [
 				"The repeated Ask remains visible with a full-row background on both wrapped rows.",
 				"A compact position-only Context block records the hidden payload without repeating Primary text.",
@@ -698,38 +605,6 @@ ${realPlanReview.primaryAssistantTexts.at(-1) ?? ""}
 				"Pull [36, 37) → 1 msgs · 0.0s",
 			],
 			forbiddenText: ["### 五、文件变更清单", "Context →", "<primary-context", "**agent**:"],
-			expectedFullWidthBackgroundRows: [
-				{ color: "userMessageBg", text: "" },
-				{ color: "userMessageBg", text: " 帮我审查一下这个计划，看看有没有遗漏。" },
-				{ color: "userMessageBg", text: "" },
-				{ color: "customMessageBg", text: "" },
-				{ color: "customMessageBg", text: " Context" },
-				{
-					color: "customMessageBg",
-					text: " user: 我想给 Advisor 增加一个导出当前对话为 Markdown 的命令。先帮我做个实",
-				},
-				{ color: "customMessageBg", text: " 现计划，不用改代码。" },
-				{ color: "customMessageBg", text: " agent: Let me first了解一下项目结构和 Advisor 是什么。" },
-				{
-					color: "customMessageBg",
-					text: " agent: Now let me看看 pi 扩展文档，了解 ExtensionAPI 的接口，特别是在文件",
-				},
-				{ color: "customMessageBg", text: " 写入等方面有什么可用能力。" },
-				{ color: "customMessageBg", text: " ... (223 more lines, ctrl+o to expand)" },
-				{ color: "customMessageBg", text: "" },
-				{ color: "toolSuccessBg", text: "" },
-				{ color: "toolSuccessBg", text: " Pull [36, 37) → 1 msgs · 0.0s" },
-				{
-					color: "toolSuccessBg",
-					text: " agent: 好的，我已经全面了解了项目结构和 Advisor 的架构。以下是我的实现计划",
-				},
-				{ color: "toolSuccessBg", text: " ：" },
-				{ color: "toolSuccessBg", text: "" },
-				{ color: "toolSuccessBg", text: " ---" },
-				{ color: "toolSuccessBg", text: "" },
-				{ color: "toolSuccessBg", text: " ... (218 more lines, ctrl+o to expand)" },
-				{ color: "toolSuccessBg", text: "" },
-			],
 			expectedBoldText: ["Context", "Pull"],
 			checklist: [
 				"The fixture provenance identifies the local DeepSeek V4 Pro and GPT-5.6 Advisor interaction.",
@@ -752,29 +627,6 @@ ${realPlanReview.primaryAssistantTexts.at(-1) ?? ""}
 				"The delivery plan is ready.",
 			],
 			forbiddenText: ["Prompt", "Tool ", "↳", "advise hint", "advise concern", "delivered hint"],
-			expectedFullWidthBackgroundRows: [
-				{ color: "userMessageBg", text: "" },
-				{ color: "userMessageBg", text: " Review the delivery plan." },
-				{ color: "userMessageBg", text: "" },
-				{ color: "toolPendingBg", text: "" },
-				{ color: "toolPendingBg", text: ' grep {"pattern":"pendingRefresh"} ⇒ pending' },
-				{ color: "toolPendingBg", text: "" },
-				{ color: "toolSuccessBg", text: "" },
-				{ color: "toolSuccessBg", text: ' read {"path":"src/cache.ts"} ⇒ ok · 2 lines' },
-				{ color: "toolSuccessBg", text: "" },
-				{ color: "toolErrorBg", text: "" },
-				{
-					color: "toolErrorBg",
-					text: ' write {"path":"src/cache.ts"} ⇒ error · 2 lines — permission denied cannot write',
-				},
-				{ color: "toolErrorBg", text: "" },
-				{ color: "toolErrorBg", text: "" },
-				{ color: "toolErrorBg", text: " Hint: Use the SDK path." },
-				{ color: "toolErrorBg", text: "" },
-				{ color: "toolErrorBg", text: "" },
-				{ color: "toolErrorBg", text: " Concern: Keep delivery after validation." },
-				{ color: "toolErrorBg", text: "" },
-			],
 			expectedForegroundText: [
 				{ color: "toolTitle", text: "grep" },
 				{ color: "toolTitle", text: "read" },
@@ -857,11 +709,33 @@ export function renderOverlayVisualScenario(scenario: OverlayVisualScenario): Ov
 		const component = new AdvisorOverlayComponent(tui, theme, scenario.state, scenario.keybindings);
 		component.focused = true;
 		component.setDraft(scenario.draft ?? "");
-		const text = component.render(scenario.width).join("\n").replaceAll(CURSOR_MARKER, "");
+		const screen = component.render(scenario.width).join("\n").replaceAll(CURSOR_MARKER, "");
 		const fullWidthBackgroundRows = backgroundRows
 			.filter((row) => visibleWidth(row.text) === scenario.width - 2)
 			.map((row) => ({ color: row.color, text: row.text.trimEnd() }));
-		return { text, fullWidthBackgroundRows, foregroundText, italicText, boldText };
+		const fullWidthBackgroundBlocks = fullWidthBackgroundRows.reduce<Array<{ color: string; lines: string[] }>>(
+			(blocks, row, index, rows) => {
+				const previousBlock = blocks.at(-1);
+				const startsNextBlock =
+					row.text === "" &&
+					previousBlock?.lines.at(-1) === "" &&
+					rows[index + 1]?.color === row.color &&
+					rows[index + 1]?.text !== "";
+				if (previousBlock?.color === row.color && !startsNextBlock) {
+					previousBlock.lines.push(row.text);
+				} else {
+					blocks.push({ color: row.color, lines: [row.text] });
+				}
+				return blocks;
+			},
+			[],
+		);
+		return {
+			snapshot: { screen, styles: { fullWidthBackgroundBlocks } },
+			foregroundText,
+			italicText,
+			boldText,
+		};
 	} finally {
 		if (previousRows) {
 			Object.defineProperty(process.stdout, "rows", previousRows);
