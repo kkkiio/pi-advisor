@@ -87,7 +87,8 @@ This package provides a Pi extension that runs a session-persistent Advisor besi
 ├── extensions/
 │   ├── advisor.ts                    # Thin Pi entrypoint: runtime composition and registrations
 │   └── advisor/
-│       ├── advisor-prompt.ts        # System prompt, runtime constants, and tool definitions
+│       ├── advisor-prompt.ts        # System prompt and tool definitions
+│       ├── constants.ts              # Runtime constants (timeout, disabled tools, UI timing)
 │       ├── settings.ts               # User-level Advisor model and thinking settings
 │       ├── session.ts                # Advisor session lifecycle, Ask Advisor, Watch Run, Pull runtime
 │       ├── primary-transcript.ts     # Primary Transcript filtering, indexing, and projections

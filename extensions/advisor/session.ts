@@ -47,8 +47,9 @@ import {
 	parseAdvisorModelRef,
 	resolveAdvisorSettings,
 } from "./settings";
+import { ADVISOR_SYSTEM_PROMPT } from "./advisor-prompt";
 import { createAdvisorTools } from "./advisor-prompt";
-import { ADVISOR_DISABLED_PRIMARY_TOOL_NAMES, ADVISOR_SYSTEM_PROMPT, PULL_TIMEOUT_MAX_MS } from "./advisor-prompt";
+import { ADVISOR_DISABLED_PRIMARY_TOOL_NAMES, PULL_TIMEOUT_MAX_MS } from "./constants";
 
 interface PrimaryWaiter {
 	baselineVersion: number;

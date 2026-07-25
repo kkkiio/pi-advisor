@@ -1,7 +1,7 @@
 import type { AgentSessionEvent, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { AssistantMessage, UserMessage } from "@earendil-works/pi-ai";
 import { Box, type Component, Container, Spacer, Text } from "@earendil-works/pi-tui";
-import { PULL_ELAPSED_VISIBLE_MS } from "./ui-constants";
+import { PULL_ELAPSED_VISIBLE_MS } from "./constants";
 import type { AskContextPayload, PullTranscriptDetails, PullTranscriptDisplayItem } from "./types";
 
 const PRIMARY_TRANSCRIPT_PREVIEW_LINES = 5;

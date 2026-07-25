@@ -37,13 +37,6 @@ export const ADVISOR_SYSTEM_PROMPT = `You are Advisor, a persistent second agent
 - When you do intervene on repeated errors, send a hint with relevant reference material (documentation, API signatures, working examples, language rules, tool configuration) — not the error itself.`;
 
 // ---------------------------------------------------------------------------
-// Runtime constants
-// ---------------------------------------------------------------------------
-
-export const PULL_TIMEOUT_MAX_MS = 20_000;
-export const ADVISOR_DISABLED_PRIMARY_TOOL_NAMES: ReadonlySet<string> = new Set(["edit", "write"]);
-
-// ---------------------------------------------------------------------------
 // Tool definitions
 // ---------------------------------------------------------------------------
 
