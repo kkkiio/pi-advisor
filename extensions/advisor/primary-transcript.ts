@@ -93,49 +93,34 @@ export function buildPrimaryTranscriptView(
 
 export function selectAskContext(
 	view: PrimaryTranscriptView,
-	lastInjectedPrimaryUserIndex: number | undefined,
-): AskContext | undefined {
-	let primaryUserMessageIndex = -1;
-	let userText = "";
+): AskContext | null {
 	for (let index = view.messages.length - 1; index >= 0; index--) {
 		const message = view.messages[index];
 		if (message.role !== "user") {
 			continue;
 		}
-		const text =
-			typeof message.content === "string"
-				? message.content
-				: message.content
-						.filter((part) => part.type === "text" && part.text.trim())
-						.map((part) => (part.type === "text" ? part.text : ""))
-						.join("\n");
-		if (text.trim()) {
-			primaryUserMessageIndex = index;
-			userText = text;
-			break;
-		}
+		return { primaryUserMessageIndex: index };
 	}
-	if (primaryUserMessageIndex < 0 || primaryUserMessageIndex === lastInjectedPrimaryUserIndex) {
-		return undefined;
-	}
-	const assistantTexts: string[] = [];
-	for (const message of view.messages.slice(primaryUserMessageIndex + 1)) {
-		if (message.role !== "assistant") {
-			continue;
-		}
-		const text = message.content
-			.filter((part) => part.type === "text" && part.text.trim())
-			.map((part) => (part.type === "text" ? part.text : ""))
-			.join("\n\n");
-		if (text.trim()) {
-			assistantTexts.push(text);
-		}
-	}
-	return {
-		primaryUserMessageIndex,
-		userText,
-		assistantTexts,
-	};
+	return null;
+}
+
+export function renderPrimaryTranscriptRange(
+	view: PrimaryTranscriptView,
+	start: number,
+	end: number,
+): { body: string; displayItems: PullTranscriptDisplayItem[] } {
+	const messages = view.messages.slice(start, end);
+	const displayItems: PullTranscriptDisplayItem[] = [];
+	const body = messages.length
+		? formatSessionHistoryMarkdown(messages, {
+				watchedRoles: true,
+				includeToolIntent: true,
+				expandPrimaryContext: true,
+				expandEditDiffs: true,
+				displayItems,
+			}).trim()
+		: "(no primary transcript entries)";
+	return { body, displayItems };
 }
 
 export function renderPrimaryTranscriptSlice(
@@ -149,17 +134,7 @@ export function renderPrimaryTranscriptSlice(
 	const normalized = normalizeStartIndex(request.sinceIndex, view.messages.length);
 	const start = normalized.outOfBounds ? 0 : normalized.start;
 	const end = Math.min(view.messages.length, start + count);
-	const messages = view.messages.slice(start, end);
-	const displayItems: PullTranscriptDisplayItem[] = [];
-	const body = messages.length
-		? formatSessionHistoryMarkdown(messages, {
-				watchedRoles: true,
-				includeToolIntent: true,
-				expandPrimaryContext: true,
-				expandEditDiffs: true,
-				displayItems,
-			}).trim()
-		: "(no primary transcript entries)";
+	const { body, displayItems } = renderPrimaryTranscriptRange(view, start, end);
 	const details: PullTranscriptDetails = {
 		start,
 		end,

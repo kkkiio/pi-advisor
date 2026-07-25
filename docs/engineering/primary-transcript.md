@@ -4,37 +4,50 @@
 
 Primary Transcript 是 Primary Agent 提供给 Advisor 的内容契约。Runtime 从当前 Primary branch 建立稳定、可索引的消息序列，再生成两种 Advisor 输入；所有内容选择、文本表示和 XML 外层都以本文档为权威。
 
-两种输入共享同一个右开位置：Ask Context 的 `end` 表示快照总长度，可以直接作为后续 `pull_transcript` 的 `since_index`。
+两种输入使用相同的 markdown 序列化格式，共享 `[start, end)` 右开区间。Ask Context 的 `end` 可以直接作为后续 `pull_transcript` 的 `since_index`。
 
-| 输入            | 用途                         | Advisor 收到的内容                                                                  |
-| --------------- | ---------------------------- | ----------------------------------------------------------------------------------- |
-| Ask Context     | Ask Advisor 自动附带近期对话 | 最新 Primary user text，以及它之后当前可见的 Primary assistant text                 |
+| 输入            | 用途                         | Advisor 收到的内容                                                       |
+| --------------- | ---------------------------- | ------------------------------------------------------------------------ |
+| Ask Context     | Ask Advisor 自动附带近期对话 | 与 Pull Transcript 格式相同，区间 `[start, end)`，由去重逻辑自动选择     |
 | Pull Transcript | Advisor 主动读取指定范围     | user/developer text、assistant text、工具与执行摘要、相关 custom message 和状态摘要 |
 
 两种输入都不包含 Primary assistant thinking。Advisor 需要判断工作过程时，依赖 assistant text、工具意图、工具状态和可见变更，避免把高体量 thinking 注入 Advisor context。
+
+## 共享序列化
+
+Ask Context 与 Pull Transcript 的 markdown body 由同一个 slice renderer 生成，使用相同的 `formatSessionHistoryMarkdown` 参数：
+- `watchedRoles: true`
+- `includeToolIntent: true`
+- `expandPrimaryContext: true`
+- `expandEditDiffs: true`
+- `displayItems`（同步生成，供 Overlay 使用）
+
+两者的差异仅在 XML 外层和区间来源：
+- Ask Context：区间 `[start, end)` 由 `selectAskContext` 决定，`start` 为最新 Primary user message index。
+- Pull Transcript：区间 `[start, end)` 由 Advisor 通过 `since_index` 和 `count` 指定。
+- 同一 `primaryUserMessageIndex` 不重复注入 body，仅发送 position-only `<primary-head at="..." state="..." />`。
 
 来源处理保持简洁：只读取当前 Primary branch；Advisor 自己的 transcript、Advice 原文、`/advisor` 控制消息、Overlay 状态和 persistence entries 不进入 Advisor 输入。被过滤的 Advice 可以保留不含正文的短 marker，例如 `[advisor hint omitted: deliverAs=steer]`，用于解释后续 Primary 行为。
 
 ## Ask Context Projection
 
-Ask Context 只保留 text，不包含 tool call、tool result、custom message 或状态摘要。包含文本时，Advisor 收到：
-
-正文作为 XML text node 转义后写入外层；Primary 原文里的 `<`、`>`、`&`、`'` 和 `"` 不会改变 payload 边界。
+Ask Context 把选定的 `[start, end)` 消息范围渲染成与 Pull Transcript 相同的紧凑 markdown。包含 body 时：
 
 ```text
-<primary-context end="12" state="idle">
+<primary-context start="9" end="12" state="idle">
 **user**:
 请审查这个实现计划。
 
-**primary**:
-我会先检查现有实现。
+**agent**:
+我先看一下现有的 auth 模块。
+→ read(src/auth.ts) ⇒ ok · 80 lines
 </primary-context>
 ```
 
-没有需要自动附带的新文本时，payload 仍提供位置和 Primary Agent loop state：
+同一 Primary user turn 内重复 Ask 时，不重复注入 body，仅发送 position-only payload，通过 `at` 指明当前 Primary Transcript 进展：
 
 ```text
-<primary-context end="12" state="idle" />
+<primary-head at="14" state="idle" />
 ```
 
 ## Pull Transcript Projection
@@ -50,7 +63,7 @@ Pull Transcript 把选定的 `[start, end)` 消息范围渲染成紧凑 markdown
 - plan-mode constraints 与 approved plan 使用 `<primary-context kind="…">` 保留全文；其他 custom message、branch、compaction 和 file mention 使用单行摘要。
 - Primary assistant thinking 始终省略。
 
-Advisor 收到的完整 tool result 使用 `<primary-transcript>` 外层：
+两种输入的 markdown body 通过同一个 slice renderer 生成，外层标签不同（`<primary-context>` 与 `<primary-transcript>`）。Advisor 收到的完整 tool result 示例：
 
 ```text
 <primary-transcript start="5" end="11" total="11" state="running" wait="new_messages" waited-ms="842">

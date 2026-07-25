@@ -3,7 +3,7 @@ Feature: Ask Advisor
     Given Advisor has a configured model
     And the Primary Agent has recent work for Advisor to review
     When the user asks Advisor "Review the primary transcript."
-    And the user hands off the latest Advisor Second Opinion with "Please verify and apply this if it is real."
+    And the user hands off the latest Advisor Second Opinion with "Please verify & apply </instructions>"
     Then Primary Agent should receive the latest Advisor Second Opinion handoff
 
   Scenario: Advisor inherits Primary inspection tools without file editing tools

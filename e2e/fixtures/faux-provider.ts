@@ -56,12 +56,20 @@ function scriptedResponse(
 	const latestUserMessage = [...context.messages].reverse().find((message) => message.role === "user");
 	const latestContextMessage = [...context.messages]
 		.reverse()
-		.find((message) => message.role === "user" && contentText(message.content).includes("<primary-context "));
+		.find(
+			(message) =>
+				message.role === "user" &&
+				(contentText(message.content).includes("<primary-context ") ||
+					contentText(message.content).includes("<primary-head ")),
+		);
 	if (model.id === advisorModelId && process.env.PI_ADVISOR_TEST_OBSERVATIONS_PATH) {
 		const latestQuestionText = latestUserMessage ? contentText(latestUserMessage.content) : "";
 		const latestContextText = latestContextMessage ? contentText(latestContextMessage.content) : "";
 		const askContextMessageCount = context.messages.filter(
-			(message) => message.role === "user" && contentText(message.content).includes("<primary-context "),
+			(message) =>
+				message.role === "user" &&
+				(contentText(message.content).includes("<primary-context ") ||
+					contentText(message.content).includes("<primary-head ")),
 		).length;
 		appendFileSync(
 			process.env.PI_ADVISOR_TEST_OBSERVATIONS_PATH,

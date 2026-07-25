@@ -318,19 +318,37 @@ Then("Primary Agent should receive the latest Advisor Second Opinion handoff", a
 			const serialized = JSON.stringify(candidate);
 			return (
 				candidate.role === "user" &&
-				serialized.includes("Here is the latest Advisor Second Opinion") &&
-				serialized.includes("Original Advisor request:") &&
+				serialized.includes("<advisor-handoff>") &&
+				serialized.includes("</advisor-handoff>") &&
+				serialized.includes("<original-request>") &&
+				serialized.includes("</original-request>") &&
 				serialized.includes("Review the primary transcript.") &&
-				serialized.includes("Advisor Second Opinion:") &&
+				serialized.includes("<second-opinion>") &&
+				serialized.includes("</second-opinion>") &&
 				serialized.includes("E2E_SECOND_OPINION: primary_transcript=seen") &&
-				serialized.includes("Please verify and apply this if it is real.")
+				// Instructions with XML special chars must be escaped precisely
+				serialized.includes("<instructions>Please verify &amp; apply &lt;/instructions&gt;</instructions>") &&
+				// Unescaped raw special chars must not appear
+				!serialized.includes("<instructions>Please verify & apply </instructions>")
 			);
 		},
 		30_000,
 		"Advisor Second Opinion handoff",
 	);
 
-	expect(JSON.stringify(message)).not.toContain("advisor-advice");
+	// Verify the handoff contains well-formed XML with proper closing tags
+	const body = JSON.stringify(message);
+	expect(body).not.toContain("advisor-advice");
+
+	// Extract the advisor-handoff XML block
+	const xmlMatch = body.match(/<advisor-handoff>[\s\S]*?<\/advisor-handoff>/);
+	expect(xmlMatch).not.toBeNull();
+	const xml = xmlMatch![0];
+
+	// Every element must have a proper closing tag (catches &lt;/tag&gt; vs &lt;tag&gt; drift)
+	expect(xml).toContain("</original-request>");
+	expect(xml).toContain("</second-opinion>");
+	expect(xml).toContain("</instructions>");
 });
 
 Then("Advisor should deliver a Concern through Follow-up", async function (this: AdvisorE2EWorld) {
@@ -440,14 +458,14 @@ Then(
 );
 
 Then(
-	"the latest Ask Context should omit Primary tool activity {string}",
-	function (this: AdvisorE2EWorld, toolActivity: string) {
+	"the latest Ask Context should include Primary tool intent for {string}",
+	function (this: AdvisorE2EWorld, toolPath: string) {
 		const observation = this.lastAdvisorObservation;
 		if (!observation || typeof observation.latestRequestText !== "string") {
 			throw new Error("No Advisor provider observation was captured for the latest Ask.");
 		}
 
-		expect(observation.latestRequestText).not.toContain(toolActivity);
+		expect(observation.latestRequestText).toMatch(new RegExp(`→\\s+\\w+\\(${toolPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)`));
 	},
 );
 
@@ -517,7 +535,7 @@ Then("the repeated Ask should not include Ask Context", function (this: AdvisorE
 		throw new Error("No Advisor provider observation was captured for the latest Ask.");
 	}
 
-	expect(observation.latestRequestText).toMatch(/<primary-context\b[^>]*\s\/>/);
+	expect(observation.latestRequestText).toMatch(/<primary-head\b[^>]*\sat="\d+"[^>]*\s\/>/);
 	expect(observation.latestRequestText).not.toContain("**user**:");
 });
 

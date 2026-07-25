@@ -1,7 +1,7 @@
 import type { AgentSessionEvent, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { AssistantMessage, UserMessage } from "@earendil-works/pi-ai";
 import { Box, type Component, Container, Spacer, Text } from "@earendil-works/pi-tui";
-import { PULL_ELAPSED_VISIBLE_MS } from "./constants";
+import { PULL_ELAPSED_VISIBLE_MS } from "./ui-constants";
 import type { AskContextPayload, PullTranscriptDetails, PullTranscriptDisplayItem } from "./types";
 
 const PRIMARY_TRANSCRIPT_PREVIEW_LINES = 5;
@@ -13,8 +13,8 @@ export type AdvisorTranscriptEntry =
 			id: number;
 			turnId: number;
 			type: "ask-context";
-			userText: string | null;
-			assistantTexts: string[];
+			startIndex: number;
+			displayItems: PullTranscriptDisplayItem[];
 			content: string;
 	  }
 	| { id: number; turnId: number; type: "thinking"; text: string; streaming: boolean }
@@ -86,8 +86,8 @@ export function appendAskContext(state: AdvisorTranscriptState, payload: AskCont
 	appendTranscriptEntry(state, {
 		turnId,
 		type: "ask-context",
-		userText: payload.askContext?.userText ?? null,
-		assistantTexts: [...(payload.askContext?.assistantTexts ?? [])],
+		startIndex: payload.startIndex,
+		displayItems: payload.displayItems,
 		content: payload.text,
 	});
 }
@@ -176,7 +176,7 @@ export function buildAdvisorOverlayTranscript(
 				transcript.addChild(new Spacer(1));
 			}
 			const box = new Box(1, 1, (text) => theme.bg("customMessageBg", text));
-			const messageCount = entry.userText === null ? 0 : 1 + entry.assistantTexts.length;
+			const messageCount = entry.displayItems.length;
 			box.addChild(
 				new Text(
 					`${theme.fg("customMessageLabel", theme.bold("Context"))} ${theme.fg(
@@ -189,12 +189,8 @@ export function buildAdvisorOverlayTranscript(
 			);
 			if (primaryContextExpanded) {
 				box.addChild(new Text(theme.fg("text", entry.content), 0, 0));
-			} else if (entry.userText !== null) {
-				const items: PullTranscriptDisplayItem[] = [
-					{ kind: "user", text: entry.userText },
-					...entry.assistantTexts.map((text) => ({ kind: "agent" as const, text })),
-				];
-				box.addChild(new PrimaryTranscriptPreview(items, theme, "context", expandKeyText));
+			} else if (entry.displayItems.length > 0) {
+				box.addChild(new PrimaryTranscriptPreview(entry.displayItems, theme, "context", expandKeyText));
 			}
 			transcript.addChild(box);
 			hasVisibleContent = true;

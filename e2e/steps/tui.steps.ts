@@ -260,8 +260,9 @@ Then(
 		let overlay = this.tuiPi.captureAdvisorOverlayPlainText();
 
 		expect(overlay).toMatch(/Advisor · idle · ctx .* · ↑0 ↓\d+/);
-		expect(overlay).toContain('<primary-context end="8" state="idle">');
-		expect(overlay).toContain("**primary**:");
+		expect(overlay).toContain('<primary-context start="6"');
+		expect(overlay).toContain('end="8" state="idle">');
+		expect(overlay).toContain("**agent**:");
 		expect(overlay).toContain("</primary-context>");
 		expect(overlay).toContain('state="idle"');
 		expect(overlay).toContain('wait="new_messages"');

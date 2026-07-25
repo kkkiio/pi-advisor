@@ -87,14 +87,13 @@ This package provides a Pi extension that runs a session-persistent Advisor besi
 ├── extensions/
 │   ├── advisor.ts                    # Thin Pi entrypoint: runtime composition and registrations
 │   └── advisor/
-│       ├── constants.ts              # Custom IDs, names, defaults, and system prompt
+│       ├── advisor-prompt.ts        # System prompt, runtime constants, and tool definitions
 │       ├── settings.ts               # User-level Advisor model and thinking settings
 │       ├── session.ts                # Advisor session lifecycle, Ask Advisor, Watch Run, Pull runtime
 │       ├── primary-transcript.ts     # Primary Transcript filtering, indexing, and projections
 │       ├── transcript-state.ts       # Advisor Overlay transcript projection
 │       ├── messages.ts               # Pi message-role type bridge
 │       ├── session-history-format.ts # Markdown serialization for Pull Transcript
-│       ├── tools.ts                  # pull_transcript and advise tool definitions
 │       ├── overlay.ts                # Focused Overlay component and controller
 │       ├── delivery.ts               # Advice channel routing and provenance
 │       └── types.ts                  # Shared domain and runtime port types
