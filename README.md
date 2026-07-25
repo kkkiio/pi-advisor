@@ -6,7 +6,7 @@
 
 Advisor combines a `btw`-style Second Opinion with an asynchronous watchdog for Pi. Press `Option+/` on macOS to ask a dedicated reviewer whether the Primary Agent's latest answer is sound, or start a Watch Run and let Advisor follow the task in the background.
 
-For the best pairing, use an expressive model that excels at implementation and documentation as the Primary Agent, then give Advisor a rigorous review model such as GPT. The two agents keep separate contexts, so Advisor can challenge the Primary Agent instead of echoing it.
+For the best pairing, use an expressive model that excels at documentation as the Primary Agent, then give Advisor a rigorous review model such as GPT. The two agents keep separate contexts, so Advisor can challenge the Primary Agent instead of echoing it.
 
 ## Installation
 
