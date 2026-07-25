@@ -20,34 +20,28 @@ const scenarios: TuiVisualScenario[] = [
 	{
 		id: "readme-overview",
 		title: "Advisor Overview",
-		description: "A representative Ask Advisor review for the README opening image.",
-		options: { advisorModelConfigured: true, script: "readme", width: 100, height: 18 },
+		description: "A representative design review for the README opening image.",
+		options: { advisorModelConfigured: true, script: "readme", width: 100, height: 28 },
 		captures: ["whole", "overlay"],
 		checklist: [
 			"The Primary task remains visible behind the top-center Advisor Overlay.",
-			"The Overlay shows the user's review request, Primary Context, Pull, and Second Opinion.",
-			"The follow-up draft remains readable at README display sizes.",
+			"The Overlay shows a natural naming question, Primary Context, Pull, independent inspection, and a nuanced Second Opinion.",
+			"The completed review remains readable at README display sizes without presenting its conclusion as Advice.",
 		],
 		async run(pi) {
-			await pi.submit("I finished the cache refactor. Review the implementation before I commit.");
+			await pi.submit("SessionManager sounds plural. What should replace it?");
 			await pi.waitForScreen(
-				(screen) => screen.includes("Implemented request deduplication"),
+				(screen) => screen.includes("SessionJournal"),
 				10_000,
 				"Primary work before the README Ask Advisor example",
 			);
-			await pi.submit("/advisor Review the Primary Agent's cache refactor.");
+			await pi.submit("/advisor Does that still fit if one instance can switch session files?");
 			await pi.waitForScreen(
-				(screen) => screen.includes("Advisor · idle") && screen.includes("Guard eviction by entry identity"),
+				(screen) => screen.includes("Advisor · idle") && screen.includes("SessionHandle"),
 				20_000,
 				"README Ask Advisor example",
 			);
 			await pi.waitForMouseReporting(true, 2_000, "focused README Advisor Overlay");
-			await pi.submit("How should Primary fix it?", []);
-			await pi.waitForScreen(
-				(screen) => screen.includes("How should Primary fix it?"),
-				10_000,
-				"README Advisor follow-up draft",
-			);
 		},
 	},
 	{

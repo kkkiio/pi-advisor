@@ -1,129 +1,84 @@
 # Advisor
 
 <p align="center">
-  <img src="docs/assets/advisor-overview.png" alt="Advisor Overlay reviewing a Primary Agent run" width="900">
+  <img src="docs/assets/advisor-overview.png" alt="Advisor reviewing a Primary Agent run in Pi" width="900">
 </p>
 
-Advisor is a session-persistent second agent that works alongside the Primary Agent. It asynchronously reviews the Primary Agent's work, gives the user a Second Opinion, and, with user confirmation or during a Watch Run, delivers useful insights to the Primary Agent.
+Advisor combines a `btw`-style Second Opinion with an asynchronous watchdog for Pi. Press `Option+/` on macOS to ask a dedicated reviewer whether the Primary Agent's latest answer is sound, or start a Watch Run and let Advisor follow the task in the background.
+
+For the best pairing, use an expressive model that excels at documentation as the Primary Agent, then give Advisor a rigorous review model such as GPT. The two agents keep separate contexts, so Advisor can challenge the Primary Agent instead of echoing it.
 
 ## Installation
 
 ```bash
-# Install from npm
 pi install npm:@kkkiio/pi-advisor
-
-# Or install from a local path
-pi install ./path/to/pi-advisor
 ```
 
-After installation, set the Advisor model.
+Set the model that will act as Advisor:
 
-```
+```text
 /advisor:model openai-codex/gpt-5.6-sol
 ```
 
-## Goals
-
-### Advisor goals
-
-- **Review**: Identify bugs, design issues, workflow problems, and their root causes, then give the user an independent reviewer's Second Opinion. Advisor acts as a reviewer and does not implement features itself.
-- **Guide**: Help the Primary Agent escape tunnel vision. Advisor supplies high-value facts, key files, APIs, constraints, and sequencing guidance to get it past obstacles, then applies a reviewer's perspective so it can inspect and correct its work before finishing.
-
-### Product experience goal
-
-- Keep background review quiet, relevant, traceable, and observable without disrupting the Primary Agent's workflow.
+You can also install a local checkout with `pi install ./path/to/pi-advisor`.
 
 ## Usage
 
-### `/advisor [<message>]`
+### Ask whether the Primary Agent is right
 
-Ask Advisor.
+1. Press `Option+/` on macOS (`Alt+/` in Pi's terminal notation).
+2. Ask Advisor a question such as: `Was the Primary Agent's last answer correct?`
+3. Press `Option+/` again to return to the Primary Agent.
 
-- **Without an argument**: Open the Advisor Overlay and focus its input box so you can type a message directly.
-- **With an argument**: Open the Advisor Overlay and immediately start Ask Advisor with that message.
+Advisor automatically receives the latest Primary context and can pull more of the transcript when it needs to inspect earlier messages, tool calls, or diffs.
 
-Message behavior depends on Advisor's current state:
+You can also open Advisor and ask in one command:
 
-- **Advisor is idle**: Start a new Ask Advisor run. The first Ask after the Primary Agent enters a new user turn automatically includes **Ask Context**: a `<primary-context>` payload whose markdown body uses the same format as Pull Transcript (including tool calls, results, and diffs). Subsequent Asks within the same Primary user turn send a position-only payload without repeating the body.
-- **Advisor is running** (during Ask Advisor or Watch Run): Steer the active run with the message. Only the user's input is sent; Ask Context is not included.
-
-Every Ask started while Advisor is idle tells Advisor the current position in the Primary Transcript and whether the Primary Agent is running. When a question requires more history, tool activity, or newer progress, Advisor can Pull the Primary Transcript itself, so the user does not need to copy context manually.
-
-The Primary context sent to Advisor appears in a `Context` block in the Advisor Overlay. Its header shows the display-item count (including tool rows); expanding the block reveals the exact `<primary-context>` payload, which uses the same markdown format as Pull Transcript. When no new Ask Context is available for the current Primary user turn, a position-only `<primary-head>` payload records the current transcript position.
-
-Ask Advisor and Watch Run share the same Advisor, and the Advisor Transcript remains continuous between them. Advisor does not have the `write` or `edit` tools; when changes are needed, it delegates them to the Primary Agent through a Second Opinion or Advice.
-
-### `/advisor:handoff [instructions]`
-
-Send the latest completed Ask Advisor Second Opinion to the Primary Agent as a user message. When `instructions` are omitted, the default instruction asks the Primary Agent to use the Second Opinion as reference context.
-
-The Primary Agent receives the message immediately when idle. If it is busy, the message is queued as a follow-up.
-
-Handoff message format:
-
-All three text elements are XML-escaped. When `instructions` are omitted, a default instruction is used.
-
-```xml
-<advisor-handoff>
-  <original-request>...</original-request>
-  <second-opinion>...</second-opinion>
-  <instructions>Use this Second Opinion as supporting context.</instructions>
-</advisor-handoff>
+```text
+/advisor Review the Primary Agent's approach and point out anything it missed.
 ```
 
-If Advisor is still processing the previous Ask, handoff waits for it to finish before sending the message. If no Ask Advisor Second Opinion has been completed, the user receives a clear notice. Handoff does not clear the Advisor Transcript.
+### Watch a task
 
-### `/advisor:watch`
+```text
+/advisor:watch
+```
 
-Start an asynchronous Watch Run. Advisor follows the Primary Agent's progress and decides when the review is complete. You can cancel it early with `/advisor:watch-off`.
+A Watch Run follows the current Primary task asynchronously. Advisor can send timely guidance while work is in progress and queue concerns for the Primary Agent to handle after its current work. The Overlay can stay closed while the review continues.
 
-During a Watch Run, Advisor automatically selects a delivery channel based on the intent of its Advice:
+Stop the Watch Run at any time:
 
-- **Hint** (accelerating information): Correct API usage, a better algorithm, and similar guidance are delivered promptly through Steer to reduce wasted effort.
-- **Concern** (risk or challenge): Potential bugs, architectural concerns, and similar issues are delivered through Follow-up after the Primary Agent finishes its current work, preserving its flow.
+```text
+/advisor:watch-off
+```
 
-Outside a Watch Run, Advisor does not send Advice on its own. You can still use `/advisor` to ask it to send a specific insight, or `/advisor:handoff` to pass along the latest completed Second Opinion.
+### Hand off a Second Opinion
 
-### `/advisor:watch-off`
+After an Ask completes, send its latest Second Opinion to the Primary Agent:
 
-Cancel the current Watch Run while preserving the Advisor instance and its existing Advisor Transcript.
+```text
+/advisor:handoff
+```
 
-### `/advisor:new`
+## Commands
 
-Start a fresh Advisor conversation: clear the Advisor Transcript, Ask Context injection history, Second Opinion history, and input draft. If a Watch Run is active, cancel it first. The Overlay opens with its input focused so the new conversation is ready to use.
+| Command                           | What it does                                   |
+| --------------------------------- | ---------------------------------------------- |
+| `/advisor [message]`              | Open Advisor or ask it immediately             |
+| `/advisor:watch`                  | Start an asynchronous Watch Run                |
+| `/advisor:watch-off`              | Stop the Watch Run and preserve its transcript |
+| `/advisor:handoff [instructions]` | Send the latest Second Opinion to Primary      |
+| `/advisor:new`                    | Start a fresh Advisor conversation             |
+| `/advisor:model [model]`          | Show or set the Advisor model                  |
+| `/advisor:thinking [level]`       | Show or set the Advisor thinking level         |
 
-### `/advisor:model [model]`
+The Advisor Overlay is a top-center work view with its own input and transcript. `Option+/` opens or closes it, `Esc` returns to Primary, and Pi's `app.tools.expand` keybinding (`Ctrl+O` by default) expands Context and Pull blocks. Closing the Overlay preserves the conversation, input draft, and active Watch Run.
 
-Set the model used by Advisor.
-
-### `/advisor:thinking [level]`
-
-Set the thinking level used by Advisor.
-
-### Advisor Overlay
-
-The Overlay opens automatically after `/advisor`, `/advisor:new`, or `/advisor:watch`. It appears as a top-center panel and shows Advisor's review process in real time as prefixed transcript blocks: user messages, Ask Context, tool calls such as Pull, Hint, and Concern, and Advisor responses. The Overlay header shows Advisor's status and context-window usage, for example `Advisor · thinking · ctx 0.1%/128k`. When content extends beyond the visible area, `↑N ↓M` scroll indicators appear.
-
-A separate input box at the bottom of the Overlay accepts messages and control commands. A visible Overlay always owns keyboard focus; close it before returning to the Primary input. The Overlay input box supports these six control commands: `/advisor:watch`, `/advisor:watch-off`, `/advisor:handoff`, `/advisor:new`, `/advisor:model`, and `/advisor:thinking`.
-
-**Overlay controls:**
-
-- `Alt+/`: Open the Overlay with focus, or close it and return focus to the Primary input.
-- `Esc`: Close the Overlay and return focus to the Primary input.
-- Closing the Overlay preserves its transcript, active Watch Run, and input draft.
-- Scroll the open Overlay transcript with ↑/↓, PgUp/PgDn, or the mouse wheel.
-- Use Pi's `app.tools.expand` keybinding (Ctrl+O by default) to switch every Context and Pull block between a five-visual-line preview and the complete text payload sent to Advisor.
-- When work finishes while the Overlay is closed, a notification tells you to press `Alt+/` to view it.
-
-After the user interrupts the Primary Agent, Advisor does not automatically wake it.
-
-## Limitations
-
-- **No disk persistence for the Advisor Transcript yet**: The Advisor Transcript is kept in memory only for the current session and is not saved when the session closes. This keeps the initial release simple while the disk-persistence design remains undecided.
+Ask Advisor and Watch Run share one session-persistent Advisor. It reviews and guides; it does not receive file-writing tools. During a Watch Run, accelerating information is delivered as a Hint, while risks that should not interrupt active work are delivered as a Concern.
 
 ## Configuration
 
-The configuration file is located at `~/.pi/agent/advisor.json`:
+Advisor settings are stored in `~/.pi/agent/advisor.json`:
 
 ```json
 {
@@ -132,8 +87,8 @@ The configuration file is located at `~/.pi/agent/advisor.json`:
 }
 ```
 
-The thinking level can be chosen with `/advisor:thinking` or set with `/advisor:thinking <level>`; when omitted, Advisor uses its built-in default.
+The Advisor Transcript currently lives in memory for the Pi session and is not persisted after the session closes.
 
 ## Acknowledgments
 
-This project was inspired by pi-btw, oh-my-pi, and pi-omplike-advisor.
+Inspired by pi-btw, oh-my-pi, and pi-omplike-advisor.

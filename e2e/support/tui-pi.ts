@@ -39,6 +39,18 @@ export class TuiPi {
 		const agentDir = join(home, ".pi", "agent");
 		await writeFile(join(cwd, "README.md"), "# Advisor TUI E2E\n\nE2E_PRIMARY_SENTINEL lives here.\n", "utf8");
 		await writeFile(
+			join(cwd, "session-manager.ts"),
+			[
+				"export interface SessionManager {",
+				"\tsetSessionFile(path: string): void;",
+				"\tnewSession(): void;",
+				"\tappend(entry: SessionEntry): void;",
+				"}",
+				"",
+			].join("\n"),
+			"utf8",
+		);
+		await writeFile(
 			join(cwd, "package.json"),
 			`${JSON.stringify(
 				{

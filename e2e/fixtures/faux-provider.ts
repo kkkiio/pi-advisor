@@ -62,7 +62,7 @@ function scriptedResponse(
 				message.role === "user" &&
 				(contentText(message.content).includes("<primary-context ") ||
 					contentText(message.content).includes("<primary-head ")),
-	);
+		);
 	if (model.id === advisorModelId && process.env.PI_ADVISOR_TEST_OBSERVATIONS_PATH) {
 		const question = latestUserMessage ? contentText(latestUserMessage.content) : "";
 		const latestContextText = latestContextMessage ? contentText(latestContextMessage.content) : "";
@@ -119,9 +119,7 @@ function scriptedResponse(
 			}
 		}
 		if (script === "readme") {
-			return fauxAssistantMessage(
-				fauxText("Implemented request deduplication and eviction of failed in-flight entries."),
-			);
+			return fauxAssistantMessage(fauxText("`SessionJournal`: it is an append-only log for one session."));
 		}
 		if (script === "visual-natural") {
 			return fauxAssistantMessage("Primary 已完成 Pull 游标调整，并补充了等待和越界场景。");
@@ -188,8 +186,17 @@ function scriptedResponse(
 			return fauxAssistantMessage("E2E_USER_REQUESTED_ADVICE_DONE");
 		}
 		if (script === "readme") {
+			if (!hasToolResult(context, "read")) {
+				return fauxAssistantMessage(
+					[
+						fauxText("I’ll check whether the API is actually bound to one session."),
+						fauxToolCall("read", { path: "session-manager.ts" }),
+					],
+					{ stopReason: "toolUse" },
+				);
+			}
 			return fauxAssistantMessage(
-				"The direction is sound. One concern: a failed request may delete a newer in-flight entry. Guard eviction by entry identity before committing.",
+				"`SessionJournal` fits only if each instance stays bound to one append-only log. Since this API can switch files or create sessions, `SessionHandle` describes the mutable binding more honestly.",
 			);
 		}
 		if (script === "visual-overlay-pull-collapse") {
