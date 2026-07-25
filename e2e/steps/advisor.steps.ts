@@ -465,8 +465,8 @@ Then(
 			throw new Error("No Advisor provider observation was captured for the latest Ask.");
 		}
 
-		expect(observation.latestRequestText).toContain("→");
-		expect(observation.latestRequestText).toContain(toolPath);
+		expect(observation.latestRequestText).toMatch(/→\s+read/);
+		expect(observation.latestRequestText).toContain("pending");
 	},
 );
 
