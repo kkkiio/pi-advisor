@@ -146,7 +146,7 @@ const scenarios: TuiVisualScenario[] = [
 				(screen) => {
 					const overlay = screen;
 					return (
-						overlay.includes('<primary-context end="8" state="idle">') &&
+						overlay.includes('<primary-context start="6" end="8" state="idle">') &&
 						overlay.includes('<primary-transcript start="0" end="8"') &&
 						overlay.includes('wait="new_messages"') &&
 						overlay.includes("**user**:") &&

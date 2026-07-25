@@ -67,9 +67,8 @@ Overlay 是 top-center 的独立面板。用户可在 Overlay 中直接向 Advis
 - 运行中发送的消息只包含用户输入，不创建 Ask Context custom message，不构造新的 Primary Transcript 位置，也不消耗 Ask Context 注入记录。
 - 这条消息在当前 assistant turn 的工具调用结束后、下一次模型调用前送达，让用户可以及时补充、纠正或对齐 Advisor。
 - 每次 Ask Advisor 都会告诉 Advisor 当前 Primary Transcript 的右开边界位置和 Primary Agent 运行状态，Advisor 可以用该位置判断进展变化并按需 Pull。
-- 当最新 Primary user message 还没有用于当前 Advisor Agent Session 的自动注入时，Ask Advisor 附带 Ask Context：该 user text message，以及它之后当前可见的 Primary assistant text。
-- Ask Context 可以包含当前可见的 streaming assistant text，不包含 thinking、tool call、tool result 或 custom message。
-- 当最新 Primary user message 已经用于当前 Advisor Agent Session 的自动注入时，后续 Ask 不重复附带 Ask Context。Advisor 之前的 Pull 不参与这个去重判断。
+- 当最新 Primary user message 还没有用于当前 Advisor Agent Session 的自动注入时，Ask Advisor 附带 Ask Context：`<primary-context>` payload 的 markdown body 与 Pull Transcript 格式完全一致（含 tool call/result、edit diff 等），区间为 `[primaryUserMessageIndex, end)`。
+- 当最新 Primary user message 已经用于当前 Advisor Agent Session 的自动注入时，后续 Ask 发送 position-only `<primary-head at="..." state="..." />`，不重复附带 body。Advisor 之前的 Pull 不参与这个去重判断。
 - Ask Context 不完整或用户问题需要更多历史、工具过程时，Advisor 能通过 Pull 主动补充 Primary Transcript。
 - 多次 Ask Advisor 之间，Advisor 能延续自己的上下文。
 - Ask Advisor 不会创建与 Watch Run 分离的第二套 Advisor 记忆。
@@ -81,20 +80,24 @@ Overlay 是 top-center 的独立面板。用户可在 Overlay 中直接向 Advis
 
 转交消息格式：
 
-```text
-Here is the latest Advisor Second Opinion I want you to use. <instructions>
+三个元素的正文都作为 XML text node，经 XML 转义后写入。未提供 `instructions` 时使用默认值。
 
-Original Advisor request:
-<Ask Advisor prompt>
-
-Advisor Second Opinion:
-<latest completed Ask Advisor answer>
+```xml
+<advisor-handoff>
+  <original-request>...</original-request>
+  <second-opinion>...</second-opinion>
+  <instructions>Use this Second Opinion as supporting context.</instructions>
+</advisor-handoff>
 ```
 
-未提供 `instructions` 时，首句使用：
+用户提供自定义 `instructions` 时替换默认值：
 
-```text
-Here is the latest Advisor Second Opinion I want you to use as supporting context.
+```xml
+<advisor-handoff>
+  <original-request>...</original-request>
+  <second-opinion>...</second-opinion>
+  <instructions>先只改 auth 模块，其余部分等我看完再说。</instructions>
+</advisor-handoff>
 ```
 
 验收标准：

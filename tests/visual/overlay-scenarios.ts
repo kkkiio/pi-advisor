@@ -117,16 +117,20 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 	askAdvisor.recordContext({
 		primaryTranscriptEndIndex: 12,
 		primaryAgentLoopState: "idle",
+		startIndex: 8,
 		askContext: {
 			primaryUserMessageIndex: 8,
-			userText: "给 Pull 增加等待新消息的能力，并补齐游标越界处理。",
-			assistantTexts: ["等待分支已经接入。", "游标越界时会从当前 transcript 末尾继续。"],
 		},
-		text: `<primary-context end="12" state="idle">
+		displayItems: [
+			{ kind: "user", text: "给 Pull 增加等待新消息的能力，并补齐游标越界处理。" },
+			{ kind: "agent", text: "等待分支已经接入。" },
+			{ kind: "agent", text: "游标越界时会从当前 transcript 末尾继续。" },
+		],
+		text: `<primary-context start="8" end="12" state="idle">
 **user**:
 给 Pull 增加等待新消息的能力，并补齐游标越界处理。
 
-**primary**:
+**agent**:
 等待分支已经接入。
 
 游标越界时会从当前 transcript 末尾继续。
@@ -208,16 +212,22 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 	longContent.recordContext({
 		primaryTranscriptEndIndex: 27,
 		primaryAgentLoopState: "idle",
+		startIndex: 24,
 		askContext: {
 			primaryUserMessageIndex: 24,
-			userText: "请确认 primaryTranscriptCursorByAdvisorSessionAndWorkspace 在窄窗口中能正常换行。",
-			assistantTexts: ["我保留这个完整标识符，用它验证 Context 在窄宽度下的折行，同时确认截断提示不会覆盖右侧边框。"],
 		},
-		text: `<primary-context end="27" state="idle">
+		displayItems: [
+			{ kind: "user", text: "请确认 primaryTranscriptCursorByAdvisorSessionAndWorkspace 在窄窗口中能正常换行。" },
+			{
+				kind: "agent",
+				text: "我保留这个完整标识符，用它验证 Context 在窄宽度下的折行，同时确认截断提示不会覆盖右侧边框。",
+			},
+		],
+		text: `<primary-context start="24" end="27" state="idle">
 **user**:
 请确认 primaryTranscriptCursorByAdvisorSessionAndWorkspace 在窄窗口中能正常换行。
 
-**primary**:
+**agent**:
 我保留这个完整标识符，用它验证 Context 在窄宽度下的折行，同时确认截断提示不会覆盖右侧边框。
 </primary-context>`,
 	});
@@ -241,23 +251,24 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 	contextPreview.recordContext({
 		primaryTranscriptEndIndex: 18,
 		primaryAgentLoopState: "idle",
+		startIndex: 11,
 		askContext: {
 			primaryUserMessageIndex: 11,
-			userText: "帮我检查数据库迁移是否可以安全回滚。",
-			assistantTexts: [
-				"我先核对旧表结构。",
-				"接着检查迁移入口。",
-				"事务边界已经调整。",
-				"现在补充回滚场景。",
-				"迁移测试正在运行。",
-				"迁移和回滚测试都已通过。",
-			],
 		},
-		text: `<primary-context end="18" state="idle">
+		displayItems: [
+			{ kind: "user", text: "帮我检查数据库迁移是否可以安全回滚。" },
+			{ kind: "agent", text: "我先核对旧表结构。" },
+			{ kind: "agent", text: "接着检查迁移入口。" },
+			{ kind: "agent", text: "事务边界已经调整。" },
+			{ kind: "agent", text: "现在补充回滚场景。" },
+			{ kind: "agent", text: "迁移测试正在运行。" },
+			{ kind: "agent", text: "迁移和回滚测试都已通过。" },
+		],
+		text: `<primary-context start="11" end="18" state="idle">
 **user**:
 帮我检查数据库迁移是否可以安全回滚。
 
-**primary**:
+**agent**:
 我先核对旧表结构。
 
 接着检查迁移入口。
@@ -279,8 +290,10 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 	repeatedAsk.recordContext({
 		primaryTranscriptEndIndex: 12,
 		primaryAgentLoopState: "idle",
+		startIndex: 8,
 		askContext: undefined,
-		text: `<primary-context end="12" state="idle" />`,
+		displayItems: [],
+		text: `<primary-head at="12" state="idle" />`,
 	});
 	repeatedAsk.applyAgentEvent({
 		type: "message_end",
@@ -300,21 +313,24 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 	const realPlanReviewPreview = new AdvisorOverlayState();
 	realPlanReviewPreview.setContextUsage({ tokens: 39_804, contextWindow: 372_000, percent: 10.7 });
 	realPlanReviewPreview.recordUserMessage(realPlanReview.advisorQuestion);
-	const realAskContextText = `<primary-context end="${realPlanReview.primaryTranscriptEndIndex}" state="idle">
+	const realAskContextText = `<primary-context start="0" end="${realPlanReview.primaryTranscriptEndIndex}" state="idle">
 **user**:
 ${realPlanReview.primaryUser}
 
-**primary**:
+**agent**:
 ${realPlanReview.primaryAssistantTexts.join("\n\n")}
 </primary-context>`;
 	realPlanReviewPreview.recordContext({
 		primaryTranscriptEndIndex: realPlanReview.primaryTranscriptEndIndex,
 		primaryAgentLoopState: "idle",
+		startIndex: 0,
 		askContext: {
 			primaryUserMessageIndex: 0,
-			userText: realPlanReview.primaryUser,
-			assistantTexts: realPlanReview.primaryAssistantTexts,
 		},
+		displayItems: [
+			{ kind: "user", text: realPlanReview.primaryUser },
+			...realPlanReview.primaryAssistantTexts.map((text: string) => ({ kind: "agent" as const, text })),
+		],
 		text: realAskContextText,
 	});
 	const realPullPayload = `<primary-transcript start="${realPlanReview.pullRange.start}" end="${realPlanReview.pullRange.end}" total="${realPlanReview.pullRange.total}" state="idle" wait="new_messages" waited-ms="${realPlanReview.pullRange.waitedMs}">

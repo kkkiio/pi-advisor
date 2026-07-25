@@ -13,8 +13,8 @@ export type AdvisorTranscriptEntry =
 			id: number;
 			turnId: number;
 			type: "ask-context";
-			userText: string | null;
-			assistantTexts: string[];
+			startIndex: number;
+			displayItems: PullTranscriptDisplayItem[];
 			content: string;
 	  }
 	| { id: number; turnId: number; type: "thinking"; text: string; streaming: boolean }
@@ -86,8 +86,8 @@ export function appendAskContext(state: AdvisorTranscriptState, payload: AskCont
 	appendTranscriptEntry(state, {
 		turnId,
 		type: "ask-context",
-		userText: payload.askContext?.userText ?? null,
-		assistantTexts: [...(payload.askContext?.assistantTexts ?? [])],
+		startIndex: payload.startIndex,
+		displayItems: payload.displayItems,
 		content: payload.text,
 	});
 }
@@ -176,7 +176,7 @@ export function buildAdvisorOverlayTranscript(
 				transcript.addChild(new Spacer(1));
 			}
 			const box = new Box(1, 1, (text) => theme.bg("customMessageBg", text));
-			const messageCount = entry.userText === null ? 0 : 1 + entry.assistantTexts.length;
+			const messageCount = entry.displayItems.length;
 			box.addChild(
 				new Text(
 					`${theme.fg("customMessageLabel", theme.bold("Context"))} ${theme.fg(
@@ -189,12 +189,8 @@ export function buildAdvisorOverlayTranscript(
 			);
 			if (primaryContextExpanded) {
 				box.addChild(new Text(theme.fg("text", entry.content), 0, 0));
-			} else if (entry.userText !== null) {
-				const items: PullTranscriptDisplayItem[] = [
-					{ kind: "user", text: entry.userText },
-					...entry.assistantTexts.map((text) => ({ kind: "agent" as const, text })),
-				];
-				box.addChild(new PrimaryTranscriptPreview(items, theme, "context", expandKeyText));
+			} else if (entry.displayItems.length > 0) {
+				box.addChild(new PrimaryTranscriptPreview(entry.displayItems, theme, "context", expandKeyText));
 			}
 			transcript.addChild(box);
 			hasVisibleContent = true;
@@ -287,7 +283,7 @@ class PrimaryTranscriptPreview implements Component {
 		}
 		const styledText = this.items
 			.map((item) => {
-				if (this.variant === "pull" && item.kind === "tool") {
+				if (item.kind === "tool") {
 					const match = item.text.match(/^(→\s+[^\s(]+)([\s\S]*)$/);
 					const title = match?.[1] ?? "→";
 					const output = match?.[2] ?? item.text;

@@ -56,14 +56,14 @@ export interface PrimaryTranscriptView {
 
 export interface AskContext {
 	primaryUserMessageIndex: number;
-	userText: string;
-	assistantTexts: string[];
 }
 
 export interface AskContextPayload {
 	primaryTranscriptEndIndex: number;
 	primaryAgentLoopState: PrimaryAgentLoopState;
+	startIndex: number;
 	askContext: AskContext | undefined;
+	displayItems: PullTranscriptDisplayItem[];
 	text: string;
 }
 

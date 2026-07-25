@@ -11,13 +11,14 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage, Model } from "@earendil-works/pi-ai";
-import { ADVISOR_ADVICE_CUSTOM_TYPE, ADVISOR_ASK_CONTEXT_CUSTOM_TYPE } from "./types";
+import { ADVISOR_ADVICE_CUSTOM_TYPE, ADVISOR_ASK_CONTEXT_CUSTOM_TYPE, type AskContext } from "./types";
 import type {
 	AdviceDeliveryRequest,
 	AdviceDeliveryResult,
 	AdvisorContextUsage,
 	AdvisorRuntimePort,
 	PrimaryAgentLoopState,
+	PullTranscriptDisplayItem,
 	PullTranscriptRequest,
 	PullTranscriptResult,
 	PullWaitResult,
@@ -28,6 +29,7 @@ import {
 	buildPrimaryTranscriptView,
 	hasNewTranscriptEntries,
 	messageContentToText,
+	renderPrimaryTranscriptRange,
 	renderPrimaryTranscriptSlice,
 	selectAskContext,
 } from "./primary-transcript";
@@ -41,8 +43,9 @@ import {
 	parseAdvisorModelRef,
 	resolveAdvisorSettings,
 } from "./settings";
-import { createAdvisorTools } from "./tools";
-import { ADVISOR_DISABLED_PRIMARY_TOOL_NAMES, ADVISOR_SYSTEM_PROMPT, PULL_TIMEOUT_MAX_MS } from "./constants";
+import { ADVISOR_SYSTEM_PROMPT } from "./advisor-prompt";
+import { createAdvisorTools } from "./advisor-prompt";
+import { ADVISOR_DISABLED_PRIMARY_TOOL_NAMES, PULL_TIMEOUT_MAX_MS } from "./constants";
 
 interface PrimaryWaiter {
 	baselineVersion: number;
@@ -174,14 +177,21 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 		this.overlay.refresh();
 		this.overlay.state.recordUserMessage(question);
 		const view = buildPrimaryTranscriptView(ctx, this.primaryStreamingAssistant);
-		const askContext = selectAskContext(view, this.lastInjectedPrimaryUserIndex);
-		const primaryContextContent = askContext
-			? `<primary-context end="${view.messages.length}" state="${this.primaryLoopState}">\n${escapeXmlText(
-					`**user**:\n${askContext.userText}${
-						askContext.assistantTexts.length > 0 ? `\n\n**primary**:\n${askContext.assistantTexts.join("\n\n")}` : ""
-					}`,
-				)}\n</primary-context>`
-			: `<primary-context end="${view.messages.length}" state="${this.primaryLoopState}" />`;
+		const latestUser = selectAskContext(view);
+		const askContext: AskContext | undefined =
+			latestUser && latestUser.primaryUserMessageIndex !== this.lastInjectedPrimaryUserIndex ? latestUser : undefined;
+		const displayItems: PullTranscriptDisplayItem[] = [];
+		let primaryContextContent: string;
+		let startIndex: number;
+		if (askContext) {
+			startIndex = askContext.primaryUserMessageIndex;
+			const range = renderPrimaryTranscriptRange(view, startIndex, view.messages.length);
+			displayItems.push(...range.displayItems);
+			primaryContextContent = `<primary-context start="${startIndex}" end="${view.messages.length}" state="${this.primaryLoopState}">\n${escapeXmlText(range.body)}\n</primary-context>`;
+		} else {
+			startIndex = latestUser?.primaryUserMessageIndex ?? this.lastInjectedPrimaryUserIndex ?? 0;
+			primaryContextContent = `<primary-head at="${view.messages.length}" state="${this.primaryLoopState}" />`;
+		}
 		const messageStartIndex = session.state.messages.length;
 		const askCompletion = (async () => {
 			await session.sendCustomMessage({
@@ -197,7 +207,9 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 			this.overlay.state.recordContext({
 				primaryTranscriptEndIndex: view.messages.length,
 				primaryAgentLoopState: this.primaryLoopState,
+				startIndex,
 				askContext,
+				displayItems,
 				text: primaryContextContent,
 			});
 			if (askContext) {
@@ -317,22 +329,12 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 			ctx.ui.notify("No completed Advisor Second Opinion to hand off.", "warning");
 			return;
 		}
-		const instructions = args.trim();
-		const content = instructions
-			? `Here is the latest Advisor Second Opinion I want you to use. ${instructions}
-
-Original Advisor request:
-${latest.request}
-
-Advisor Second Opinion:
-${latest.answer}`
-			: `Here is the latest Advisor Second Opinion I want you to use as supporting context.
-
-Original Advisor request:
-${latest.request}
-
-Advisor Second Opinion:
-${latest.answer}`;
+		const instructions = args.trim() || "Use this Second Opinion as supporting context.";
+		const content = `<advisor-handoff>
+  <original-request>${escapeXmlText(latest.request)}</original-request>
+  <second-opinion>${escapeXmlText(latest.answer)}</second-opinion>
+  <instructions>${escapeXmlText(instructions)}</instructions>
+</advisor-handoff>`;
 		if (ctx.isIdle()) {
 			this.pi.sendUserMessage(content);
 			this.overlay.state.setStatus("handoff sent");

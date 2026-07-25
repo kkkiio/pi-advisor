@@ -5,7 +5,7 @@ Feature: Ask Context
     When the user asks Advisor "First review."
     Then the latest Advisor Ask should report the Primary Agent state as "idle"
     And the latest Ask Context should include Primary text "Review the cache design." and "The cache now owns request deduplication."
-    And the latest Ask Context should omit Primary tool activity "SECRET_TOOL_PATH"
+    And the latest Ask Context should include Primary read "SECRET_TOOL_PATH" with status "error"
 
   Scenario: A repeated Ask in the same Primary turn does not duplicate Ask Context
     Given Advisor is configured for Ask Context review
@@ -30,7 +30,7 @@ Feature: Ask Context
     And the user asks Advisor "Review while Primary is running."
     Then the latest Advisor Ask should report the Primary Agent state as "running"
     And the latest Ask Context should include Primary text "Now review the streaming response." and "The streaming response is already visible."
-    And the latest Ask Context should omit Primary tool activity "SECRET_STREAMING_TOOL"
+    And the latest Ask Context should include a pending Primary read
 
   Scenario: Ask Context preserves Primary text that contains its XML boundary
     Given Advisor is configured for Ask Context review
