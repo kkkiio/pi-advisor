@@ -5,8 +5,24 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { StringDecoder } from "node:string_decoder";
 import { fileURLToPath } from "node:url";
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type {
+	AgentSessionEvent,
+	RpcCommand,
+	RpcExtensionUIRequest,
+	RpcExtensionUIResponse,
+	RpcResponse,
+} from "@earendil-works/pi-coding-agent";
+import { type AdvisorProviderObservation, parseAdvisorProviderObservation } from "./advisor-observation";
 
-export type RpcJson = Record<string, any>;
+type RpcOutput = AgentSessionEvent | RpcExtensionUIRequest | RpcResponse;
+type RpcNotification = Extract<RpcExtensionUIRequest, { method: "notify" }>;
+export type RpcSelectRequest = Extract<RpcExtensionUIRequest, { method: "select" }>;
+type SuccessfulRpcResponse<Command extends RpcCommand["type"]> = Extract<
+	RpcResponse,
+	{ command: Command; success: true }
+>;
+type RpcSlashCommand = SuccessfulRpcResponse<"get_commands">["data"]["commands"][number];
 
 export const here = dirname(fileURLToPath(import.meta.url));
 export const repoRoot = resolve(here, "../..");
@@ -39,10 +55,10 @@ export class RpcPi {
 	readonly advisorSettingsPath: string;
 	readonly advisorObservationsPath: string;
 	private readonly proc: ChildProcessWithoutNullStreams;
-	readonly events: RpcJson[] = [];
+	readonly events: RpcOutput[] = [];
 	private readonly pending = new Map<
 		string,
-		{ resolve: (response: RpcJson) => void; reject: (error: Error) => void }
+		{ resolve: (response: RpcResponse) => void; reject: (error: Error) => void }
 	>();
 	private readonly selectResponses: string[] = [];
 	private stderr = "";
@@ -120,14 +136,14 @@ export class RpcPi {
 		this.advisorObservationsPath = join(root, "advisor-observations.jsonl");
 	}
 
-	async prompt(message: string, response?: { select?: string }): Promise<RpcJson> {
+	async prompt(message: string, response?: { select?: string }): Promise<void> {
 		if (response?.select) {
 			this.selectResponses.push(response.select);
 		}
-		return this.request({ type: "prompt", message }, 30_000);
+		await this.request({ type: "prompt", message }, 30_000);
 	}
 
-	async promptAndWait(message: string, timeoutMs: number): Promise<RpcJson[]> {
+	async promptAndWait(message: string, timeoutMs: number): Promise<void> {
 		const before = this.events.length;
 		await this.prompt(message);
 		await this.waitFor(
@@ -135,39 +151,50 @@ export class RpcPi {
 			timeoutMs,
 			"agent_end",
 		);
-		return this.events.slice(before);
 	}
 
-	async getCommands(): Promise<RpcJson[]> {
+	async getCommands(): Promise<RpcSlashCommand[]> {
 		const response = await this.request({ type: "get_commands" }, 20_000);
-		return response.data?.commands ?? [];
+		return response.data.commands;
 	}
 
-	async setModel(provider: string, modelId: string): Promise<RpcJson> {
-		const response = await this.request({ type: "set_model", provider, modelId }, 20_000);
-		return response.data ?? {};
+	async setModel(provider: string, modelId: string): Promise<void> {
+		await this.request({ type: "set_model", provider, modelId }, 20_000);
 	}
 
-	async getMessages(): Promise<RpcJson[]> {
+	async getMessages(): Promise<AgentMessage[]> {
 		const response = await this.request({ type: "get_messages" }, 20_000);
-		return response.data?.messages ?? [];
+		return response.data.messages;
 	}
 
 	eventCount(): number {
 		return this.events.length;
 	}
 
-	async waitForNotification(pattern: RegExp, timeoutMs: number): Promise<RpcJson> {
+	findSelectRequestAfter(afterEventIndex: number, titlePattern: RegExp): RpcSelectRequest | undefined {
+		return this.events
+			.slice(afterEventIndex)
+			.find(
+				(event): event is RpcSelectRequest =>
+					event.type === "extension_ui_request" && event.method === "select" && titlePattern.test(event.title),
+			);
+	}
+
+	async waitForNotification(pattern: RegExp, timeoutMs: number): Promise<RpcNotification> {
 		return this.waitForNotificationAfter(pattern, 0, timeoutMs);
 	}
 
-	async waitForNotificationAfter(pattern: RegExp, afterEventIndex: number, timeoutMs: number): Promise<RpcJson> {
+	async waitForNotificationAfter(
+		pattern: RegExp,
+		afterEventIndex: number,
+		timeoutMs: number,
+	): Promise<RpcNotification> {
 		return this.waitFor(
 			() => {
 				const events = this.events.slice(afterEventIndex);
 				return events.find(
-					(event) =>
-						event.type === "extension_ui_request" && event.method === "notify" && pattern.test(event.message ?? ""),
+					(event): event is RpcNotification =>
+						event.type === "extension_ui_request" && event.method === "notify" && pattern.test(event.message),
 				);
 			},
 			timeoutMs,
@@ -175,7 +202,21 @@ export class RpcPi {
 		);
 	}
 
-	async waitForMessage(predicate: (message: RpcJson) => boolean, timeoutMs: number, label: string): Promise<RpcJson> {
+	async waitForMessage<Message extends AgentMessage>(
+		predicate: (message: AgentMessage) => message is Message,
+		timeoutMs: number,
+		label: string,
+	): Promise<Message>;
+	async waitForMessage(
+		predicate: (message: AgentMessage) => boolean,
+		timeoutMs: number,
+		label: string,
+	): Promise<AgentMessage>;
+	async waitForMessage(
+		predicate: (message: AgentMessage) => boolean,
+		timeoutMs: number,
+		label: string,
+	): Promise<AgentMessage> {
 		const started = Date.now();
 		while (Date.now() - started < timeoutMs) {
 			const message = (await this.getMessages()).find(predicate);
@@ -187,7 +228,25 @@ export class RpcPi {
 		throw new Error(`timeout waiting for ${label}\nStderr:\n${this.stderr}`);
 	}
 
-	async waitForAdvisorObservation(question: string, timeoutMs: number): Promise<RpcJson> {
+	async readAdvisorObservations(): Promise<AdvisorProviderObservation[]> {
+		const observationsText = await readFile(this.advisorObservationsPath, "utf8");
+		return observationsText
+			.split("\n")
+			.filter(Boolean)
+			.map((line, index) => {
+				let value: unknown;
+				try {
+					value = JSON.parse(line);
+				} catch (error) {
+					throw new Error(`Invalid Advisor provider observation JSON on line ${index + 1}.`, {
+						cause: error,
+					});
+				}
+				return parseAdvisorProviderObservation(value);
+			});
+	}
+
+	async waitForAdvisorObservation(question: string, timeoutMs: number): Promise<AdvisorProviderObservation> {
 		const started = Date.now();
 		let observationsText = "";
 		while (Date.now() - started < timeoutMs) {
@@ -195,13 +254,8 @@ export class RpcPi {
 			const observations = observationsText
 				.split("\n")
 				.filter(Boolean)
-				.map((line) => JSON.parse(line) as RpcJson);
-			const observation = [...observations]
-				.reverse()
-				.find(
-					(candidate) =>
-						typeof candidate.latestQuestionText === "string" && candidate.latestQuestionText.includes(question),
-				);
+				.map((line) => parseAdvisorProviderObservation(JSON.parse(line)));
+			const observation = [...observations].reverse().find((candidate) => candidate.question.includes(question));
 			if (observation) {
 				await this.sleep(100);
 				return observation;
@@ -236,7 +290,10 @@ export class RpcPi {
 		await rm(this.root, { recursive: true, force: true });
 	}
 
-	private request(command: RpcJson, timeoutMs: number): Promise<RpcJson> {
+	private request<Command extends RpcCommand["type"]>(
+		command: Extract<RpcCommand, { type: Command }>,
+		timeoutMs: number,
+	): Promise<SuccessfulRpcResponse<Command>> {
 		const id = `req_${++this.nextRequestId}`;
 		const request = { ...command, id };
 		return new Promise((resolve, reject) => {
@@ -251,7 +308,7 @@ export class RpcPi {
 						reject(new Error(response.error ?? `RPC ${command.type} failed`));
 						return;
 					}
-					resolve(response);
+					resolve(response as SuccessfulRpcResponse<Command>);
 				},
 				reject: (error) => {
 					clearTimeout(timeout);
@@ -295,12 +352,22 @@ export class RpcPi {
 		if (!line.trim()) {
 			return;
 		}
-		let event: RpcJson;
+		let parsed: unknown;
 		try {
-			event = JSON.parse(line);
+			parsed = JSON.parse(line);
 		} catch {
 			return;
 		}
+		if (
+			!parsed ||
+			typeof parsed !== "object" ||
+			Array.isArray(parsed) ||
+			!("type" in parsed) ||
+			typeof parsed.type !== "string"
+		) {
+			return;
+		}
+		const event = parsed as RpcOutput;
 		this.events.push(event);
 		if (event.type === "response" && event.id && this.pending.has(event.id)) {
 			const pending = this.pending.get(event.id);
@@ -308,11 +375,12 @@ export class RpcPi {
 			pending?.resolve(event);
 		}
 		if (event.type === "extension_ui_request" && ["select", "input", "editor", "confirm"].includes(event.method)) {
-			const response =
+			const selectedValue = event.method === "select" ? this.selectResponses.shift() : undefined;
+			const response: RpcExtensionUIResponse =
 				event.method === "confirm"
 					? { type: "extension_ui_response", id: event.id, confirmed: false }
-					: event.method === "select" && this.selectResponses.length > 0
-						? { type: "extension_ui_response", id: event.id, value: this.selectResponses.shift() }
+					: event.method === "select" && selectedValue
+						? { type: "extension_ui_response", id: event.id, value: selectedValue }
 						: { type: "extension_ui_response", id: event.id, cancelled: true };
 			this.proc.stdin.write(`${JSON.stringify(response)}\n`);
 		}

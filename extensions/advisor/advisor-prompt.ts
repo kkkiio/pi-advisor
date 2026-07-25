@@ -61,13 +61,10 @@ const pullTranscriptSchema = Type.Object({
 
 const adviseSchema = Type.Object({
 	advice: Type.String({ description: "The specific, actionable advice to deliver." }),
-	kind: Type.Union(
-		[Type.Literal("hint"), Type.Literal("concern")],
-		{
-			description:
-				"hint: knowledge or insight delivered as Steer — timely information that can prevent rework or unblock the Primary Agent. concern: design challenge or verification scenario delivered as Follow-up — covers BDD/black-box tests, responsibility boundaries, multiple-sources-of-truth, coupling, lifecycle, concurrency, security, and evolution risks. Must be anchored to a concrete consequence or verification question.",
-		},
-	),
+	kind: Type.Union([Type.Literal("hint"), Type.Literal("concern")], {
+		description:
+			"hint: knowledge or insight delivered as Steer — timely information that can prevent rework or unblock the Primary Agent. concern: design challenge or verification scenario delivered as Follow-up — covers BDD/black-box tests, responsibility boundaries, multiple-sources-of-truth, coupling, lifecycle, concurrency, security, and evolution risks. Must be anchored to a concrete consequence or verification question.",
+	}),
 });
 
 export function createAdvisorTools(runtime: AdvisorRuntimePort): ToolDefinition[] {

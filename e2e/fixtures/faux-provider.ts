@@ -9,6 +9,7 @@ import {
 	type Model,
 	type StreamOptions,
 } from "@earendil-works/pi-ai";
+import type { AdvisorProviderObservation } from "../support/advisor-observation";
 
 const providerName = "advisor-e2e";
 const primaryModelId = "faux-primary";
@@ -61,9 +62,9 @@ function scriptedResponse(
 				message.role === "user" &&
 				(contentText(message.content).includes("<primary-context ") ||
 					contentText(message.content).includes("<primary-head ")),
-		);
+	);
 	if (model.id === advisorModelId && process.env.PI_ADVISOR_TEST_OBSERVATIONS_PATH) {
-		const latestQuestionText = latestUserMessage ? contentText(latestUserMessage.content) : "";
+		const question = latestUserMessage ? contentText(latestUserMessage.content) : "";
 		const latestContextText = latestContextMessage ? contentText(latestContextMessage.content) : "";
 		const askContextMessageCount = context.messages.filter(
 			(message) =>
@@ -71,18 +72,15 @@ function scriptedResponse(
 				(contentText(message.content).includes("<primary-context ") ||
 					contentText(message.content).includes("<primary-head ")),
 		).length;
-		appendFileSync(
-			process.env.PI_ADVISOR_TEST_OBSERVATIONS_PATH,
-			`${JSON.stringify({
-				latestQuestionText,
-				latestRequestText: [latestContextText, latestQuestionText].filter(Boolean).join("\n\n"),
-				latestPullTranscriptText: toolResultText(context, "pull_transcript"),
-				askContextMessageCount,
-				messageCount: context.messages.length,
-				toolNames: context.tools?.map((tool) => tool.name) ?? [],
-			})}\n`,
-			"utf8",
-		);
+		const observation = {
+			question,
+			askContext: latestContextText,
+			pullTranscript: toolResultText(context, "pull_transcript"),
+			askContextMessageCount,
+			sessionMessageCount: context.messages.length,
+			availableTools: context.tools?.map((tool) => tool.name) ?? [],
+		} satisfies AdvisorProviderObservation;
+		appendFileSync(process.env.PI_ADVISOR_TEST_OBSERVATIONS_PATH, `${JSON.stringify(observation)}\n`, "utf8");
 	}
 	if (model.id === primaryModelId) {
 		if (script === "visual-overlay-pull-collapse") {

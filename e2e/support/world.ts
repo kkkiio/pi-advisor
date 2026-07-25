@@ -1,16 +1,22 @@
 import { After, setDefaultTimeout, setWorldConstructor } from "@cucumber/cucumber";
-import { e2eTestTimeoutMs, RpcPi, type RpcJson, type RpcPiOptions } from "./rpc-pi";
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AdvisorAdviceDetails } from "../../extensions/advisor/types";
+import type { AdvisorProviderObservation } from "./advisor-observation";
+import { e2eTestTimeoutMs, RpcPi, type RpcPiOptions } from "./rpc-pi";
 import { TuiPi, type TuiPiOptions } from "./tui-pi";
+
+export type AdvisorAdviceMessage = Extract<AgentMessage, { role: "custom" }> & {
+	customType: "advisor:advice";
+	details: AdvisorAdviceDetails;
+};
 
 export class AdvisorE2EWorld {
 	pi: RpcPi | undefined;
 	tui: TuiPi | undefined;
 	advisorModelConfigured = false;
-	lastAdvisorMessage: RpcJson | undefined;
-	lastAdvisorObservation: RpcJson | undefined;
-	lastNotification: RpcJson | undefined;
-	previousAdvisorObservation: RpcJson | undefined;
-	lastSelect: RpcJson | undefined;
+	lastAdvisorMessage: AdvisorAdviceMessage | undefined;
+	lastAdvisorObservation: AdvisorProviderObservation | undefined;
+	previousAdvisorObservation: AdvisorProviderObservation | undefined;
 	lastTuiScreen: string | undefined;
 	lastAdvisorOverlay: string | undefined;
 	lastEventIndex = 0;
@@ -23,9 +29,7 @@ export class AdvisorE2EWorld {
 		this.advisorModelConfigured = options.advisorModelConfigured ?? false;
 		this.lastAdvisorMessage = undefined;
 		this.lastAdvisorObservation = undefined;
-		this.lastNotification = undefined;
 		this.previousAdvisorObservation = undefined;
-		this.lastSelect = undefined;
 		this.lastTuiScreen = undefined;
 		this.lastEventIndex = 0;
 	}
@@ -53,6 +57,27 @@ export class AdvisorE2EWorld {
 		return this.tui;
 	}
 
+	get advisorObservation(): AdvisorProviderObservation {
+		if (!this.lastAdvisorObservation) {
+			throw new Error("No Advisor provider observation was captured for the latest Ask.");
+		}
+		return this.lastAdvisorObservation;
+	}
+
+	get priorAdvisorObservation(): AdvisorProviderObservation {
+		if (!this.previousAdvisorObservation) {
+			throw new Error("No previous Advisor provider observation was captured.");
+		}
+		return this.previousAdvisorObservation;
+	}
+
+	get deliveredAdvice(): AdvisorAdviceMessage {
+		if (!this.lastAdvisorMessage) {
+			throw new Error("No Advisor Advice was delivered in this scenario.");
+		}
+		return this.lastAdvisorMessage;
+	}
+
 	async disposeRpcPi(): Promise<void> {
 		if (!this.pi) {
 			return;
@@ -62,9 +87,7 @@ export class AdvisorE2EWorld {
 		this.advisorModelConfigured = false;
 		this.lastAdvisorMessage = undefined;
 		this.lastAdvisorObservation = undefined;
-		this.lastNotification = undefined;
 		this.previousAdvisorObservation = undefined;
-		this.lastSelect = undefined;
 		this.lastEventIndex = 0;
 	}
 

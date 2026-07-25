@@ -11,11 +11,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage, Model } from "@earendil-works/pi-ai";
-import {
-	ADVISOR_ADVICE_CUSTOM_TYPE,
-	ADVISOR_ASK_CONTEXT_CUSTOM_TYPE,
-	type AskContext,
-} from "./types";
+import { ADVISOR_ADVICE_CUSTOM_TYPE, ADVISOR_ASK_CONTEXT_CUSTOM_TYPE, type AskContext } from "./types";
 import type {
 	AdviceDeliveryRequest,
 	AdviceDeliveryResult,
@@ -183,9 +179,7 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 		const view = buildPrimaryTranscriptView(ctx, this.primaryStreamingAssistant);
 		const latestUser = selectAskContext(view);
 		const askContext: AskContext | undefined =
-			latestUser && latestUser.primaryUserMessageIndex !== this.lastInjectedPrimaryUserIndex
-				? latestUser
-				: undefined;
+			latestUser && latestUser.primaryUserMessageIndex !== this.lastInjectedPrimaryUserIndex ? latestUser : undefined;
 		const displayItems: PullTranscriptDisplayItem[] = [];
 		let primaryContextContent: string;
 		let startIndex: number;

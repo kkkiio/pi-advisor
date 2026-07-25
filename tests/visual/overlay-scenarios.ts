@@ -218,7 +218,10 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 		},
 		displayItems: [
 			{ kind: "user", text: "请确认 primaryTranscriptCursorByAdvisorSessionAndWorkspace 在窄窗口中能正常换行。" },
-			{ kind: "agent", text: "我保留这个完整标识符，用它验证 Context 在窄宽度下的折行，同时确认截断提示不会覆盖右侧边框。" },
+			{
+				kind: "agent",
+				text: "我保留这个完整标识符，用它验证 Context 在窄宽度下的折行，同时确认截断提示不会覆盖右侧边框。",
+			},
 		],
 		text: `<primary-context start="24" end="27" state="idle">
 **user**:

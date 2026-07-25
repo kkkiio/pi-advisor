@@ -91,9 +91,7 @@ export function buildPrimaryTranscriptView(
 	};
 }
 
-export function selectAskContext(
-	view: PrimaryTranscriptView,
-): AskContext | null {
+export function selectAskContext(view: PrimaryTranscriptView): AskContext | null {
 	for (let index = view.messages.length - 1; index >= 0; index--) {
 		const message = view.messages[index];
 		if (message.role !== "user") {

@@ -6,9 +6,9 @@ Primary Transcript 是 Primary Agent 提供给 Advisor 的内容契约。Runtime
 
 两种输入使用相同的 markdown 序列化格式，共享 `[start, end)` 右开区间。Ask Context 的 `end` 可以直接作为后续 `pull_transcript` 的 `since_index`。
 
-| 输入            | 用途                         | Advisor 收到的内容                                                       |
-| --------------- | ---------------------------- | ------------------------------------------------------------------------ |
-| Ask Context     | Ask Advisor 自动附带近期对话 | 与 Pull Transcript 格式相同，区间 `[start, end)`，由去重逻辑自动选择     |
+| 输入            | 用途                         | Advisor 收到的内容                                                                  |
+| --------------- | ---------------------------- | ----------------------------------------------------------------------------------- |
+| Ask Context     | Ask Advisor 自动附带近期对话 | 与 Pull Transcript 格式相同，区间 `[start, end)`，由去重逻辑自动选择                |
 | Pull Transcript | Advisor 主动读取指定范围     | user/developer text、assistant text、工具与执行摘要、相关 custom message 和状态摘要 |
 
 两种输入都不包含 Primary assistant thinking。Advisor 需要判断工作过程时，依赖 assistant text、工具意图、工具状态和可见变更，避免把高体量 thinking 注入 Advisor context。
@@ -16,6 +16,7 @@ Primary Transcript 是 Primary Agent 提供给 Advisor 的内容契约。Runtime
 ## 共享序列化
 
 Ask Context 与 Pull Transcript 的 markdown body 由同一个 slice renderer 生成，使用相同的 `formatSessionHistoryMarkdown` 参数：
+
 - `watchedRoles: true`
 - `includeToolIntent: true`
 - `expandPrimaryContext: true`
@@ -23,6 +24,7 @@ Ask Context 与 Pull Transcript 的 markdown body 由同一个 slice renderer �
 - `displayItems`（同步生成，供 Overlay 使用）
 
 两者的差异仅在 XML 外层和区间来源：
+
 - Ask Context：区间 `[start, end)` 由 `selectAskContext` 决定，`start` 为最新 Primary user message index。
 - Pull Transcript：区间 `[start, end)` 由 Advisor 通过 `since_index` 和 `count` 指定。
 - 同一 `primaryUserMessageIndex` 不重复注入 body，仅发送 position-only `<primary-head at="..." state="..." />`。
