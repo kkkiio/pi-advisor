@@ -283,7 +283,7 @@ class PrimaryTranscriptPreview implements Component {
 		}
 		const styledText = this.items
 			.map((item) => {
-				if (this.variant === "pull" && item.kind === "tool") {
+				if (item.kind === "tool") {
 					const match = item.text.match(/^(→\s+[^\s(]+)([\s\S]*)$/);
 					const title = match?.[1] ?? "→";
 					const output = match?.[2] ?? item.text;
