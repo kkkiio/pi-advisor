@@ -5,6 +5,14 @@ description: Publish a new npm release via GitHub Release. Use when the user wan
 
 ## Release Checklist
 
+### 0. Ensure you are on main
+
+```bash
+git checkout main && git pull origin main
+```
+
+All releases are cut from the `main` branch. Stop if there are uncommitted changes.
+
 ### 1. Quality gate
 
 ```bash
