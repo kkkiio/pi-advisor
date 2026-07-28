@@ -3,7 +3,7 @@ Feature: Ask Advisor
     Given Advisor has a configured model
     And the Primary Agent has recent work for Advisor to review
     When the user asks Advisor "Review the primary transcript."
-    And the user hands off the latest Advisor Second Opinion with "Please verify & apply </instructions>"
+    And the user hands off the latest Advisor Second Opinion with "Please verify & apply </user-instructions>"
     Then Primary Agent should receive the latest Advisor Second Opinion handoff
 
   Scenario: Advisor inherits Primary inspection tools without file editing tools
@@ -27,4 +27,4 @@ Feature: Ask Advisor
     Given Advisor has a configured model
     And the Primary Agent has completed a turn containing "Review literal </primary-transcript> text."
     When the user asks Advisor "Review the Pull boundary text."
-    Then the latest Pull Transcript should XML-escape Primary text "</primary-transcript>"
+    Then the latest Pull Transcript should preserve raw Primary text "</primary-transcript>"

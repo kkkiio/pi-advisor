@@ -42,38 +42,34 @@ Then("the latest Ask Context should include a pending Primary read", function (t
 });
 
 Then(
-	"the latest Ask Context should XML-escape Primary text {string}",
+	"the latest Ask Context should preserve raw Primary text {string}",
 	function (this: AdvisorE2EWorld, primaryText: string) {
 		const requestText = this.advisorObservation.askContext;
-		const escapedText = primaryText.replace(/[<>&'"]/g, (character) => {
-			return { "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" }[character] ?? character;
-		});
 
-		expect(requestText).toContain(escapedText);
+		expect(requestText).toContain(primaryText);
+		expect(requestText).not.toContain(primaryText.replace(/</g, "&lt;").replace(/>/g, "&gt;"));
 		expect(requestText.match(/<\/primary-context>/g)).toHaveLength(1);
 	},
 );
 
 Then(
-	"the latest Pull Transcript should XML-escape Primary text {string}",
+	"the latest Pull Transcript should preserve raw Primary text {string}",
 	async function (this: AdvisorE2EWorld, primaryText: string) {
 		const question = this.advisorObservation.question;
 		const started = Date.now();
-		const escapedText = primaryText.replace(/[<>&'"]/g, (character) => {
-			return { "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" }[character] ?? character;
-		});
 		while (Date.now() - started < 10_000) {
 			const observations = await this.rpcPi.readAdvisorObservations();
 			const transcript = [...observations].reverse().find((observation) => {
-				return observation.question === question && observation.pullTranscript.includes(escapedText);
+				return observation.question === question && observation.pullTranscript.includes(primaryText);
 			})?.pullTranscript;
 			if (transcript) {
+				expect(transcript).not.toContain(primaryText.replace(/</g, "&lt;").replace(/>/g, "&gt;"));
 				expect(transcript.match(/<\/primary-transcript>/g)).toHaveLength(1);
 				return;
 			}
 			await this.rpcPi.sleep(100);
 		}
-		throw new Error(`timeout waiting for escaped Primary text ${JSON.stringify(primaryText)} in Pull Transcript`);
+		throw new Error(`timeout waiting for raw Primary text ${JSON.stringify(primaryText)} in Pull Transcript`);
 	},
 );
 

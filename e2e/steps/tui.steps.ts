@@ -263,7 +263,7 @@ Then(
 		expect(overlay).toContain('<primary-context start="6"');
 		expect(overlay).toContain('end="8" state="idle">');
 		expect(overlay).toContain("**agent**:");
-		expect(overlay).toContain("</primary-context>");
+		expect(overlay).not.toContain("</primary-context>");
 		expect(overlay).toContain('state="idle"');
 		expect(overlay).toContain('wait="new_messages"');
 		expect(overlay).toContain("**user**:");
@@ -273,14 +273,14 @@ Then(
 
 		await this.tuiPi.submit("", ["PageDown"]);
 		await this.tuiPi.waitForScreen(
-			(candidate) => candidate.includes("PRIMARY_CHAT_AGENT_6") && candidate.includes("</primary-transcript>"),
+			(candidate) => candidate.includes("PRIMARY_CHAT_AGENT_6") && !candidate.includes("</primary-transcript>"),
 			10_000,
 			"expanded Pull payload tail",
 		);
 		overlay = this.tuiPi.captureAdvisorOverlayPlainText();
 		expect(overlay).toContain("**agent**:");
 		expect(overlay).toContain("PRIMARY_CHAT_AGENT_6");
-		expect(overlay).toContain("</primary-transcript>");
+		expect(overlay).not.toContain("</primary-transcript>");
 	},
 );
 

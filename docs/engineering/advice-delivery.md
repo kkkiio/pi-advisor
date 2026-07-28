@@ -9,6 +9,17 @@ Advice 按意图区分为 Hint 和 Concern，并映射到 Primary Agent 的两�
 
 Advisor 只在 Watch Run 期间主动调用 `advise`。Watch Run 之外，只有用户当前消息明确要求送达某个观点时才允许 Advice。Ask Advisor 的普通输出是给用户的 Second Opinion；`/advisor:handoff` 是用户确认后转交 Second Opinion 的独立动作。
 
+### Advice 格式
+
+每条 Advice 作为一条 custom message 送达 Primary Agent，使用 opening-only pseudo-XML metadata header，正文不做 XML text escaping：
+
+```text
+<advisor-advice kind="hint">
+`sessionTtl` 应使用 camelCase，参考 https://docs.example.com/auth/v2。
+```
+
+正文延伸到 custom message 末尾。Advice 正文内的 `<`、`>`、`&` 等字符保持原始形式。这不是安全边界，不应交给 XML parser 解析。
+
 ## Provenance and Feedback Prevention
 
 每条 Advice 都携带来源、类型和 delivery channel 元数据：
