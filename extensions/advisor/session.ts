@@ -74,7 +74,6 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 	private latestSecondOpinion: LatestSecondOpinion | undefined;
 	private askCompletion: Promise<void> | undefined;
 	private lastInjectedPrimaryUserIndex: number | undefined;
-	private primaryStreamingAssistant: AgentMessage | undefined;
 
 	constructor(pi: ExtensionAPI, settingsStore = new AdvisorSettingsStore(), overlay?: AdvisorOverlayController) {
 		this.pi = pi;
@@ -98,7 +97,6 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 	): void {
 		this.bindPrimaryContext(ctx);
 		if (event.type === "before_agent_start") {
-			this.primaryStreamingAssistant = undefined;
 			this.autoResumeSuppressed = false;
 			this.bumpPrimary("state_changed");
 			return;
@@ -109,7 +107,6 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 			return;
 		}
 		if (event.type === "agent_end") {
-			this.primaryStreamingAssistant = undefined;
 			const lastAssistant = [...(event.messages ?? [])].reverse().find((message) => message.role === "assistant");
 			this.primaryLoopState =
 				lastAssistant?.role === "assistant" && lastAssistant.stopReason === "aborted" ? "aborted" : "idle";
@@ -117,22 +114,7 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 			this.bumpPrimary("state_changed");
 			return;
 		}
-		if (event.type === "message_update" && event.message?.role === "assistant") {
-			this.primaryStreamingAssistant = structuredClone(event.message);
-			return;
-		}
-		if (event.type === "message_end" && event.message?.role === "assistant") {
-			this.primaryStreamingAssistant = undefined;
-		}
 		if (event.type === "turn_end" || event.type === "session_compact" || event.type === "session_tree") {
-			this.primaryStreamingAssistant = undefined;
-		}
-		if (
-			event.type === "message_end" ||
-			event.type === "turn_end" ||
-			event.type === "session_compact" ||
-			event.type === "session_tree"
-		) {
 			this.bumpPrimary("new_messages");
 		}
 	}
@@ -175,7 +157,7 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 		}
 		this.overlay.refresh();
 		this.overlay.state.recordUserMessage(question);
-		const view = buildPrimaryTranscriptView(ctx, this.primaryStreamingAssistant);
+		const view = buildPrimaryTranscriptView(ctx);
 		const latestUser = selectAskContext(view);
 		const askContext: AskContext | undefined =
 			latestUser && latestUser.primaryUserMessageIndex !== this.lastInjectedPrimaryUserIndex ? latestUser : undefined;
@@ -581,14 +563,14 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 				details,
 			};
 		}
-		let view = buildPrimaryTranscriptView(ctx, this.primaryStreamingAssistant);
+		let view = buildPrimaryTranscriptView(ctx);
 		let waitResult: PullWaitResult = hasNewTranscriptEntries(view, request) ? "new_messages" : "timeout";
 		const timeoutMs = normalizePullTimeout(request.timeoutMs);
 		if (waitResult !== "new_messages" && timeoutMs > 0) {
 			const baselineVersion = this.primaryVersion;
 			const baselineState = this.primaryLoopState;
 			waitResult = await this.waitForPrimaryChange(timeoutMs, baselineVersion, baselineState, signal);
-			view = buildPrimaryTranscriptView(ctx, this.primaryStreamingAssistant);
+			view = buildPrimaryTranscriptView(ctx);
 		}
 		return renderPrimaryTranscriptSlice(view, request, this.primaryLoopState, waitResult, Date.now() - started);
 	}

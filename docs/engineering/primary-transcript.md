@@ -2,7 +2,7 @@
 
 ## Advisor-visible Content Contract
 
-Primary Transcript 是 Primary Agent 提供给 Advisor 的内容契约。Runtime 从当前 Primary branch 建立稳定、可索引的消息序列，再生成两种 Advisor 输入；所有内容选择、文本表示和 XML 外层都以本文档为权威。
+Primary Transcript 是 Primary Agent 提供给 Advisor 的内容契约。Runtime 只从当前 Primary branch 已持久化的消息建立稳定、可索引的序列，不合并尚未提交的 streaming assistant snapshot，再生成两种 Advisor 输入；所有内容选择、文本表示和 XML 外层都以本文档为权威。
 
 两种输入使用相同的 markdown 序列化格式，共享 `[start, end)` 右开区间。Ask Context 的 `end` 可以直接作为后续 `pull_transcript` 的 `since_index`。
 

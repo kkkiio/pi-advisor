@@ -30,7 +30,7 @@ Tool result details 携带与 Advisor 所读文本同源的 display items，供 
 
 ## Runtime Integration
 
-Primary runtime 事件只用于更新 loop state、刷新当前 streaming assistant snapshot 和唤醒正在等待的 Pull。事件不会直接向 Advisor transcript 注入 Primary 内容。
+Primary Transcript 只读取当前 branch 已持久化的消息，不包含尚未提交的 streaming assistant snapshot。Primary runtime 事件只用于更新 loop state，并在 turn 完成、compaction 或 tree 切换后唤醒正在等待的 Pull；事件不会直接向 Advisor transcript 注入 Primary 内容。
 
 Watch Run 通过带 `timeout_ms` 的 Pull 持续观察进展。Primary Agent 进入 idle 不会强制结束 Watch Run；Advisor 根据已读取内容和运行状态判断继续等待、发送 Advice 或自然结束。
 

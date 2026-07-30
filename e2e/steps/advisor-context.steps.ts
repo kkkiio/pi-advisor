@@ -37,9 +37,24 @@ Then(
 	},
 );
 
-Then("the latest Ask Context should include a pending Primary read", function (this: AdvisorE2EWorld) {
-	expect(this.advisorObservation.askContext).toMatch(/→ read\([^)]*\) ⇒ pending/);
-});
+Then(
+	"the latest Ask Context should include committed Primary text {string} but exclude uncommitted text {string}",
+	function (this: AdvisorE2EWorld, committedText: string, uncommittedText: string) {
+		const askContext = this.advisorObservation.askContext;
+		const header = askContext.match(/<primary-context\b[^>]*>/)?.[0];
+		const start = header?.match(/\bstart="(\d+)"/)?.[1];
+		const end = header?.match(/\bend="(\d+)"/)?.[1];
+
+		expect(header).toBeDefined();
+		expect(start).toBeDefined();
+		expect(end).toBeDefined();
+		expect(Number(end)).toBeGreaterThan(Number(start));
+		expect(askContext).toContain(`**user**:\n${committedText}`);
+		expect(askContext).not.toContain(uncommittedText);
+		expect(askContext).not.toContain("SECRET_STREAMING_TOOL");
+		expect(askContext).not.toMatch(/→ read\([^)]*\) ⇒ pending/);
+	},
+);
 
 Then(
 	"the latest Ask Context should preserve raw Primary text {string}",
@@ -70,6 +85,34 @@ Then(
 			await this.rpcPi.sleep(100);
 		}
 		throw new Error(`timeout waiting for raw Primary text ${JSON.stringify(primaryText)} in Pull Transcript`);
+	},
+);
+
+Then(
+	"the latest Pull Transcript should continue from Ask Context with committed Primary work",
+	async function (this: AdvisorE2EWorld) {
+		const question = this.advisorObservation.question;
+		const started = Date.now();
+		while (Date.now() - started < 20_000) {
+			const observations = await this.rpcPi.readAdvisorObservations();
+			const observation = [...observations]
+				.reverse()
+				.find((candidate) => candidate.question === question && candidate.pullTranscript.includes("**agent**:"));
+			if (!observation) {
+				await this.rpcPi.sleep(100);
+				continue;
+			}
+			const contextEnd = observation.askContext.match(/<primary-context\b[^>]*\bend="(\d+)"/)?.[1];
+			const pullHeader = observation.pullTranscript.match(/<primary-transcript\b[^>]*>/)?.[0];
+			const pullStart = pullHeader?.match(/\bstart="(\d+)"/)?.[1];
+			expect(contextEnd).toBeDefined();
+			expect(pullStart).toBe(contextEnd);
+			expect(pullHeader).not.toContain('since-index-out-of-bounds="true"');
+			expect(observation.pullTranscript).toContain("The streaming response is already visible.");
+			expect(observation.pullTranscript).toContain("→ read(SECRET_STREAMING_TOOL) ⇒ error");
+			return;
+		}
+		throw new Error("timeout waiting for Pull Transcript with committed Primary work");
 	},
 );
 

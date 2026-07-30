@@ -34,14 +34,6 @@ export default function advisorExtension(pi: ExtensionAPI): void {
 		runtime.handlePrimaryEvent(event, ctx);
 	});
 
-	pi.on("message_end", async (event, ctx) => {
-		runtime.handlePrimaryEvent(event, ctx);
-	});
-
-	pi.on("message_update", async (event, ctx) => {
-		runtime.handlePrimaryEvent(event, ctx);
-	});
-
 	pi.on("turn_end", async (event, ctx) => {
 		runtime.handlePrimaryEvent(event, ctx);
 	});

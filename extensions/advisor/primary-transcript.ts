@@ -40,30 +40,12 @@ export function isAdvisorCommandMessage(message: AgentMessage): boolean {
 	return /^\/advisor(?::[a-z-]+)?(?:\s|$)/.test(text);
 }
 
-export function buildPrimaryTranscriptView(
-	ctx: Pick<ExtensionContext, "sessionManager">,
-	liveAssistant?: AgentMessage,
-): PrimaryTranscriptView {
+export function buildPrimaryTranscriptView(ctx: Pick<ExtensionContext, "sessionManager">): PrimaryTranscriptView {
 	const branch = ctx.sessionManager.getBranch();
 	const rawMessages = branch.flatMap((entry) => {
 		const message = sessionEntryToMessage(entry);
 		return message ? [message] : [];
 	});
-	if (liveAssistant?.role === "assistant") {
-		let existingLiveIndex = -1;
-		for (let index = rawMessages.length - 1; index >= 0; index--) {
-			const candidate = rawMessages[index];
-			if (candidate.role === "assistant" && candidate.timestamp === liveAssistant.timestamp) {
-				existingLiveIndex = index;
-				break;
-			}
-		}
-		if (existingLiveIndex >= 0) {
-			rawMessages[existingLiveIndex] = liveAssistant;
-		} else {
-			rawMessages.push(liveAssistant);
-		}
-	}
 	const messages: AgentMessage[] = [];
 	let omittedAdvisorAdviceCount = 0;
 	for (const message of rawMessages) {

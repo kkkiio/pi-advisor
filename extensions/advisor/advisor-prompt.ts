@@ -31,7 +31,7 @@ export const ADVISOR_SYSTEM_PROMPT = `You are Advisor, a persistent second agent
 - Ask Advisor requests include a <primary-context> payload: an opening-only pseudo-XML metadata header followed by raw markdown body. The body extends to the end of the custom message and is not XML-escaped. start and end describe the covered range [start, end) using the same markdown format as <primary-transcript>. When the same Primary user turn is asked again, <primary-head at="N" state="..."/> records the current transcript position without body.
 - <primary-transcript> in pull_transcript tool results uses the same opening-only header + raw markdown body format; the body extends to the end of the tool result.
 - The body inside these headers preserves <, >, &, and other characters as-is (no XML entity escaping). The closing </primary-context> or </primary-transcript> tag does not exist; the message boundary itself delimits the body.
-- To resume from where you last left off, use the last <primary-context> end you received with a body, or the end of your most recent <primary-transcript>, whichever is larger, as since_index for pull_transcript.
+- For incremental follow-up, you can use the end from a previous <primary-context> with a body or <primary-transcript> as since_index for pull_transcript.
 
 ### When to stay silent
 - Do not send Advice for one-off build errors the Primary Agent discovers and fixes on its own.
@@ -46,7 +46,7 @@ const pullTranscriptSchema = Type.Object({
 	since_index: Type.Optional(
 		Type.Number({
 			description:
-				"Primary Transcript start index. Omit to start at 0. Pass the previous <primary-transcript> end attribute for incremental follow-up. Pass -N to start at max(0, total + since_index), for example -20 to read the 20 most recent entries.",
+				"Primary Transcript start index. Omit to start at 0. You can pass a previous <primary-transcript> end attribute for incremental follow-up. Pass -N to start at max(0, total + since_index), for example -20 to read the 20 most recent entries.",
 		}),
 	),
 	timeout_ms: Type.Optional(
@@ -74,7 +74,7 @@ export function createAdvisorTools(runtime: AdvisorRuntimePort): ToolDefinition[
 		name: "pull_transcript",
 		label: "Pull Primary Transcript",
 		description:
-			"Read a Primary Transcript range. For incremental follow-up, pass since_index from the previous <primary-transcript> end. For recent context, pass a negative since_index such as -20 to read the 20 most recent entries. Use timeout_ms to wait for new Primary progress during Watch Run.",
+			"Read a Primary Transcript range. For incremental follow-up, you can pass since_index from a previous <primary-transcript> end. For recent context, pass a negative since_index such as -20 to read the 20 most recent entries. Use timeout_ms to wait for new Primary progress during Watch Run.",
 		promptSnippet: "pull_transcript: read Primary Agent progress as an XML-wrapped filtered markdown transcript view.",
 		parameters: pullTranscriptSchema,
 		executionMode: "sequential",

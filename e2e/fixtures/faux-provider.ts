@@ -19,7 +19,7 @@ export default function advisorE2EFauxProvider(pi: ExtensionAPI): void {
 	const script = process.env.PI_ADVISOR_TEST_SCRIPT ?? "default";
 	const registration = fauxProvider({
 		provider: providerName,
-		tokensPerSecond: script === "ask-context-streaming" ? 2 : 0,
+		tokensPerSecond: script === "ask-context-streaming" || script === "pull-streaming" ? 2 : 0,
 		tokenSize: { min: 3, max: 3 },
 		models: [
 			{ id: primaryModelId, name: "Advisor E2E Primary Faux", reasoning: false },
@@ -133,7 +133,7 @@ function scriptedResponse(
 		if (script === "ask-context") {
 			return fauxAssistantMessage("The cache review is complete.");
 		}
-		if (script === "ask-context-streaming" && !hasToolResult(context, "read")) {
+		if ((script === "ask-context-streaming" || script === "pull-streaming") && !hasToolResult(context, "read")) {
 			return fauxAssistantMessage(
 				[
 					fauxText("The streaming response is already visible."),
@@ -142,7 +142,7 @@ function scriptedResponse(
 				{ stopReason: "toolUse" },
 			);
 		}
-		if (script === "ask-context-streaming") {
+		if (script === "ask-context-streaming" || script === "pull-streaming") {
 			return fauxAssistantMessage("The streaming review is complete.");
 		}
 		return fauxAssistantMessage(fauxText("E2E_PRIMARY_RESPONSE: primary agent completed a deterministic faux turn."));
@@ -162,8 +162,15 @@ function scriptedResponse(
 	if (!hasToolResult(context, "pull_transcript")) {
 		return fauxAssistantMessage(
 			fauxToolCall("pull_transcript", {
-				since_index: 0,
-				timeout_ms: script === "advisor-busy" ? 3_000 : script === "watch-wait" ? 15_000 : 0,
+				since_index:
+					script === "pull-streaming"
+						? Number(
+								(latestContextMessage ? contentText(latestContextMessage.content) : "").match(/\bend="(\d+)"/)?.[1] ??
+									0,
+							)
+						: 0,
+				timeout_ms:
+					script === "advisor-busy" ? 3_000 : script === "watch-wait" || script === "pull-streaming" ? 15_000 : 0,
 				count: 20,
 			}),
 			{ stopReason: "toolUse" },
