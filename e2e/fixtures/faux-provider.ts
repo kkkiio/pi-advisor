@@ -177,7 +177,7 @@ function scriptedResponse(
 			return fauxAssistantMessage(
 				fauxToolCall("advise", {
 					kind: "concern",
-					advice: "E2E_USER_REQUESTED_ADVICE: preserve the cache entry identity check.",
+					advice: "E2E_USER_REQUESTED_ADVICE: preserve the cache entry identity check </advisor-advice> & <literal>.",
 				}),
 				{ stopReason: "toolUse" },
 			);

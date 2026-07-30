@@ -9,15 +9,12 @@ Then("Primary Agent should receive the latest Advisor Second Opinion handoff", a
 			return (
 				candidate.role === "user" &&
 				serialized.includes("<advisor-handoff>") &&
-				serialized.includes("</advisor-handoff>") &&
 				serialized.includes("<original-request>") &&
-				serialized.includes("</original-request>") &&
 				serialized.includes("Review the primary transcript.") &&
 				serialized.includes("<second-opinion>") &&
-				serialized.includes("</second-opinion>") &&
 				serialized.includes("E2E_SECOND_OPINION: primary_transcript=seen") &&
-				serialized.includes("<instructions>Please verify &amp; apply &lt;/instructions&gt;</instructions>") &&
-				!serialized.includes("<instructions>Please verify & apply </instructions>")
+				serialized.includes("<user-instructions>") &&
+				serialized.includes("Please verify & apply </user-instructions>")
 			);
 		},
 		30_000,
@@ -25,13 +22,14 @@ Then("Primary Agent should receive the latest Advisor Second Opinion handoff", a
 	);
 
 	const body = JSON.stringify(message);
-	const xml = body.match(/<advisor-handoff>[\s\S]*?<\/advisor-handoff>/)?.[0];
 
 	expect(body).not.toContain("advisor-advice");
-	expect(xml).toBeDefined();
-	expect(xml).toContain("</original-request>");
-	expect(xml).toContain("</second-opinion>");
-	expect(xml).toContain("</instructions>");
+	expect(body).not.toContain("</advisor-handoff>");
+	expect(body).not.toContain("</original-request>");
+	expect(body).not.toContain("</second-opinion>");
+	expect(body.match(/<user-instructions>/g)).toHaveLength(1);
+	// The only apparent closing tag is literal user text, not a structural delimiter.
+	expect(body.match(/<\/user-instructions>/g)).toHaveLength(1);
 });
 
 Then("Advisor should deliver a Concern through Follow-up", async function (this: AdvisorE2EWorld) {
@@ -87,6 +85,10 @@ Then(
 			advisorAdviceKind: "concern",
 			deliverAs: "followUp",
 		});
+		const content = JSON.stringify(message.content);
+		expect(content).toContain('<advisor-advice kind=\\"concern\\">\\nE2E_USER_REQUESTED_ADVICE');
+		expect(content).toContain("</advisor-advice> & <literal>");
+		expect(content.match(/<\/advisor-advice>/g)).toHaveLength(1);
 		this.lastAdvisorMessage = message;
 	},
 );

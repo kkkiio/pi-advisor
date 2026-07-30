@@ -104,7 +104,6 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 等待分支已经接入，接下来补充越界场景。
 → edit(e2e/features/pull-transcript.feature) ⇒ ok · 1 line
 → bash(just test-e2e) ⇒ ok · 29 scenarios
-</primary-transcript>
 `;
 	const pullResult = {
 		content: [{ type: "text", text: pullPayload }],
@@ -133,8 +132,7 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 **agent**:
 等待分支已经接入。
 
-游标越界时会从当前 transcript 末尾继续。
-</primary-context>`,
+游标越界时会从当前 transcript 末尾继续。`,
 	});
 	askAdvisor.applyAgentEvent({
 		type: "message_update",
@@ -228,8 +226,7 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 请确认 primaryTranscriptCursorByAdvisorSessionAndWorkspace 在窄窗口中能正常换行。
 
 **agent**:
-我保留这个完整标识符，用它验证 Context 在窄宽度下的折行，同时确认截断提示不会覆盖右侧边框。
-</primary-context>`,
+我保留这个完整标识符，用它验证 Context 在窄宽度下的折行，同时确认截断提示不会覆盖右侧边框。`,
 	});
 	longContent.applyAgentEvent({
 		type: "message_end",
@@ -279,8 +276,7 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 
 迁移测试正在运行。
 
-迁移和回滚测试都已通过。
-</primary-context>`,
+迁移和回滚测试都已通过。`,
 	});
 	contextPreview.setStatus("idle");
 
@@ -318,8 +314,7 @@ export function createOverlayVisualScenarios(): OverlayVisualScenario[] {
 ${realPlanReview.primaryUser}
 
 **agent**:
-${realPlanReview.primaryAssistantTexts.join("\n\n")}
-</primary-context>`;
+${realPlanReview.primaryAssistantTexts.join("\n\n")}`;
 	realPlanReviewPreview.recordContext({
 		primaryTranscriptEndIndex: realPlanReview.primaryTranscriptEndIndex,
 		primaryAgentLoopState: "idle",
@@ -336,7 +331,6 @@ ${realPlanReview.primaryAssistantTexts.join("\n\n")}
 	const realPullPayload = `<primary-transcript start="${realPlanReview.pullRange.start}" end="${realPlanReview.pullRange.end}" total="${realPlanReview.pullRange.total}" state="idle" wait="new_messages" waited-ms="${realPlanReview.pullRange.waitedMs}">
 **agent**:
 ${realPlanReview.primaryAssistantTexts.at(-1) ?? ""}
-</primary-transcript>
 `;
 	realPlanReviewPreview.applyAgentEvent({
 		type: "tool_execution_start",
@@ -538,7 +532,6 @@ ${realPlanReview.primaryAssistantTexts.at(-1) ?? ""}
 				'<primary-transcript start="0" end="12"',
 				'state="idle"',
 				'wait="new_messages"',
-				"</primary-transcript>",
 				"**user**:",
 				"// inspect cursor advancement and wake-up ordering before editing",
 				"```diff",

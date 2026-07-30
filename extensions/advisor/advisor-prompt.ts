@@ -28,7 +28,9 @@ export const ADVISOR_SYSTEM_PROMPT = `You are Advisor, a persistent second agent
 - Do not repeat Advice you already sent.
 
 ### Pulling the Primary Transcript
-- Ask Advisor requests include a <primary-context> payload. When body is present, start and end describe the covered range [start, end) using the same markdown format as <primary-transcript>. When the same Primary user turn is asked again, <primary-head at="N" state="..."/> records the current transcript position without body.
+- Ask Advisor requests include a <primary-context> payload: an opening-only pseudo-XML metadata header followed by raw markdown body. The body extends to the end of the custom message and is not XML-escaped. start and end describe the covered range [start, end) using the same markdown format as <primary-transcript>. When the same Primary user turn is asked again, <primary-head at="N" state="..."/> records the current transcript position without body.
+- <primary-transcript> in pull_transcript tool results uses the same opening-only header + raw markdown body format; the body extends to the end of the tool result.
+- The body inside these headers preserves <, >, &, and other characters as-is (no XML entity escaping). The closing </primary-context> or </primary-transcript> tag does not exist; the message boundary itself delimits the body.
 - To resume from where you last left off, use the last <primary-context> end you received with a body, or the end of your most recent <primary-transcript>, whichever is larger, as since_index for pull_transcript.
 
 ### When to stay silent

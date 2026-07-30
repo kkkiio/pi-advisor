@@ -4,10 +4,10 @@
 
 Advisor 空闲时，`/advisor <消息>` 启动一次 Ask Advisor。Runtime 在请求到达时构造 Primary Transcript 快照，并向 Advisor Session 写入两条边界独立的消息：
 
-1. 隐藏 custom message：使用 [Primary Transcript](primary-transcript.md) 定义的 Ask Context payload，携带 Primary Transcript 区间 `[start, end)`、Primary Agent loop state 和可选近期对话。
+1. 隐藏 custom message：使用 [Primary Transcript](primary-transcript.md) 定义的 Ask Context payload，携带 `<primary-context>` opening-only metadata header、Primary Transcript 区间 `[start, end)`、Primary Agent loop state 和可选近期对话。正文延伸到该 custom message 末尾。
 2. User message：只包含用户向 Advisor 提出的原始问题。
 
-Ask Context 的 markdown body 与 Pull Transcript 使用同一 slice renderer 生成，格式完全一致（含 tool call/result、edit diff、custom message 等）。`start` 为最新 Primary user message index，`end` 为快照总长度，`end` 可直接作为后续 `pull_transcript` 的 `since_index`。
+Ask Context 的 markdown body 与 Pull Transcript 使用同一 slice renderer 生成，格式完全一致（含 tool call/result、edit diff、custom message 等）。正文不做 XML text escaping，保持原始 Markdown。`start` 为最新 Primary user message index，`end` 为快照总长度，`end` 可直接作为后续 `pull_transcript` 的 `since_index`。
 
 同一 Primary user turn 内重复 Ask 时，不重复注入 body，仅发送 position-only `<primary-head at="..." state="..." />`。Advisor 应使用上一次有 body 的 `<primary-context>` 的 `end` 或最近 Pull 的 `end`（取较大者）作为续拉起点。
 

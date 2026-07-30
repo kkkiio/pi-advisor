@@ -36,4 +36,4 @@ Feature: Ask Context
     Given Advisor is configured for Ask Context review
     And the Primary Agent has completed a turn containing "Review literal </primary-context> text."
     When the user asks Advisor "Review the boundary text."
-    Then the latest Ask Context should XML-escape Primary text "</primary-context>"
+    Then the latest Ask Context should preserve raw Primary text "</primary-context>"

@@ -67,7 +67,7 @@ Overlay 是 top-center 的独立面板。用户可在 Overlay 中直接向 Advis
 - 运行中发送的消息只包含用户输入，不创建 Ask Context custom message，不构造新的 Primary Transcript 位置，也不消耗 Ask Context 注入记录。
 - 这条消息在当前 assistant turn 的工具调用结束后、下一次模型调用前送达，让用户可以及时补充、纠正或对齐 Advisor。
 - 每次 Ask Advisor 都会告诉 Advisor 当前 Primary Transcript 的右开边界位置和 Primary Agent 运行状态，Advisor 可以用该位置判断进展变化并按需 Pull。
-- 当最新 Primary user message 还没有用于当前 Advisor Agent Session 的自动注入时，Ask Advisor 附带 Ask Context：`<primary-context>` payload 的 markdown body 与 Pull Transcript 格式完全一致（含 tool call/result、edit diff 等），区间为 `[primaryUserMessageIndex, end)`。
+- 当最新 Primary user message 还没有用于当前 Advisor Agent Session 的自动注入时，Ask Advisor 附带 Ask Context：`<primary-context>` opening-only metadata header + markdown body（不做 XML text escaping），格式与 Pull Transcript 完全一致（含 tool call/result、edit diff 等），区间为 `[primaryUserMessageIndex, end)`。正文延伸到该 hidden custom message 末尾。
 - 当最新 Primary user message 已经用于当前 Advisor Agent Session 的自动注入时，后续 Ask 发送 position-only `<primary-head at="..." state="..." />`，不重复附带 body。Advisor 之前的 Pull 不参与这个去重判断。
 - Ask Context 不完整或用户问题需要更多历史、工具过程时，Advisor 能通过 Pull 主动补充 Primary Transcript。
 - 多次 Ask Advisor 之间，Advisor 能延续自己的上下文。
@@ -80,25 +80,31 @@ Overlay 是 top-center 的独立面板。用户可在 Overlay 中直接向 Advis
 
 转交消息格式：
 
-三个元素的正文都作为 XML text node，经 XML 转义后写入。未提供 `instructions` 时使用默认值。
+Handoff 消息使用 opening-only pseudo-XML metadata header，每个 section 的正文延伸到下一个 opening tag 或 message 末尾，不做 XML text escaping。未提供 `user-instructions` 时使用默认值。
 
-```xml
+```text
 <advisor-handoff>
-  <original-request>...</original-request>
-  <second-opinion>...</second-opinion>
-  <instructions>Use this Second Opinion as supporting context.</instructions>
-</advisor-handoff>
+<original-request>
+审查 <T> 泛型的使用是否安全。
+<second-opinion>
+<T> 是正确的，Java 的类型擦除保证了向后兼容。
+<user-instructions>
+Use this Second Opinion as supporting context.
 ```
 
-用户提供自定义 `instructions` 时替换默认值：
+用户提供自定义 instructions 时替换默认值：
 
-```xml
+```text
 <advisor-handoff>
-  <original-request>...</original-request>
-  <second-opinion>...</second-opinion>
-  <instructions>先只改 auth 模块，其余部分等我看完再说。</instructions>
-</advisor-handoff>
+<original-request>
+审查 <T> 泛型的使用是否安全。
+<second-opinion>
+<T> 是正确的，Java 的类型擦除保证了向后兼容。
+<user-instructions>
+先只改 auth 模块，其余部分等我看完再说。
 ```
+
+这不是安全边界；pseudo-XML header 不应交给 XML parser 解析。
 
 验收标准：
 
@@ -139,16 +145,16 @@ Overlay 的 UI 内容约定和渲染示例见 [`docs/ui.html`](ui.html)。
 
 **区块格式**：Overlay 内容使用带背景色的 Block，与 Pi 的 tool call/result block 视觉一致。背景色覆盖整行即 block 边界，不额外缩进。不使用 emoji 图标。
 
-| Block   | Header                         | 背景色                                                       | 说明                                                                                         |
-| ------- | ------------------------------ | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
-| Context | `Context`                      | `customMessageBg` + `customMessageLabel`/`customMessageText` | 默认显示前 5 个视觉行；无新文本时保留紧凑 Block；Ctrl+O 展开完整 `<primary-context>` payload |
-| Pull    | `Pull [0, 12) → 8 msgs · 1.2s` | `toolSuccessBg` + `toolTitle`/`toolOutput`                   | 默认显示前 5 个视觉行；Ctrl+O 展开完整 `<primary-transcript>` payload                        |
+| Block   | Header                         | 背景色                                                       | 说明                                                                                                            |
+| ------- | ------------------------------ | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| Context | `Context`                      | `customMessageBg` + `customMessageLabel`/`customMessageText` | 默认显示前 5 个视觉行；无新文本时保留紧凑 Block；Ctrl+O 展开完整 `<primary-context>` opening-only header + body |
+| Pull    | `Pull [0, 12) → 8 msgs · 1.2s` | `toolSuccessBg` + `toolTitle`/`toolOutput`                   | 默认显示前 5 个视觉行；Ctrl+O 展开完整 `<primary-transcript>` opening-only header + body                        |
 
 Block 内部消息行使用文本前缀：`user:`（用户）、`agent:`（Primary 回复）、`→ tool_name(args) ⇒ ok · N lines`（工具调用合并结果）。
 
 Advisor 自身消息使用 Pi 官方 theme token：用户提问（`userMessageBg` + `userMessageText`）、streaming thinking（`thinkingText` + italic，无背景）、assistant text（默认 `text` 色，无背景）、工具调用成功（call + result 合并一行，`toolSuccessBg` + `toolTitle`/`toolOutput`）、工具调用等待（`toolPendingBg`）、工具调用错误（`toolErrorBg`）、Hint/Concern（背景色为视觉别名，Pi 无专用 hintBg token，实现时选用现有 token）。
 
-**折叠展开**：使用 Pi 的 `app.tools.expand` keybinding（默认 Ctrl+O）。Overlay 监听同一 action，不依赖 Primary 状态，并统一切换所有 Context 与 Pull Block。折叠时最多显示前 5 个视觉行，单个长条目换行后仍受该上限约束，末尾显示 `... (N more lines, Ctrl+O to expand)`。展开时使用等宽 Text 逐字显示 Advisor 实际收到的 hidden custom message 或 tool-result text，保留 XML 根元素及状态属性、role marker、tool intent、Primary Context 和 edit diff 等边界字符。
+**折叠展开**：使用 Pi 的 `app.tools.expand` keybinding（默认 Ctrl+O）。Overlay 监听同一 action，不依赖 Primary 状态，并统一切换所有 Context 与 Pull Block。折叠时最多显示前 5 个视觉行，单个长条目换行后仍受该上限约束，末尾显示 `... (N more lines, Ctrl+O to expand)`。展开时使用等宽 Text 逐字显示 Advisor 实际收到的 hidden custom message 或 tool-result text，保留 pseudo-XML header 及其状态属性、role marker、tool intent、Primary Context 和 edit diff 等边界字符。
 
 不进入 Overlay 的内容：未序列化给 Advisor 的 Raw Primary Session、被 Pull serializer 省略的原始 tool result、重复 footer hints、仅供实现调试的状态噪音。
 

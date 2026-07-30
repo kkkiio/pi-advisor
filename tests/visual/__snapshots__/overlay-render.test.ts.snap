@@ -161,7 +161,7 @@ exports[`Advisor overlay visual snapshots > overlay-expanded-pull renders a stab
 │ 等待分支已经接入，接下来补充越界场景。                                     │
 │ → edit(e2e/features/pull-transcript.feature) ⇒ ok · 1 line                 │
 │ → bash(just test-e2e) ⇒ ok · 29 scenarios                                  │
-│ </primary-transcript>                                                      │
+│                                                                            │
 │                                                                            │
 │                                                                            │
 ├────────────────────────────────────────────────────────────────────────────┤
@@ -195,7 +195,6 @@ exports[`Advisor overlay visual snapshots > overlay-expanded-pull renders a stab
           " 等待分支已经接入，接下来补充越界场景。",
           " → edit(e2e/features/pull-transcript.feature) ⇒ ok · 1 line",
           " → bash(just test-e2e) ⇒ ok · 29 scenarios",
-          " </primary-transcript>",
           "",
           "",
         ],

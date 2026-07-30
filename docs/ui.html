@@ -189,7 +189,7 @@
 					</div>
 				</div>
 
-				<!-- Context block — customMessageBg. The header counts injected Primary messages. Expanded payload metadata lives on one XML root element. -->
+				<!-- Context block — customMessageBg. The header counts injected Primary messages. Expanded payload begins with an opening-only pseudo-XML header. -->
 				<div class="blk context">
 					<div class="blk-line"><span class="hd">Context</span> · 3 msgs</div>
 					<!-- prettier-ignore -->
@@ -200,8 +200,7 @@
 **primary**:
 Let me first read the current auth module structure to understand the existing token refresh flow.
 
-The key issue is the retry interceptor — it fires on every 401 without deduplication.
-&lt;/primary-context&gt;</pre>
+The key issue is the retry interceptor — it fires on every 401 without deduplication.</pre>
 				</div>
 
 				<!-- streaming thinking — thinkingText + italic, no background -->
@@ -209,7 +208,7 @@ The key issue is the retry interceptor — it fires on every 401 without dedupli
 					Let me check what the primary agent has done so far, then pull the recent transcript...
 				</div>
 
-				<!-- Pull block — toolSuccessBg. Expanded payload moves status metadata into one XML root element. -->
+				<!-- Pull block — toolSuccessBg. Expanded payload begins with an opening-only pseudo-XML header. -->
 				<div class="blk pull">
 					<div class="blk-line"><span class="hd">Pull</span> [0, 12) → 8 msgs · 1.2s</div>
 					<!-- prettier-ignore -->
@@ -221,8 +220,7 @@ The key issue is the retry interceptor — it fires on every 401 without dedupli
 Let me first read the current auth module structure to understand the existing token refresh flow.
 → read(/src/auth.ts:1-200) ⇒ ok · 200 lines
 → grep(refreshToken @ /src/**/*.ts) ⇒ ok · 12 matches
-→ write(/src/auth-refresh.ts) ⇒ ok · 85 lines
-&lt;/primary-transcript&gt;</pre>
+→ write(/src/auth-refresh.ts) ⇒ ok · 85 lines</pre>
 				</div>
 
 				<!-- thinking -->

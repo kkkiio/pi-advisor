@@ -111,7 +111,7 @@ describe("formatSessionHistoryMarkdown", () => {
 		expect(formatSessionHistoryMarkdown(messages, { includeThinking: true })).toContain("_thinking:_ check edge case");
 	});
 
-	it("expands primary context with XML escaping", () => {
+	it("keeps nested primary context XML-escaped and closed inside the markdown body", () => {
 		const output = formatSessionHistoryMarkdown(
 			[
 				{

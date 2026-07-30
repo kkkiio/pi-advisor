@@ -5,23 +5,7 @@ export function deliveryChannelForKind(kind: AdviceDeliveryRequest["kind"]): Del
 }
 
 export function formatAdviceForPrimary(request: AdviceDeliveryRequest): string {
-	const escaped = request.advice.replace(/[<>&'"]/g, (char) => {
-		switch (char) {
-			case "<":
-				return "&lt;";
-			case ">":
-				return "&gt;";
-			case "&":
-				return "&amp;";
-			case "'":
-				return "&apos;";
-			case '"':
-				return "&quot;";
-			default:
-				return char;
-		}
-	});
-	return `<advisor-advice kind="${request.kind}">\n${escaped}\n</advisor-advice>`;
+	return `<advisor-advice kind="${request.kind}">\n${request.advice}`;
 }
 
 export function createAdviceDelivery(

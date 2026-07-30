@@ -33,7 +33,6 @@ import {
 	renderPrimaryTranscriptSlice,
 	selectAskContext,
 } from "./primary-transcript";
-import { escapeXmlText } from "./session-history-format";
 import {
 	ADVISOR_DEFAULT_THINKING,
 	ADVISOR_THINKING_LEVELS,
@@ -187,7 +186,7 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 			startIndex = askContext.primaryUserMessageIndex;
 			const range = renderPrimaryTranscriptRange(view, startIndex, view.messages.length);
 			displayItems.push(...range.displayItems);
-			primaryContextContent = `<primary-context start="${startIndex}" end="${view.messages.length}" state="${this.primaryLoopState}">\n${escapeXmlText(range.body)}\n</primary-context>`;
+			primaryContextContent = `<primary-context start="${startIndex}" end="${view.messages.length}" state="${this.primaryLoopState}">\n${range.body}`;
 		} else {
 			startIndex = latestUser?.primaryUserMessageIndex ?? this.lastInjectedPrimaryUserIndex ?? 0;
 			primaryContextContent = `<primary-head at="${view.messages.length}" state="${this.primaryLoopState}" />`;
@@ -331,10 +330,12 @@ export class AdvisorRuntime implements AdvisorRuntimePort {
 		}
 		const instructions = args.trim() || "Use this Second Opinion as supporting context.";
 		const content = `<advisor-handoff>
-  <original-request>${escapeXmlText(latest.request)}</original-request>
-  <second-opinion>${escapeXmlText(latest.answer)}</second-opinion>
-  <instructions>${escapeXmlText(instructions)}</instructions>
-</advisor-handoff>`;
+<original-request>
+${latest.request}
+<second-opinion>
+${latest.answer}
+<user-instructions>
+${instructions}`;
 		if (ctx.isIdle()) {
 			this.pi.sendUserMessage(content);
 			this.overlay.state.setStatus("handoff sent");
@@ -576,7 +577,7 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 				displayItems: [],
 			};
 			return {
-				text: `<primary-transcript start="0" end="0" total="0" state="${this.primaryLoopState}" wait="timeout" waited-ms="0">\n(no primary context)\n</primary-transcript>\n`,
+				text: `<primary-transcript start="0" end="0" total="0" state="${this.primaryLoopState}" wait="timeout" waited-ms="0">\n(no primary context)`,
 				details,
 			};
 		}
