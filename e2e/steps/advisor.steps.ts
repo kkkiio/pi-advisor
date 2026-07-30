@@ -24,6 +24,10 @@ Given("Advisor is configured to review the Primary Agent while it is running", a
 	await this.startRpcPi({ advisorModelConfigured: true, script: "ask-context-streaming" });
 });
 
+Given("Advisor is configured to pull while the Primary Agent is running", async function (this: AdvisorE2EWorld) {
+	await this.startRpcPi({ advisorModelConfigured: true, script: "pull-streaming" });
+});
+
 Given("Advisor is configured to find a timely improvement", async function (this: AdvisorE2EWorld) {
 	await this.startRpcPi({ advisorModelConfigured: true, script: "watch-hint" });
 });

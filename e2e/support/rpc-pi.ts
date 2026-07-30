@@ -36,7 +36,14 @@ export const e2eTestTimeoutMs = 60_000;
 
 export interface RpcPiOptions {
 	advisorModelConfigured?: boolean;
-	script?: "advisor-busy" | "ask-context" | "ask-context-streaming" | "default" | "watch-hint" | "watch-wait";
+	script?:
+		| "advisor-busy"
+		| "ask-context"
+		| "ask-context-streaming"
+		| "default"
+		| "pull-streaming"
+		| "watch-hint"
+		| "watch-wait";
 }
 
 export async function withRpcPi(options: RpcPiOptions, run: (pi: RpcPi) => Promise<void>): Promise<void> {

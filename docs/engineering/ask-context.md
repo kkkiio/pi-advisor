@@ -9,11 +9,11 @@ Advisor 空闲时，`/advisor <消息>` 启动一次 Ask Advisor。Runtime 在�
 
 Ask Context 的 markdown body 与 Pull Transcript 使用同一 slice renderer 生成，格式完全一致（含 tool call/result、edit diff、custom message 等）。正文不做 XML text escaping，保持原始 Markdown。`start` 为最新 Primary user message index，`end` 为快照总长度，`end` 可直接作为后续 `pull_transcript` 的 `since_index`。
 
-同一 Primary user turn 内重复 Ask 时，不重复注入 body，仅发送 position-only `<primary-head at="..." state="..." />`。Advisor 应使用上一次有 body 的 `<primary-context>` 的 `end` 或最近 Pull 的 `end`（取较大者）作为续拉起点。
+同一 Primary user turn 内重复 Ask 时，不重复注入 body，仅发送 position-only `<primary-head at="..." state="..." />`。`<primary-context>` 和 Pull 返回的 `end` 都可以作为后续 `since_index`；Runtime 不替 Advisor 保存或选择 cursor。
 
 ## Automatic Selection
 
-`selectAskContext` 确定 `[start, end)` 区间：`start` 为最新 Primary user message index，`end` 为快照总长度。Runtime 在当前 Advisor Session 内记录最近一次注入的 `primaryUserMessageIndex`（即 `start`）：
+`selectAskContext` 从当前 branch 已持久化的消息确定 `[start, end)` 区间，正在生成且尚未提交的 assistant message 不进入快照。`start` 为最新 Primary user message index，`end` 为快照总长度。Runtime 在当前 Advisor Session 内记录最近一次注入的 `primaryUserMessageIndex`（即 `start`）：
 
 1. 快照没有 Primary user message 时，不附带 body。
 2. 最新 `start` 与记录不同，slice `[start, end)` 通过共享 renderer 生成完整 markdown body，并更新记录。

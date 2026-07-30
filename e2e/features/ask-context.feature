@@ -23,14 +23,20 @@ Feature: Ask Context
     And the user asks Advisor "Review after reset."
     Then the latest Ask Context should include Primary text "Review the cache design." and "The cache now owns request deduplication."
 
-  Scenario: Ask Context includes currently visible Primary Agent work
+  Scenario: Ask Context excludes uncommitted Primary Agent work
     Given Advisor is configured to review the Primary Agent while it is running
     When the Primary Agent starts working on "Now review the streaming response."
     And the Primary Agent response "The streaming response is already visible." becomes visible
     And the user asks Advisor "Review while Primary is running."
     Then the latest Advisor Ask should report the Primary Agent state as "running"
-    And the latest Ask Context should include Primary text "Now review the streaming response." and "The streaming response is already visible."
-    And the latest Ask Context should include a pending Primary read
+    And the latest Ask Context should include committed Primary text "Now review the streaming response." but exclude uncommitted text "The streaming response is already visible."
+
+  Scenario: Pull waits for committed Primary Agent work
+    Given Advisor is configured to pull while the Primary Agent is running
+    When the Primary Agent starts working on "Now review the streaming response."
+    And the Primary Agent response "The streaming response is already visible." becomes visible
+    And the user asks Advisor "Pull after the Primary turn commits."
+    Then the latest Pull Transcript should continue from Ask Context with committed Primary work
 
   Scenario: Ask Context preserves Primary text that contains its XML boundary
     Given Advisor is configured for Ask Context review
