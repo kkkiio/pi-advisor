@@ -85,6 +85,29 @@ When("the user scrolls Advisor Overlay upward with the mouse wheel", async funct
 	this.tuiPi.sendRawInput("\x1b[<64;50;8M");
 });
 
+When(
+	"the user swipes down with horizontal drift on the Advisor Overlay trackpad",
+	async function (this: AdvisorE2EWorld) {
+		// Trackpads emit horizontal wheel events (buttons 66/67) during diagonal swipes;
+		// the sequence ends on a horizontal event so a vertical misreading leaves the
+		// viewport visibly stuck above the bottom.
+		for (let i = 0; i < 3; i++) {
+			this.tuiPi.sendRawInput("\x1b[<65;50;8M");
+			this.tuiPi.sendRawInput("\x1b[<66;50;8M");
+		}
+		await new Promise((resolve) => setTimeout(resolve, 300));
+	},
+);
+
+Then("Advisor Overlay should stay at the transcript bottom", async function (this: AdvisorE2EWorld) {
+	await this.tuiPi.waitForScreen(
+		(candidate) => /· ↑\d+ ↓0/.test(candidate),
+		5_000,
+		"Advisor Overlay pinned to the transcript bottom",
+	);
+	expect(this.tuiPi.captureAdvisorOverlayPlainText()).toMatch(/· ↑\d+ ↓0/);
+});
+
 When("the user opens the Advisor model picker in the terminal", async function (this: AdvisorE2EWorld) {
 	await this.tuiPi.submit("/advisor:model");
 	this.lastTuiScreen = await this.tuiPi.waitForScreen(

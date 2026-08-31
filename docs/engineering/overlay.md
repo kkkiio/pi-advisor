@@ -26,6 +26,8 @@ Overlay 底部输入框接收普通 Ask Advisor 消息，也识别以下控制�
 
 其他 `/` 前缀输入透传给 Advisor Session。Overlay 打开时，方向键、Page Up/Page Down、鼠标滚轮和触控板滚动只操作 Overlay transcript。
 
+终端 mouse reporting 的所有权随 Pi TUI 模式划分：regular 模式下 Pi 不管理鼠标，Overlay 在聚焦时自行开启 SGR mouse reporting（`1000`/`1006`）并在失焦或销毁时关闭；fullscreen 模式下 Pi 自己持有鼠标模式（滚动、选择、滚动条），Overlay 不触碰终端 mouse 序列，直接消费 Pi 透传给聚焦 Overlay 的滚轮输入。
+
 Overlay transcript 使用 Pi TUI 的 `Container`、`Box`、`Text` 和 `Spacer` 组合渲染。用户消息、Context、Pull、普通工具和 Advice Block 的全宽背景由 `Box` 负责，颜色直接使用 Pi theme token；这些 Block 与 Pi 官方消息和工具组件一样使用 `Box(1, 1, ...)` 的水平与垂直内边距，条目之间保留一行 `Spacer(1)`。Advice 使用现有错误背景作为视觉别名，标题和正文使用 `text`。Context 与 Pull 默认各展示前 5 个视觉行，长单条内容换行后仍受同一高度上限约束；Overlay 通过注入的 KeybindingsManager 监听 `app.tools.expand`，统一切换所有 Context 与 Pull Block 的展开状态，并在关闭、重新打开期间保留该状态。切换前记录当前 viewport 中的 transcript 行锨点，重建内容后定位同一条目，避免完整 payload 变长时强制跳到 transcript 底部。用户解绑该 action 时，折叠提示只报告剩余视觉行数，不展示不可用的快捷键。
 
 Overlay Component 直接服从 Pi 传入的实际宽度与终端可用高度。Transcript viewport 可以缩小到 0 行，优先保留 Header、输入分隔线、输入框和底部边框，避免 Pi 对过大的 component 从底部裁剪后隐藏输入区域。

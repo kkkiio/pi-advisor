@@ -32,6 +32,15 @@ Feature: Advisor Overlay
     And normal terminal mouse interaction should be available
     And the main input should accept "Draft"
 
+  Scenario: Trackpad drift does not bounce Advisor Overlay off the transcript bottom
+    Given Advisor is configured in a compact interactive terminal
+    When the user gives Primary Agent work to review
+    Then Primary Agent should finish the work for Advisor
+    When the user asks Advisor from the main input "Review the primary transcript."
+    Then Advisor Overlay should show a completed Second Opinion
+    When the user swipes down with horizontal drift on the Advisor Overlay trackpad
+    Then Advisor Overlay should stay at the transcript bottom
+
   Scenario: Leaving and returning to Advisor preserves its transcript
     Given Advisor is configured in the interactive terminal
     When the user gives Primary Agent work to review
