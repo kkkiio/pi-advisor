@@ -16,6 +16,10 @@ Given("Advisor is configured in a compact interactive terminal", async function 
 	await this.startTuiPi({ advisorModelConfigured: true, width: 100, height: 14 });
 });
 
+Given("Advisor is configured in a compact fullscreen interactive terminal", async function (this: AdvisorE2EWorld) {
+	await this.startTuiPi({ advisorModelConfigured: true, width: 100, height: 14, tuiMode: "fullscreen" });
+});
+
 Given("Advisor uses Ctrl+X to expand chats in the interactive terminal", async function (this: AdvisorE2EWorld) {
 	await this.startTuiPi({
 		advisorModelConfigured: true,
@@ -83,6 +87,29 @@ When("the user presses Ctrl+X in Advisor Overlay", function (this: AdvisorE2EWor
 
 When("the user scrolls Advisor Overlay upward with the mouse wheel", async function (this: AdvisorE2EWorld) {
 	this.tuiPi.sendRawInput("\x1b[<64;50;8M");
+});
+
+When(
+	"the user swipes down with horizontal drift on the Advisor Overlay trackpad",
+	async function (this: AdvisorE2EWorld) {
+		// Trackpads emit horizontal wheel events (buttons 66/67) during diagonal swipes;
+		// the sequence ends on a horizontal event so a vertical misreading leaves the
+		// viewport visibly stuck above the bottom.
+		for (let i = 0; i < 3; i++) {
+			this.tuiPi.sendRawInput("\x1b[<65;50;8M");
+			this.tuiPi.sendRawInput("\x1b[<66;50;8M");
+		}
+		await new Promise((resolve) => setTimeout(resolve, 300));
+	},
+);
+
+Then("Advisor Overlay should stay at the transcript bottom", async function (this: AdvisorE2EWorld) {
+	await this.tuiPi.waitForScreen(
+		(candidate) => /· ↑\d+ ↓0/.test(candidate),
+		5_000,
+		"Advisor Overlay pinned to the transcript bottom",
+	);
+	expect(this.tuiPi.captureAdvisorOverlayPlainText()).toMatch(/· ↑\d+ ↓0/);
 });
 
 When("the user opens the Advisor model picker in the terminal", async function (this: AdvisorE2EWorld) {
@@ -327,6 +354,10 @@ Then("mouse wheel interaction should be active for Advisor Overlay", async funct
 
 Then("normal terminal mouse interaction should be available", async function (this: AdvisorE2EWorld) {
 	await this.tuiPi.waitForMouseReporting(false, 2_000, "normal terminal mouse interaction");
+});
+
+Then("fullscreen terminal mouse interaction should remain active", async function (this: AdvisorE2EWorld) {
+	await this.tuiPi.waitForAnyMouseReporting(true, 2_000, "fullscreen terminal mouse interaction");
 });
 
 Then("Primary Agent should finish the work for Advisor", async function (this: AdvisorE2EWorld) {

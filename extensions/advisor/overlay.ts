@@ -4,6 +4,7 @@ import {
 	type ExtensionContext,
 	type KeybindingsManager,
 } from "@earendil-works/pi-coding-agent";
+import { appendFileSync } from "node:fs";
 import type { Component, Focusable, OverlayHandle, TUI } from "@earendil-works/pi-tui";
 import { Container, Input, Key, matchesKey, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import type { AdviceDeliveryResult, AdvisorContextUsage, AskContextPayload, WatchRunState } from "./types";
@@ -158,6 +159,7 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 	private readonly onDismissCallback: () => void;
 	private transcriptComponent: Component;
 	private transcriptScrollOffset = 0;
+	private lastMaxScroll = 0;
 	private transcriptViewportHeight = 8;
 	private transcriptRenderWidth = 1;
 	private followTranscript = true;
@@ -172,7 +174,7 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 	set focused(value: boolean) {
 		this._focused = value;
 		this.input.focused = value;
-		if (this.mouseReportingEnabled === value) {
+		if (!this.shouldManageMouseReporting() || this.mouseReportingEnabled === value) {
 			return;
 		}
 		this.tui.terminal?.write?.(value ? "\x1b[?1000h\x1b[?1006h" : "\x1b[?1000l\x1b[?1006l");
@@ -227,13 +229,20 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 	}
 
 	dispose(): void {
-		if (this.mouseReportingEnabled) {
+		if (this.mouseReportingEnabled && this.shouldManageMouseReporting()) {
 			this.tui.terminal?.write?.("\x1b[?1000l\x1b[?1006l");
 			this.mouseReportingEnabled = false;
 		}
 	}
 
+	// The fullscreen TUI owns terminal mouse modes for its own scrolling, selection,
+	// and scrollbar. Only the regular TUI needs the overlay to enable reporting itself.
+	private shouldManageMouseReporting(): boolean {
+		return this.tui.mode !== "fullscreen";
+	}
+
 	handleInput(data: string): void {
+		this.recordInputDebug(data);
 		if (matchesKey(data, ADVISOR_OVERLAY_SHORTCUT)) {
 			this.onDismissCallback();
 			return;
@@ -274,7 +283,11 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 		}
 		const mouseScrollDelta = this.getMouseScrollDelta(data);
 		if (mouseScrollDelta !== null) {
-			this.scrollTranscript(mouseScrollDelta);
+			if (mouseScrollDelta !== 0) {
+				this.scrollTranscript(mouseScrollDelta);
+			}
+			// Consume every SGR mouse event; never leak clicks or horizontal
+			// wheel sequences into the input.
 			return;
 		}
 		if (matchesKey(data, Key.pageUp) || matchesKey(data, Key.up)) {
@@ -300,6 +313,7 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 		const transcriptLines = this.transcriptComponent.render(innerWidth);
 
 		const maxScroll = Math.max(0, transcriptLines.length - transcriptHeight);
+		this.lastMaxScroll = maxScroll;
 		if (this.followTranscript) {
 			this.transcriptScrollOffset = maxScroll;
 		} else {
@@ -372,6 +386,12 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 		return Math.max(4, terminalRows);
 	}
 
+	/**
+	 * Returns the vertical scroll delta for an SGR mouse event, 0 for mouse events
+	 * that must be consumed without scrolling (horizontal wheel, clicks), or null
+	 * when the input is not an SGR mouse event. Buttons 64/65 are wheel up/down;
+	 * 66/67 are horizontal wheel, which trackpads emit during diagonal swipes.
+	 */
 	private getMouseScrollDelta(data: string): number | null {
 		const match = data.match(/^\x1b\[<(\d+);\d+;\d+[Mm]$/);
 		if (!match) {
@@ -379,17 +399,55 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 		}
 		const button = Number(match[1]);
 		if ((button & 64) !== 64) {
-			return null;
+			return 0;
 		}
-		return (button & 1) === 0 ? -3 : 3;
+		const direction = button & 3;
+		if (direction === 0) {
+			return -3;
+		}
+		if (direction === 1) {
+			return 3;
+		}
+		return 0;
 	}
 
 	private scrollTranscript(delta: number): void {
+		if (delta > 0 && this.followTranscript) {
+			// Already following the bottom: scrolling down cannot change the view.
+			return;
+		}
+		const previousOffset = this.transcriptScrollOffset;
+		const previousFollow = this.followTranscript;
 		if (delta < 0) {
 			this.followTranscript = false;
 		}
-		this.transcriptScrollOffset = Math.max(0, this.transcriptScrollOffset + delta);
+		// Clamp against the last rendered maxScroll so rapid scroll bursts cannot
+		// overshoot the bottom between frames.
+		this.transcriptScrollOffset = Math.max(0, Math.min(this.lastMaxScroll, this.transcriptScrollOffset + delta));
+		if (this.transcriptScrollOffset >= this.lastMaxScroll) {
+			this.followTranscript = true;
+		}
+		if (this.transcriptScrollOffset === previousOffset && this.followTranscript === previousFollow) {
+			// Nothing changed; avoid a redundant repaint.
+			return;
+		}
 		this.tui.requestRender();
+	}
+
+	// PI_ADVISOR_DEBUG_LOG=/path/to/log captures the raw overlay input stream and
+	// scroll transitions for diagnosing terminal-specific input issues.
+	private recordInputDebug(data: string): void {
+		const logPath = process.env.PI_ADVISOR_DEBUG_LOG;
+		if (!logPath) {
+			return;
+		}
+		const escaped = JSON.stringify(data);
+		const line = `${Date.now()} input=${escaped} offset=${this.transcriptScrollOffset} follow=${this.followTranscript}\n`;
+		try {
+			appendFileSync(logPath, line);
+		} catch {
+			// Debug logging must never break the overlay.
+		}
 	}
 
 	private fitRenderedLine(line: string, width: number): string {
