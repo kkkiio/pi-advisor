@@ -242,7 +242,7 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 	}
 
 	handleInput(data: string): void {
-		this.recordScrollDebug(data);
+		this.recordInputDebug(data);
 		if (matchesKey(data, ADVISOR_OVERLAY_SHORTCUT)) {
 			this.onDismissCallback();
 			return;
@@ -434,10 +434,10 @@ export class AdvisorOverlayComponent extends Container implements Focusable {
 		this.tui.requestRender();
 	}
 
-	// PI_ADVISOR_DEBUG_SCROLL=/path/to/log captures the raw input stream and scroll
-	// transitions for diagnosing scroll jitter reported in specific terminals.
-	private recordScrollDebug(data: string): void {
-		const logPath = process.env.PI_ADVISOR_DEBUG_SCROLL;
+	// PI_ADVISOR_DEBUG_LOG=/path/to/log captures the raw overlay input stream and
+	// scroll transitions for diagnosing terminal-specific input issues.
+	private recordInputDebug(data: string): void {
+		const logPath = process.env.PI_ADVISOR_DEBUG_LOG;
 		if (!logPath) {
 			return;
 		}
