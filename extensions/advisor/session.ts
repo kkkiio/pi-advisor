@@ -1,8 +1,8 @@
 import {
 	DefaultResourceLoader,
 	ModelSelectorComponent,
+	type ModelRuntime,
 	SessionManager,
-	SettingsManager,
 	createAgentSession,
 	type AgentSession,
 	type AgentSessionEvent,
@@ -57,6 +57,17 @@ interface PrimaryWaiter {
 interface LatestSecondOpinion {
 	request: string;
 	answer: string;
+}
+
+/**
+ * ExtensionContext only exposes the synchronous ModelRegistry compatibility facade,
+ * while the SDK's createAgentSession and ModelSelectorComponent take the shared
+ * ModelRuntime behind it. The facade stores the runtime as a plain
+ * (TypeScript-private) property. Sharing the Primary's runtime keeps
+ * extension-registered providers and runtime credentials available to Advisor.
+ */
+function resolveModelRuntime(ctx: ExtensionContext): ModelRuntime | undefined {
+	return (ctx.modelRegistry as unknown as { runtime?: ModelRuntime }).runtime;
 }
 
 export class AdvisorRuntime implements AdvisorRuntimePort {
@@ -451,11 +462,14 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 			if (ctx.mode === "tui") {
 				const currentRef = settings.model ? parseAdvisorModelRef(settings.model) : undefined;
 				const currentModel = currentRef ? ctx.modelRegistry.find(currentRef.provider, currentRef.id) : undefined;
+				const modelRuntime = resolveModelRuntime(ctx);
+				if (!modelRuntime) {
+					ctx.ui.notify("Advisor model picker requires Pi's model runtime.", "error");
+					return;
+				}
 				const selected = await ctx.ui.custom<Model<any> | undefined>(
 					(tui, _theme, _keybindings, done) =>
-						new ModelSelectorComponent(tui, currentModel, SettingsManager.inMemory(), ctx.modelRegistry, [], done, () =>
-							done(undefined),
-						),
+						new ModelSelectorComponent(tui, currentModel, modelRuntime, [], done, () => done(undefined)),
 				);
 				if (!selected) {
 					return;
@@ -622,6 +636,14 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 			this.overlay.refresh();
 			return undefined;
 		}
+		const modelRuntime = resolveModelRuntime(ctx);
+		if (!modelRuntime) {
+			const message = "Advisor session requires Pi's model runtime.";
+			ctx.ui.notify(message, "warning");
+			this.overlay.state.recordError(new Error(message));
+			this.overlay.refresh();
+			return undefined;
+		}
 		const primaryTools = this.pi
 			.getActiveTools()
 			.filter((toolName) => !ADVISOR_DISABLED_PRIMARY_TOOL_NAMES.has(toolName));
@@ -641,7 +663,7 @@ Use pull_transcript with timeout_ms to follow Primary Agent progress. Send Hint 
 			cwd: ctx.cwd,
 			sessionManager: SessionManager.inMemory(ctx.cwd),
 			model: resolved.model,
-			modelRegistry: ctx.modelRegistry,
+			modelRuntime,
 			thinkingLevel: resolved.thinkingLevel,
 			tools,
 			customTools: createAdvisorTools(this),
