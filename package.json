@@ -1,6 +1,6 @@
 {
   "name": "@kkkiio/pi-advisor",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A btw-style second opinion and watchdog for Pi, using a dedicated review model",
   "type": "module",
   "license": "Apache-2.0",
