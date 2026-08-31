@@ -32,6 +32,14 @@ Feature: Advisor Overlay
     And normal terminal mouse interaction should be available
     And the main input should accept "Draft"
 
+  Scenario: Closing Advisor Overlay keeps fullscreen terminal mouse interaction active
+    Given Advisor is configured in a compact fullscreen interactive terminal
+    When the user opens Advisor Overlay from the main input
+    Then Advisor Overlay should be visible
+    When the user leaves Advisor Overlay
+    Then Advisor Overlay should be hidden
+    And fullscreen terminal mouse interaction should remain active
+
   Scenario: Trackpad drift does not bounce Advisor Overlay off the transcript bottom
     Given Advisor is configured in a compact interactive terminal
     When the user gives Primary Agent work to review

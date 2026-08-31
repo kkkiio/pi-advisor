@@ -16,6 +16,10 @@ Given("Advisor is configured in a compact interactive terminal", async function 
 	await this.startTuiPi({ advisorModelConfigured: true, width: 100, height: 14 });
 });
 
+Given("Advisor is configured in a compact fullscreen interactive terminal", async function (this: AdvisorE2EWorld) {
+	await this.startTuiPi({ advisorModelConfigured: true, width: 100, height: 14, tuiMode: "fullscreen" });
+});
+
 Given("Advisor uses Ctrl+X to expand chats in the interactive terminal", async function (this: AdvisorE2EWorld) {
 	await this.startTuiPi({
 		advisorModelConfigured: true,
@@ -350,6 +354,10 @@ Then("mouse wheel interaction should be active for Advisor Overlay", async funct
 
 Then("normal terminal mouse interaction should be available", async function (this: AdvisorE2EWorld) {
 	await this.tuiPi.waitForMouseReporting(false, 2_000, "normal terminal mouse interaction");
+});
+
+Then("fullscreen terminal mouse interaction should remain active", async function (this: AdvisorE2EWorld) {
+	await this.tuiPi.waitForAnyMouseReporting(true, 2_000, "fullscreen terminal mouse interaction");
 });
 
 Then("Primary Agent should finish the work for Advisor", async function (this: AdvisorE2EWorld) {

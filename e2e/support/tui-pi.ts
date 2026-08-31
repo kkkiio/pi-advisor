@@ -8,6 +8,7 @@ export interface TuiPiOptions {
 	advisorModelConfigured?: boolean;
 	color?: boolean;
 	expandToolsKey?: string;
+	tuiMode?: "regular" | "fullscreen";
 	script?:
 		"default" | "overlay-pull-collapse" | "readme" | "visual-natural" | "visual-overlay-pull-collapse" | "watch-wait";
 	width?: number;
@@ -151,17 +152,21 @@ export class TuiPi {
 	}
 
 	async waitForMouseReporting(expected: boolean, timeoutMs: number, label: string): Promise<void> {
+		await this.waitForMouseFlags(expected ? "1:1" : "0:0", "#{mouse_standard_flag}:#{mouse_sgr_flag}", timeoutMs, label);
+	}
+
+	async waitForAnyMouseReporting(expected: boolean, timeoutMs: number, label: string): Promise<void> {
+		// Fullscreen pi enables button-motion tracking (1002), which tmux reports
+		// through mouse_any_flag rather than mouse_standard_flag.
+		await this.waitForMouseFlags(expected ? "1:1" : "0:0", "#{mouse_any_flag}:#{mouse_sgr_flag}", timeoutMs, label);
+	}
+
+	private async waitForMouseFlags(expected: string, format: string, timeoutMs: number, label: string): Promise<void> {
 		const started = Date.now();
 		let lastOutput = "";
 		while (Date.now() - started < timeoutMs) {
-			lastOutput = this.tmux([
-				"list-panes",
-				"-t",
-				this.sessionName,
-				"-F",
-				"#{mouse_standard_flag}:#{mouse_sgr_flag}",
-			]).trim();
-			if ((lastOutput === "1:1") === expected) {
+			lastOutput = this.tmux(["list-panes", "-t", this.sessionName, "-F", format]).trim();
+			if (lastOutput === expected) {
 				return;
 			}
 			await this.sleep(25);
@@ -255,6 +260,7 @@ export class TuiPi {
 			"CI=1",
 			"PI_OFFLINE=1",
 			shellQuote(resolvePiBin()),
+			...(options.tuiMode ? ["--tui-mode", options.tuiMode] : []),
 			"--offline",
 			"--no-session",
 			"--no-extensions",

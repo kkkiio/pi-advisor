@@ -87,8 +87,7 @@ When("the Primary Agent response {string} becomes visible", async function (this
 				if (event.type !== "message_update") {
 					return [];
 				}
-				const delta = (event as { assistantMessageEvent?: { type?: string; delta?: unknown } })
-					.assistantMessageEvent;
+				const delta = (event as { assistantMessageEvent?: { type?: string; delta?: unknown } }).assistantMessageEvent;
 				return delta?.type === "text_delta" && typeof delta.delta === "string" ? [delta.delta] : [];
 			})
 			.join("");
