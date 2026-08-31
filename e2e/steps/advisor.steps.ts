@@ -79,15 +79,20 @@ When(
 When("the Primary Agent response {string} becomes visible", async function (this: AdvisorE2EWorld, text: string) {
 	const started = Date.now();
 	while (Date.now() - started < 20_000) {
-		const update = this.rpcPi.events
+		// RPC message_update events carry streaming deltas (assistantMessageEvent)
+		// without the accumulated message, so rebuild the streamed text from deltas.
+		const streamed = this.rpcPi.events
 			.slice(this.lastEventIndex)
-			.find(
-				(event) =>
-					event.type === "message_update" &&
-					event.message?.role === "assistant" &&
-					JSON.stringify(event.message).includes(text),
-			);
-		if (update) {
+			.flatMap((event) => {
+				if (event.type !== "message_update") {
+					return [];
+				}
+				const delta = (event as { assistantMessageEvent?: { type?: string; delta?: unknown } })
+					.assistantMessageEvent;
+				return delta?.type === "text_delta" && typeof delta.delta === "string" ? [delta.delta] : [];
+			})
+			.join("");
+		if (streamed.includes(text)) {
 			return;
 		}
 		await this.rpcPi.sleep(100);
